@@ -32,7 +32,7 @@ Implemented `schemas/provisioning-profile.schema.json`, deterministic UTF-8 JSON
 
 ## Phase 1: reusable profiles
 
-### [ ] WP-012: Profile repository and local storage
+### [x] WP-012: Profile repository and local storage
 
 Implement `IProfileRepository` and a production store outside the binary directory, normally `%ProgramData%\Easyaller\Profiles`.
 
@@ -43,6 +43,10 @@ Acceptance criteria:
 - Use temp-write, atomic rename, and recoverable backup.
 - Isolate corrupted files instead of crashing the application.
 - Unit tests use a temporary directory and cover write interruption and conflicts.
+
+Implemented `IProfileRepository` and `FileProfileRepository`. The production root defaults to `%ProgramData%\\Easyaller\\Profiles`; tests use a temporary directory. Writes use a same-directory temporary file, atomic rename, and a `.backup.json` recovery file. Invalid local profile files move to `Corrupted` and are reported without stopping the profile list. Updates and deletes require the caller's expected revision.
+
+Verified: `dotnet test Easyaller.slnx` with 20 passing tests.
 
 ### [ ] WP-013: Import and export application service
 
