@@ -1,0 +1,169 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://easyaller.dev/schemas/provisioning-profile.schema.json",
+  "title": "Easyaller provisioning profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "profileId", "revision", "metadata", "windows", "machine", "domain", "applications", "instructions", "deployment", "cleanup"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "profileId": { "type": "string", "format": "uuid" },
+    "revision": { "type": "integer", "minimum": 1 },
+    "metadata": { "$ref": "#/$defs/metadata" },
+    "windows": { "$ref": "#/$defs/windows" },
+    "machine": { "$ref": "#/$defs/machine" },
+    "domain": { "$ref": "#/$defs/domain" },
+    "applications": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/application" }
+    },
+    "instructions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/instruction" }
+    },
+    "deployment": { "$ref": "#/$defs/deployment" },
+    "cleanup": { "$ref": "#/$defs/cleanup" }
+  },
+  "$defs": {
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "description": { "type": ["string", "null"] }
+      }
+    },
+    "windows": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["supportedEditions", "architecture", "locale", "timeZone", "oobe", "privacy"],
+      "properties": {
+        "supportedEditions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "enum": ["professional", "enterprise"] }
+        },
+        "architecture": { "const": "amd64" },
+        "locale": { "$ref": "#/$defs/locale" },
+        "timeZone": { "type": "string", "minLength": 1 },
+        "oobe": { "$ref": "#/$defs/oobe" },
+        "privacy": { "$ref": "#/$defs/privacy" }
+      }
+    },
+    "locale": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uiLanguage", "inputLocale", "systemLocale", "userLocale"],
+      "properties": {
+        "uiLanguage": { "type": "string", "minLength": 1 },
+        "inputLocale": { "type": "string", "minLength": 1 },
+        "systemLocale": { "type": "string", "minLength": 1 },
+        "userLocale": { "type": "string", "minLength": 1 }
+      }
+    },
+    "oobe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["offlineInitialSetup"],
+      "properties": {
+        "hideEula": { "type": ["boolean", "null"] },
+        "hideWirelessSetup": { "type": ["boolean", "null"] },
+        "hideOnlineAccountScreens": { "type": ["boolean", "null"] },
+        "offlineInitialSetup": { "type": "boolean" },
+        "protectYourPc": { "type": ["integer", "null"], "minimum": 1, "maximum": 3 }
+      }
+    },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["locationServices", "advertisingId", "diagnosticData", "tailoredExperiences", "onlineSpeechRecognition", "findMyDevice", "inkingAndTypingPersonalization"],
+      "properties": {
+        "locationServices": { "$ref": "#/$defs/privacyPreference" },
+        "advertisingId": { "$ref": "#/$defs/privacyPreference" },
+        "diagnosticData": { "$ref": "#/$defs/privacyPreference" },
+        "tailoredExperiences": { "$ref": "#/$defs/privacyPreference" },
+        "onlineSpeechRecognition": { "$ref": "#/$defs/privacyPreference" },
+        "findMyDevice": { "$ref": "#/$defs/privacyPreference" },
+        "inkingAndTypingPersonalization": { "$ref": "#/$defs/privacyPreference" }
+      }
+    },
+    "privacyPreference": { "enum": ["notConfigured", "userChoice", "enabled", "disabled"] },
+    "machine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["computerName", "network", "proxy"],
+      "properties": {
+        "computerName": { "$ref": "#/$defs/computerName" },
+        "network": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode"],
+          "properties": { "mode": { "const": "promptAtRuntime" } }
+        },
+        "proxy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode"],
+          "properties": { "mode": { "enum": ["notConfigured", "promptAtRuntime"] } }
+        }
+      }
+    },
+    "computerName": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": { "const": "requiredAtRuntime" },
+        "prefix": { "type": ["string", "null"], "pattern": "^[A-Za-z0-9-]{1,15}$" }
+      }
+    },
+    "domain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "credentials"],
+      "properties": {
+        "mode": { "enum": ["notConfigured", "optional", "required"] },
+        "credentials": { "const": "promptAtRuntime" }
+      }
+    },
+    "application": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "displayName", "sourceKind", "arguments"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "displayName": { "type": "string", "minLength": 1 },
+        "sourceKind": { "enum": ["packageRelative", "externalManual"] },
+        "packageRelativePath": { "type": ["string", "null"] },
+        "arguments": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "instruction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "content"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "content": { "type": "string" }
+      }
+    },
+    "deployment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["launchMode"],
+      "properties": { "launchMode": { "enum": ["manual", "firstLogon"] } }
+    },
+    "cleanup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provisioningAccount"],
+      "properties": { "provisioningAccount": { "enum": ["disableAfterValidation", "deleteAfterValidation"] } }
+    }
+  }
+}

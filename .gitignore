@@ -1,0 +1,22 @@
+# Local organization and machine configuration. Never publish these files.
+/config/
+/profiles/
+*.wpprofile.json
+!examples/profiles/*.wpprofile.json
+!tests/Easyaller.Core.Tests/Fixtures/Profiles/*.wpprofile.json
+
+# Sensitive per-machine deployment output.
+/WindowsDeployment/
+/deployment-output/
+
+# Large local test artifacts.
+*.iso
+*.wim
+*.esd
+*.vhd
+*.vhdx
+
+# Build and IDE output.
+[Bb]in/
+[Oo]bj/
+.vs/

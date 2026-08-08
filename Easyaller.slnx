@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Easyaller.Core/Easyaller.Core.csproj" />
+    <Project Path="src/Easyaller.Deployment/Easyaller.Deployment.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Easyaller.Core.Tests/Easyaller.Core.Tests.csproj" />
+  </Folder>
+</Solution>

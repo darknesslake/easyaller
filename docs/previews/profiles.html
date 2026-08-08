@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Easyaller - Profiles preview</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand"><div class="mark">E</div>Easyaller</div>
+      <p class="nav-label">Workspace</p>
+      <nav class="nav">
+        <a href="#"><span class="nav-icon">□</span>Set up this PC</a>
+        <a class="active" href="#"><span class="nav-icon">◈</span>Profiles</a>
+        <a href="#"><span class="nav-icon">↑</span>Prepare Windows 11</a>
+        <a href="#"><span class="nav-icon">◌</span>Activity</a>
+      </nav>
+      <p class="sidebar-footer">Pre-alpha preview<br>English interface</p>
+    </aside>
+    <main>
+      <div class="topline"><span class="eyebrow">Configuration library</span><span class="preview-note">Pre-alpha interface preview</span></div>
+      <h1>Profiles</h1>
+      <p class="lead">Create portable workstation profiles, review their contents, and exchange them safely without storing credentials.</p>
+      <div class="actions"><button class="primary">New profile</button><button>Import profile</button><button>Export selected</button></div>
+      <div class="grid">
+        <section class="card">
+          <div class="card-header"><span class="card-title">Available profiles</span><span class="muted">3 profiles</span></div>
+          <div class="profile-row"><div class="profile-symbol">D</div><div><div class="profile-name">Default workstation</div><div class="profile-detail">Windows 11 Pro and Enterprise</div></div><span class="status">Validated</span><span class="revision">Revision 1</span></div>
+          <div class="profile-row"><div class="profile-symbol">F</div><div><div class="profile-name">Field laptop</div><div class="profile-detail">Runtime network setup required</div></div><span class="status">Validated</span><span class="revision">Revision 4</span></div>
+          <div class="profile-row"><div class="profile-symbol">L</div><div><div class="profile-name">Lab workstation</div><div class="profile-detail">Imported from a local file</div></div><span class="status">Review needed</span><span class="revision">Revision 2</span></div>
+        </section>
+        <aside class="card">
+          <div class="card-header"><span class="card-title">Selected profile</span><span class="muted">Safe to export</span></div>
+          <div class="summary-list">
+            <div class="summary-item"><span>Windows editions</span><span>Pro, Enterprise</span></div>
+            <div class="summary-item"><span>Computer name</span><span>Required at runtime</span></div>
+            <div class="summary-item"><span>Network</span><span>Prompt at runtime</span></div>
+            <div class="summary-item"><span>Domain credentials</span><span>Never stored</span></div>
+            <div class="summary-item"><span>Privacy defaults</span><span>Not configured</span></div>
+          </div>
+        </aside>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

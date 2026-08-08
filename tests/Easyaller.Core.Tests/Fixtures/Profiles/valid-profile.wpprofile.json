@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "profileId": "ef0cceae-1662-4ad2-95d5-c105f3274853",
+  "revision": 1,
+  "metadata": {
+    "name": "Example workstation",
+    "description": "A neutral profile for tests"
+  },
+  "windows": {
+    "supportedEditions": ["professional", "enterprise"],
+    "architecture": "amd64",
+    "locale": {
+      "uiLanguage": "en-US",
+      "inputLocale": "en-US",
+      "systemLocale": "en-US",
+      "userLocale": "en-US"
+    },
+    "timeZone": "UTC",
+    "oobe": {
+      "offlineInitialSetup": false
+    },
+    "privacy": {
+      "locationServices": "notConfigured",
+      "advertisingId": "notConfigured",
+      "diagnosticData": "notConfigured",
+      "tailoredExperiences": "notConfigured",
+      "onlineSpeechRecognition": "notConfigured",
+      "findMyDevice": "notConfigured",
+      "inkingAndTypingPersonalization": "notConfigured"
+    }
+  },
+  "machine": {
+    "computerName": { "mode": "requiredAtRuntime" },
+    "network": { "mode": "promptAtRuntime" },
+    "proxy": { "mode": "notConfigured" }
+  },
+  "domain": {
+    "mode": "optional",
+    "credentials": "promptAtRuntime"
+  },
+  "applications": [],
+  "instructions": [],
+  "deployment": { "launchMode": "firstLogon" },
+  "cleanup": { "provisioningAccount": "disableAfterValidation" }
+}

@@ -1,0 +1,76 @@
+# Easyaller
+
+Easyaller is an open-source Windows workstation provisioning tool. It separates reusable, versioned configuration profiles from sensitive per-machine deployment packages, so teams can share setup standards without committing credentials or local configuration to Git.
+
+> Status: pre-alpha. The profile contract and validation foundation are implemented. Windows deployment, first boot orchestration, and USB creation are planned but not implemented yet.
+
+## Interface previews
+
+These are static pre-alpha interface previews. They show the intended English UI direction and are not screenshots of a completed desktop application.
+
+![Easyaller Profiles preview](docs/assets/profiles-preview.png)
+
+![Easyaller Prepare Windows 11 preview](docs/assets/prepare-windows-preview.png)
+
+## What Easyaller is for
+
+- Build and exchange portable workstation profiles.
+- Require the final computer name, network settings, proxy, and domain credentials at runtime.
+- Prepare a Windows 11 deployment package using documented Windows Setup mechanisms.
+- Reuse one provisioning pipeline after Windows first boot rather than maintaining a second deployment engine.
+- Make destructive USB creation an explicit, separately protected workflow.
+
+## Safety model
+
+- Reusable profiles must never contain passwords, tokens, or domain credentials.
+- Imported JSON is untrusted input. The loader rejects duplicate keys, unknown fields, invalid enum values, and unsupported schema versions.
+- Application paths are constrained to the deployment package. Path traversal and absolute paths are rejected.
+- A per-machine deployment package is treated as sensitive and is ignored by Git.
+- Disk partitioning and USB formatting are out of scope for the current implementation.
+
+## Implemented today
+
+- Versioned `*.wpprofile.json` profile domain model.
+- JSON Schema v1 in [`schemas/provisioning-profile.schema.json`](schemas/provisioning-profile.schema.json).
+- Deterministic UTF-8 JSON serialization with a stable property order and a final newline.
+- Strict profile loading with schema-version, duplicate-property, required-field, locale, OOBE, and package-path validation.
+- Neutral profile fixtures and unit tests.
+
+## Repository layout
+
+```text
+src/
+  Easyaller.Core/          Profile model, validation, serialization
+  Easyaller.Deployment/    Future Windows deployment module
+tests/
+  Easyaller.Core.Tests/    Unit tests and neutral JSON fixtures
+schemas/                   Public profile contract
+docs/previews/             Source for the interface previews
+docs/assets/               README screenshots
+```
+
+## Development
+
+Prerequisite: .NET SDK 10.
+
+```sh
+dotnet build Easyaller.slnx
+dotnet test Easyaller.slnx --no-build
+```
+
+Local organization configuration, real exported profiles, deployment output, ISO files, VM disks, installers, and build output are ignored by Git. Only neutral test fixtures and future public examples may use the `*.wpprofile.json` extension in the repository.
+
+## Roadmap
+
+1. Atomic local profile storage with revisions and backups.
+2. Profile import and export previews with conflict resolution.
+3. Windows 11 answer-file generation and compatibility validation.
+4. First-boot handoff to Easyaller after a manual local provisioning sign-in.
+5. VM validation on supported Windows editions and builds.
+6. Safe USB creation with independent removable-drive checks and explicit destructive confirmation.
+
+Read [`PRODUCT_SPEC.md`](PRODUCT_SPEC.md) for product decisions and [`TASKS.md`](TASKS.md) for the implementation sequence.
+
+## License
+
+[MIT](LICENSE)

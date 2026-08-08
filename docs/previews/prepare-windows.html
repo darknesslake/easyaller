@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Easyaller - Prepare Windows 11 preview</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand"><div class="mark">E</div>Easyaller</div>
+      <p class="nav-label">Workspace</p>
+      <nav class="nav">
+        <a href="#"><span class="nav-icon">□</span>Set up this PC</a>
+        <a href="#"><span class="nav-icon">◈</span>Profiles</a>
+        <a class="active" href="#"><span class="nav-icon">↑</span>Prepare Windows 11</a>
+        <a href="#"><span class="nav-icon">◌</span>Activity</a>
+      </nav>
+      <p class="sidebar-footer">Pre-alpha preview<br>English interface</p>
+    </aside>
+    <main>
+      <div class="topline"><span class="eyebrow">Deployment package</span><span class="preview-note">Pre-alpha interface preview</span></div>
+      <h1>Prepare Windows 11</h1>
+      <p class="lead">Generate and review a safe deployment package before writing anything to removable media.</p>
+      <div class="flow">
+        <section class="step"><div class="step-number">01</div><h2>Choose profile</h2><p>Default workstation<br>Revision 1</p></section>
+        <section class="step"><div class="step-number">02</div><h2>Review configuration</h2><p>Windows 11 Pro and Enterprise<br>amd64</p></section>
+        <section class="step"><div class="step-number">03</div><h2>Export package</h2><p>Creates files only<br>No USB formatting</p></section>
+      </div>
+      <div class="grid" style="margin-top:20px">
+        <section class="card">
+          <div class="card-header"><span class="card-title">Deployment summary</span><span class="status">Validated profile</span></div>
+          <div class="summary-list">
+            <div class="summary-item"><span>Language</span><span>English (United States)</span></div>
+            <div class="summary-item"><span>Time zone</span><span>UTC</span></div>
+            <div class="summary-item"><span>Internet during OOBE</span><span>Profile controlled</span></div>
+            <div class="summary-item"><span>Microsoft account</span><span>Not required by profile</span></div>
+            <div class="summary-item"><span>Provisioner launch</span><span>First logon</span></div>
+            <div class="summary-item"><span>Credentials in profile</span><span>None</span></div>
+          </div>
+          <div class="warning">A deployment package may contain a unique temporary local-account password. It is sensitive, is never written to a reusable profile, and must not be committed to Git.</div>
+        </section>
+        <aside class="card">
+          <div class="card-header"><span class="card-title">Validation</span><span class="muted">Ready for dry run</span></div>
+          <div class="summary-list">
+            <div class="check-row"><span class="check">✓</span>Profile schema v1</div>
+            <div class="check-row"><span class="check">✓</span>Locale configuration</div>
+            <div class="check-row"><span class="check">✓</span>No domain credentials</div>
+            <div class="check-row"><span class="check">✓</span>No disk partitioning</div>
+          </div>
+          <div class="actions" style="margin:22px"><button>Preview XML</button><button class="primary">Run dry run</button></div>
+        </aside>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
