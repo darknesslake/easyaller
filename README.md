@@ -60,16 +60,7 @@ dotnet test Easyaller.slnx --no-build
 
 Local organization configuration, real exported profiles, deployment output, ISO files, VM disks, installers, and build output are ignored by Git. Only neutral test fixtures and future public examples may use the `*.wpprofile.json` extension in the repository.
 
-## Roadmap
-
-1. Atomic local profile storage with revisions and backups.
-2. Profile import and export previews with conflict resolution.
-3. Windows 11 answer-file generation and compatibility validation.
-4. First-boot handoff to Easyaller after a manual local provisioning sign-in.
-5. VM validation on supported Windows editions and builds.
-6. Safe USB creation with independent removable-drive checks and explicit destructive confirmation.
-
-Read [`PRODUCT_SPEC.md`](PRODUCT_SPEC.md) for product decisions and [`TASKS.md`](TASKS.md) for the implementation sequence.
+Read [`PRODUCT_SPEC.md`](PRODUCT_SPEC.md) for product decisions.
 
 ## License
 
