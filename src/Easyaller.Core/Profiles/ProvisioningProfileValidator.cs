@@ -134,9 +134,36 @@ public sealed class ProvisioningProfileValidator
     private static void ValidateLocale(LocaleSettings locale, ICollection<ProfileValidationError> errors)
     {
         ValidateCulture(locale.UiLanguage, "windows.locale.uiLanguage", errors);
-        ValidateCulture(locale.InputLocale, "windows.locale.inputLocale", errors);
+        ValidateInputLocales(locale.InputLocale, errors);
         ValidateCulture(locale.SystemLocale, "windows.locale.systemLocale", errors);
         ValidateCulture(locale.UserLocale, "windows.locale.userLocale", errors);
+    }
+
+    private static void ValidateInputLocales(string inputLocales, ICollection<ProfileValidationError> errors)
+    {
+        if (string.IsNullOrWhiteSpace(inputLocales))
+        {
+            errors.Add(new ProfileValidationError(
+                "windows.locale.required",
+                "windows.locale.inputLocale",
+                "Locale is required."));
+            return;
+        }
+
+        var values = inputLocales.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (values.Length == 0)
+        {
+            errors.Add(new ProfileValidationError(
+                "windows.locale.required",
+                "windows.locale.inputLocale",
+                "Locale is required."));
+            return;
+        }
+
+        foreach (var inputLocale in values)
+        {
+            ValidateCulture(inputLocale, "windows.locale.inputLocale", errors);
+        }
     }
 
     private static void ValidateCulture(string cultureName, string fieldPath, ICollection<ProfileValidationError> errors)

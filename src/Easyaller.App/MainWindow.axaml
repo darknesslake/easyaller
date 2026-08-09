@@ -118,30 +118,74 @@
                   </StackPanel>
                   <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
                     <StackPanel Spacing="6">
-                      <TextBlock Text="Язык интерфейса" FontSize="12" Foreground="#A9B7CD" />
-                      <TextBox x:Name="UiLanguageTextBox" PlaceholderText="en-US" />
-                      <TextBlock Text="Язык меню и системных диалогов Windows." TextWrapping="Wrap" FontSize="12" Foreground="#7F93B4" />
+                      <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Язык интерфейса" FontSize="12" Foreground="#A9B7CD" />
+                        <Border Classes="helpBadge" ToolTip.Tip="Определяет язык меню, кнопок и основных системных диалогов Windows.">
+                          <TextBlock Classes="helpBadgeText" Text="!" />
+                        </Border>
+                      </StackPanel>
+                      <ComboBox x:Name="UiLanguageComboBox">
+                        <ComboBoxItem Tag="en-US">English (en-US)</ComboBoxItem>
+                        <ComboBoxItem Tag="ru-RU">Русский (ru-RU)</ComboBoxItem>
+                      </ComboBox>
+                      <TextBlock Text="Язык, на котором пользователь видит Windows после установки." TextWrapping="Wrap" FontSize="12" Foreground="#7F93B4" />
                     </StackPanel>
                     <StackPanel Grid.Column="1" Spacing="6">
-                      <TextBlock Text="Часовой пояс" FontSize="12" Foreground="#A9B7CD" />
-                      <TextBox x:Name="TimeZoneTextBox" PlaceholderText="UTC" />
-                      <TextBlock Text="Системный часовой пояс, например UTC." TextWrapping="Wrap" FontSize="12" Foreground="#7F93B4" />
+                      <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Часовой пояс" FontSize="12" Foreground="#A9B7CD" />
+                        <Border Classes="helpBadge" ToolTip.Tip="Задаёт системное время Windows. Выберите зону, в которой будет работать компьютер.">
+                          <TextBlock Classes="helpBadgeText" Text="!" />
+                        </Border>
+                      </StackPanel>
+                      <ComboBox x:Name="TimeZoneComboBox">
+                        <ComboBoxItem Tag="UTC">UTC (универсальное координированное время)</ComboBoxItem>
+                        <ComboBoxItem Tag="West Asia Standard Time">UTC+05:00 (West Asia Standard Time)</ComboBoxItem>
+                        <ComboBoxItem Tag="Central Asia Standard Time">UTC+06:00 (Central Asia Standard Time)</ComboBoxItem>
+                        <ComboBoxItem Tag="Russian Standard Time">UTC+03:00 (Russian Standard Time)</ComboBoxItem>
+                      </ComboBox>
+                      <TextBlock Text="Системная зона Windows для часов, расписаний и журналов событий." TextWrapping="Wrap" FontSize="12" Foreground="#7F93B4" />
                     </StackPanel>
                   </Grid>
-                  <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
+                  <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
                     <StackPanel Spacing="6">
-                      <TextBlock Text="Язык ввода" FontSize="12" Foreground="#A9B7CD" />
-                      <TextBox x:Name="InputLocaleTextBox" PlaceholderText="en-US" />
+                      <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Системный язык" FontSize="12" Foreground="#A9B7CD" />
+                        <Border Classes="helpBadge" ToolTip.Tip="Определяет язык программ без собственного выбора языка и системных форматов по умолчанию.">
+                          <TextBlock Classes="helpBadgeText" Text="!" />
+                        </Border>
+                      </StackPanel>
+                      <ComboBox x:Name="SystemLocaleComboBox">
+                        <ComboBoxItem Tag="en-US">English (en-US)</ComboBoxItem>
+                        <ComboBoxItem Tag="ru-RU">Русский (ru-RU)</ComboBoxItem>
+                      </ComboBox>
+                      <TextBlock Text="Язык по умолчанию для системных компонентов и программ." TextWrapping="Wrap" FontSize="12" Foreground="#7F93B4" />
                     </StackPanel>
                     <StackPanel Grid.Column="1" Spacing="6">
-                      <TextBlock Text="Системный язык" FontSize="12" Foreground="#A9B7CD" />
-                      <TextBox x:Name="SystemLocaleTextBox" PlaceholderText="en-US" />
-                    </StackPanel>
-                    <StackPanel Grid.Column="2" Spacing="6">
-                      <TextBlock Text="Язык пользователя" FontSize="12" Foreground="#A9B7CD" />
-                      <TextBox x:Name="UserLocaleTextBox" PlaceholderText="en-US" />
+                      <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Язык пользователя" FontSize="12" Foreground="#A9B7CD" />
+                        <Border Classes="helpBadge" ToolTip.Tip="Определяет региональный язык нового профиля пользователя: даты, числа и другие пользовательские форматы.">
+                          <TextBlock Classes="helpBadgeText" Text="!" />
+                        </Border>
+                      </StackPanel>
+                      <ComboBox x:Name="UserLocaleComboBox">
+                        <ComboBoxItem Tag="en-US">English (en-US)</ComboBoxItem>
+                        <ComboBoxItem Tag="ru-RU">Русский (ru-RU)</ComboBoxItem>
+                      </ComboBox>
+                      <TextBlock Text="Региональный язык для нового профиля пользователя." TextWrapping="Wrap" FontSize="12" Foreground="#7F93B4" />
                     </StackPanel>
                   </Grid>
+                  <Border Background="#20324A" CornerRadius="12" Padding="12">
+                    <StackPanel Spacing="4">
+                      <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Языки ввода" FontSize="12" FontWeight="SemiBold" Foreground="#DCE8F8" />
+                        <Border Classes="helpBadge" ToolTip.Tip="Easyaller всегда добавляет обе раскладки, чтобы после установки можно было переключаться между английским и русским вводом.">
+                          <TextBlock Classes="helpBadgeText" Text="!" />
+                        </Border>
+                      </StackPanel>
+                      <TextBlock Text="English (en-US) + Русский (ru-RU)" FontWeight="SemiBold" Foreground="#93C5FD" />
+                      <TextBlock Text="Обе раскладки сохраняются в профиле автоматически. Ручной ввод кода языка не нужен." TextWrapping="Wrap" FontSize="12" Foreground="#7F93B4" />
+                    </StackPanel>
+                  </Border>
                   <StackPanel Spacing="6">
                     <StackPanel Orientation="Horizontal">
                       <CheckBox x:Name="OfflineInitialSetupCheckBox" Content="Подготовить автономный первый запуск" />

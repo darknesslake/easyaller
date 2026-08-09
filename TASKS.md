@@ -346,3 +346,7 @@ Replaced the platform-default black Expander controls in the profile editor with
 ### [x] WP-078: Live desktop visual review
 
 Launched the real Avalonia application on macOS and reviewed system screenshots of the rendered main window rather than relying only on XAML. The review found and corrected the remaining black Expander template, macOS accent-colored toggle state, centered page subtitle, stale initial status, partial-width section header, duplicated fixed description, and an editor that reopened in the middle of the form. Profile selection now resets the editor to the top, displays an accurate status, and leaves more vertical space for the active section. Screenshots remain temporary review artifacts outside Git.
+
+### [x] WP-079: Constrained language and time-zone selections
+
+Replaced manual profile text fields for interface, system, and user languages with explicit English (`en-US`) and Russian (`ru-RU`) choices. Each control now explains its scope through visible text and hover help. The editor always saves English and Russian input layouts together as `en-US;ru-RU`; profile validation now supports this documented semicolon-separated Windows input-locale list, and the deterministic answer-file generator is covered by a matching test. Time zone is also selected from a named Windows time-zone list instead of entered as free text. Existing imported values remain unchanged until the operator selects a supported option and saves.

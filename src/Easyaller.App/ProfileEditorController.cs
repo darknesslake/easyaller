@@ -4,6 +4,8 @@ namespace Easyaller.App;
 
 public sealed class ProfileEditorController(IProfileRepository repository)
 {
+    public const string RequiredInputLocales = "en-US;ru-RU";
+
     private readonly IProfileRepository _repository = repository ?? throw new ArgumentNullException(nameof(repository));
 
     public ProfileRepositoryWriteResult Save(ProvisioningProfile original, string? name, string? description)
@@ -47,7 +49,7 @@ public sealed class ProfileEditorController(IProfileRepository repository)
                 SupportedEditions = settings.SupportedEditions.ToArray(),
                 Locale = new LocaleSettings(
                     settings.UiLanguage?.Trim() ?? string.Empty,
-                    settings.InputLocale?.Trim() ?? string.Empty,
+                    RequiredInputLocales,
                     settings.SystemLocale?.Trim() ?? string.Empty,
                     settings.UserLocale?.Trim() ?? string.Empty),
                 TimeZone = settings.TimeZone?.Trim() ?? string.Empty,

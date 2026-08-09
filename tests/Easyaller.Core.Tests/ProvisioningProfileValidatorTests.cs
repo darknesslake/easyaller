@@ -16,6 +16,7 @@ public sealed class ProvisioningProfileValidatorTests
         Assert.True(result.IsValid);
         Assert.Equal(CredentialHandling.PromptAtRuntime, profile.Domain.Credentials);
         Assert.Equal(ComputerNameMode.RequiredAtRuntime, profile.Machine.ComputerName.Mode);
+        Assert.Equal("en-US;ru-RU", profile.Windows.Locale.InputLocale);
     }
 
     [Fact]
@@ -75,6 +76,41 @@ public sealed class ProvisioningProfileValidatorTests
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, error => error.FieldPath == "windows.locale.uiLanguage");
+    }
+
+    [Fact]
+    public void Validate_MultipleInputLocales_AreAcceptedWhenEveryLocaleIsKnown()
+    {
+        var defaultProfile = ProvisioningProfileFactory.CreateDefault();
+        var profile = defaultProfile with
+        {
+            Windows = defaultProfile.Windows with
+            {
+                Locale = defaultProfile.Windows.Locale with { InputLocale = "en-US;ru-RU" },
+            },
+        };
+
+        var result = _validator.Validate(profile);
+
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void Validate_UnknownLocaleInInputLocales_ReturnsLocaleError()
+    {
+        var defaultProfile = ProvisioningProfileFactory.CreateDefault();
+        var profile = defaultProfile with
+        {
+            Windows = defaultProfile.Windows with
+            {
+                Locale = defaultProfile.Windows.Locale with { InputLocale = "en-US;not-a-real-locale" },
+            },
+        };
+
+        var result = _validator.Validate(profile);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, error => error.FieldPath == "windows.locale.inputLocale");
     }
 
     [Fact]

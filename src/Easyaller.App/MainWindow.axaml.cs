@@ -465,11 +465,11 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         ProfileNameTextBox.Text,
         ProfileDescriptionTextBox.Text,
         GetSelectedEditions(),
-        UiLanguageTextBox.Text,
-        InputLocaleTextBox.Text,
-        SystemLocaleTextBox.Text,
-        UserLocaleTextBox.Text,
-        TimeZoneTextBox.Text,
+        GetSelectedTag(UiLanguageComboBox, original.Windows.Locale.UiLanguage),
+        ProfileEditorController.RequiredInputLocales,
+        GetSelectedTag(SystemLocaleComboBox, original.Windows.Locale.SystemLocale),
+        GetSelectedTag(UserLocaleComboBox, original.Windows.Locale.UserLocale),
+        GetSelectedTag(TimeZoneComboBox, original.Windows.TimeZone),
         OfflineInitialSetupCheckBox.IsChecked == true,
         GetOptionalBoolean(HideWirelessSetupComboBox),
         GetOptionalBoolean(HideOnlineAccountComboBox),
@@ -507,11 +507,10 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         var windows = profile?.Windows;
         ProfessionalEditionCheckBox.IsChecked = windows?.SupportedEditions.Contains(WindowsEdition.Professional) == true;
         EnterpriseEditionCheckBox.IsChecked = windows?.SupportedEditions.Contains(WindowsEdition.Enterprise) == true;
-        UiLanguageTextBox.Text = windows?.Locale.UiLanguage ?? string.Empty;
-        InputLocaleTextBox.Text = windows?.Locale.InputLocale ?? string.Empty;
-        SystemLocaleTextBox.Text = windows?.Locale.SystemLocale ?? string.Empty;
-        UserLocaleTextBox.Text = windows?.Locale.UserLocale ?? string.Empty;
-        TimeZoneTextBox.Text = windows?.TimeZone ?? string.Empty;
+        SetSelectedTag(UiLanguageComboBox, windows?.Locale.UiLanguage);
+        SetSelectedTag(SystemLocaleComboBox, windows?.Locale.SystemLocale);
+        SetSelectedTag(UserLocaleComboBox, windows?.Locale.UserLocale);
+        SetSelectedTag(TimeZoneComboBox, windows?.TimeZone);
         OfflineInitialSetupCheckBox.IsChecked = windows?.Oobe.OfflineInitialSetup == true;
         SetOptionalBoolean(HideWirelessSetupComboBox, windows?.Oobe.HideWirelessSetup);
         SetOptionalBoolean(HideOnlineAccountComboBox, windows?.Oobe.HideOnlineAccountScreens);
@@ -567,6 +566,16 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         comboBox.SelectedItem = comboBox.Items
             .OfType<ComboBoxItem>()
             .FirstOrDefault(item => string.Equals(item.Tag?.ToString(), target, StringComparison.Ordinal));
+    }
+
+    private static string GetSelectedTag(ComboBox comboBox, string fallback) =>
+        (comboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? fallback;
+
+    private static void SetSelectedTag(ComboBox comboBox, string? value)
+    {
+        comboBox.SelectedItem = comboBox.Items
+            .OfType<ComboBoxItem>()
+            .FirstOrDefault(item => string.Equals(item.Tag?.ToString(), value, StringComparison.Ordinal));
     }
 
     private PrivacyPreference? GetPrivacyPreference() =>

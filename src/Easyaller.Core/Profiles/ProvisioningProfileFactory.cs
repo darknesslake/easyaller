@@ -8,7 +8,7 @@ public static class ProvisioningProfileFactory
         Windows = new WindowsSettings(
             [WindowsEdition.Professional, WindowsEdition.Enterprise],
             WindowsArchitecture.Amd64,
-            new LocaleSettings("en-US", "en-US", "en-US", "en-US"),
+            new LocaleSettings("en-US", "en-US;ru-RU", "en-US", "en-US"),
             "UTC",
             new OobeSettings(null, null, null, false, null),
             new PrivacySettings(

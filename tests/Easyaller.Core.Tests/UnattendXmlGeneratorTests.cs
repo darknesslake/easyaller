@@ -30,7 +30,7 @@ public sealed class UnattendXmlGeneratorTests
         {
             Windows = defaultProfile.Windows with
             {
-                Locale = new LocaleSettings("ru-RU", "ru-RU", "ru-RU", "ru-RU"),
+                Locale = new LocaleSettings("ru-RU", "en-US;ru-RU", "ru-RU", "ru-RU"),
                 TimeZone = "West Asia Standard Time",
                 Oobe = new OobeSettings(true, true, false, false, 3),
             },
@@ -42,6 +42,7 @@ public sealed class UnattendXmlGeneratorTests
         var uiLanguages = xml.Descendants(ns + "UILanguage").ToArray();
         Assert.Equal(2, uiLanguages.Length);
         Assert.All(uiLanguages, language => Assert.Equal("ru-RU", language.Value));
+        Assert.All(xml.Descendants(ns + "InputLocale"), inputLocale => Assert.Equal("en-US;ru-RU", inputLocale.Value));
         Assert.Equal("West Asia Standard Time", xml.Descendants(ns + "TimeZone").Single().Value);
         Assert.Equal("true", xml.Descendants(ns + "HideEULAPage").Single().Value);
         Assert.Equal("false", xml.Descendants(ns + "HideOnlineAccountScreens").Single().Value);

@@ -69,6 +69,7 @@ public sealed class ProfileEditorControllerTests
         Assert.Equal(ProfileRepositoryStatus.Success, result.Status);
         Assert.Equal(2, result.Profile!.Revision);
         Assert.Equal([WindowsEdition.Enterprise], result.Profile.Windows.SupportedEditions);
+        Assert.Equal(ProfileEditorController.RequiredInputLocales, result.Profile.Windows.Locale.InputLocale);
         Assert.True(result.Profile.Windows.Oobe.OfflineInitialSetup);
         Assert.True(result.Profile.Windows.Oobe.HideWirelessSetup);
         Assert.True(result.Profile.Windows.Oobe.HideOnlineAccountScreens);
