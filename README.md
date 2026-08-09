@@ -2,7 +2,7 @@
 
 Easyaller is an open-source Windows workstation provisioning tool. It separates reusable, versioned configuration profiles from sensitive per-machine deployment packages, so teams can share setup standards without committing credentials or local configuration to Git.
 
-> Status: pre-alpha. The profile contract, validation foundation, local profile storage, import/export service, deterministic answer-file generation, in-memory dry run, safe file-only deployment-package export, and its desktop workflow are implemented. Completed Windows SIM validation, first-boot orchestration, payload delivery, and USB creation are not implemented yet.
+> Status: pre-alpha. The profile contract, validation foundation, local profile storage, import/export service, deterministic answer-file generation, in-memory dry run, safe file-only deployment-package export, its desktop workflow, and configuration-set payload delivery are implemented. Completed Windows SIM validation, first-boot orchestration, and USB creation are not implemented yet.
 
 ## Interface previews
 
@@ -43,6 +43,7 @@ These are static pre-alpha interface previews, created before the current Russia
 - In-memory deployment dry run exposes the effective profile, OOBE and privacy choices, compatibility status, and the exact generated XML without writing files or changing Windows. It warns that profile data and any obfuscated temporary-account password must be treated as sensitive.
 - Deterministic, XML-writer-based `autounattend.xml` generation for validated locale, time-zone, explicitly configured OOBE values, and an optional ephemeral local account. The desktop UI does not expose it yet.
 - Safe deployment-package exporter: writes to a sibling staging directory, verifies SHA-256 hashes, then atomically finalizes a new destination. Packages contain the answer file, selected profile, README, manifest, and explicitly allowed local payload, scripts, and installers. See [`docs/DEPLOYMENT_PACKAGE.md`](docs/DEPLOYMENT_PACKAGE.md).
+- Configuration-set payload layout keeps optional files below `$OEM$/$1/ProgramData/Easyaller` and writes a second payload manifest there. The read-only verifier detects missing or changed delivered files before future first-boot work uses them.
 - Cryptographically generated 24-character temporary local-account password with one-time reveal and memory cleanup. It is never profile or manifest data, and AutoLogon remains excluded.
 - Windows-host validation harness that records ISO, image, and answer-file hashes plus explicit Windows SIM evidence without mounting images or touching disks. See [`docs/WINDOWS_SIM_VALIDATION.md`](docs/WINDOWS_SIM_VALIDATION.md).
 - Initial Windows 11 compatibility catalog for documented Pro and Enterprise amd64 24H2 and 25H2 targets. See [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md).

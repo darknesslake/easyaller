@@ -43,9 +43,9 @@ public sealed class DeploymentPackageExporterTests
             dryRun,
             destinationDirectory,
             [
-                new DeploymentPackageAsset(DeploymentPackageAssetKind.LocalPayload, payloadSource, "payload/payload.json"),
-                new DeploymentPackageAsset(DeploymentPackageAssetKind.Script, scriptSource, "scripts/verify.ps1"),
-                new DeploymentPackageAsset(DeploymentPackageAssetKind.Installer, installerSource, "installers/ContosoSetup.exe"),
+                new DeploymentPackageAsset(DeploymentPackageAssetKind.LocalPayload, payloadSource, PayloadPath("payload/payload.json")),
+                new DeploymentPackageAsset(DeploymentPackageAssetKind.Script, scriptSource, PayloadPath("scripts/verify.ps1")),
+                new DeploymentPackageAsset(DeploymentPackageAssetKind.Installer, installerSource, PayloadPath("installers/ContosoSetup.exe")),
             ]);
 
         var result = await new DeploymentPackageExporter().ExportAsync(request);
@@ -55,9 +55,10 @@ public sealed class DeploymentPackageExporterTests
         Assert.NotNull(result.Manifest);
         Assert.True(File.Exists(Path.Combine(destinationDirectory, "autounattend.xml")));
         Assert.Equal(dryRun.AnswerFile.ToArray(), File.ReadAllBytes(Path.Combine(destinationDirectory, "autounattend.xml")));
-        Assert.Equal("{\"setting\":true}\n", File.ReadAllText(Path.Combine(destinationDirectory, "payload", "payload.json")));
-        Assert.Equal("Write-Output 'verify'\n", File.ReadAllText(Path.Combine(destinationDirectory, "scripts", "verify.ps1")));
-        Assert.Equal("installer bytes\n", File.ReadAllText(Path.Combine(destinationDirectory, "installers", "ContosoSetup.exe")));
+        Assert.Equal("{\"setting\":true}\n", File.ReadAllText(PayloadPath(destinationDirectory, "payload", "payload.json")));
+        Assert.Equal("Write-Output 'verify'\n", File.ReadAllText(PayloadPath(destinationDirectory, "scripts", "verify.ps1")));
+        Assert.Equal("installer bytes\n", File.ReadAllText(PayloadPath(destinationDirectory, "installers", "ContosoSetup.exe")));
+        Assert.True(File.Exists(PayloadPath(destinationDirectory, "payload-manifest.json")));
         Assert.True(new ProfileJsonSerializer().Read(File.ReadAllBytes(Path.Combine(destinationDirectory, "selected-profile.wpprofile.json"))).IsValid);
 
         var manifest = JsonSerializer.Deserialize<DeploymentPackageManifest>(
@@ -65,7 +66,7 @@ public sealed class DeploymentPackageExporterTests
             ManifestSerializerOptions);
         Assert.NotNull(manifest);
         Assert.Equal(profile.ProfileId, manifest.ProfileId);
-        Assert.Equal(6, manifest.Files.Count);
+        Assert.Equal(7, manifest.Files.Count);
         Assert.All(manifest.Files, entry =>
         {
             var filePath = Path.Combine(destinationDirectory, entry.RelativePath);
@@ -107,8 +108,8 @@ public sealed class DeploymentPackageExporterTests
             CreateDryRun(ProvisioningProfileFactory.CreateDefault()),
             destinationDirectory,
             [
-                new DeploymentPackageAsset(DeploymentPackageAssetKind.Installer, sourcePath, "installers/setup.exe"),
-                new DeploymentPackageAsset(DeploymentPackageAssetKind.Script, sourcePath, "scripts/../unsafe.ps1"),
+                new DeploymentPackageAsset(DeploymentPackageAssetKind.Installer, sourcePath, PayloadPath("installers/setup.exe")),
+                new DeploymentPackageAsset(DeploymentPackageAssetKind.Script, sourcePath, PayloadPath("scripts/../unsafe.ps1")),
             ]);
 
         var result = await new DeploymentPackageExporter().ExportAsync(request);
@@ -134,6 +135,12 @@ public sealed class DeploymentPackageExporterTests
         File.WriteAllText(path, content, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
         return path;
     }
+
+    private static string PayloadPath(string relativePath) =>
+        ConfigurationSetPayloadLayout.RootRelativePath + "/" + relativePath;
+
+    private static string PayloadPath(string packageDirectory, params string[] pathSegments) =>
+        Path.Combine([packageDirectory, "$OEM$", "$1", "ProgramData", "Easyaller", .. pathSegments]);
 
     private sealed class TemporaryDirectory : IDisposable
     {

@@ -150,6 +150,11 @@ public sealed record DeploymentPackageExportResult(
     DeploymentPackageManifest? Manifest,
     IReadOnlyList<DeploymentValidationError> Errors);
 
+public sealed record PayloadVerificationResult(
+    bool IsValid,
+    int VerifiedFileCount,
+    IReadOnlyList<DeploymentValidationError> Errors);
+
 public interface IDeploymentCompatibilityValidator
 {
     DeploymentCompatibilityResult Validate(WindowsDeploymentTarget target, ProvisioningProfile profile);
@@ -200,6 +205,11 @@ public interface IDeploymentPackageExporter
     Task<DeploymentPackageExportResult> ExportAsync(
         DeploymentPackageExportRequest request,
         CancellationToken cancellationToken = default);
+}
+
+public interface IConfigurationSetPayloadVerifier
+{
+    PayloadVerificationResult Verify(string payloadDirectory);
 }
 
 public sealed class BasicDeploymentCompatibilityValidator : IDeploymentCompatibilityValidator

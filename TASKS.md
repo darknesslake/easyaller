@@ -179,9 +179,13 @@ Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easy
 
 ## Phase 3: first boot and privacy
 
-### [ ] WP-030: Configuration-set payload delivery
+### [x] WP-030: Configuration-set payload delivery
 
 Deliver the local payload through `$OEM$\$1\ProgramData\Easyaller`, verify manifest hashes, and never overwrite Windows system files.
+
+Implemented `ConfigurationSetPayloadLayout` and `ConfigurationSetPayloadVerifier`. Payload, scripts, and allowed installers now use the fixed `$OEM$/$1/ProgramData/Easyaller` configuration-set path. When a package contains payload assets, the exporter adds a `payload-manifest.json` inside that delivered directory, while the package-level manifest hashes the payload manifest itself. The read-only verifier rejects missing, malformed, unsafe, or changed delivered files by size and SHA-256 without any writes. No layout path can target a Windows system directory, and this task does not mount an image or invoke Windows Setup.
+
+Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 68 passing tests.
 
 ### [ ] WP-031: FirstLogon bootstrapper
 

@@ -13,11 +13,13 @@ The exporter accepts a validated `DeploymentDryRun`, a destination directory tha
 
 It can also copy explicitly supplied assets:
 
-- local payload files must be below `payload/`;
-- scripts must be below `scripts/`;
-- installers must be below `installers/` and exactly match a `packageRelative` application path in the selected profile.
+- local payload files must be below `$OEM$/$1/ProgramData/Easyaller/payload/`;
+- scripts must be below `$OEM$/$1/ProgramData/Easyaller/scripts/`;
+- installers must be below `$OEM$/$1/ProgramData/Easyaller/installers/` and exactly match a `packageRelative` application path in the selected profile.
 
 Asset paths cannot be absolute, traverse with `.` or `..`, duplicate another package path, or replace a required file. A source asset must be an existing regular file, not a symbolic link. External-manual applications cannot be silently copied as installers.
+
+When at least one payload asset is present, the exporter also writes `$OEM$/$1/ProgramData/Easyaller/payload-manifest.json`. It has SHA-256 hashes and sizes relative to the delivered Easyaller directory. `ConfigurationSetPayloadVerifier` reads that manifest and detects missing or changed payload files without writing, deleting, or changing any Windows path. The layout never targets a Windows system directory.
 
 ## Atomic export and verification
 

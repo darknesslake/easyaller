@@ -70,6 +70,7 @@ public sealed class DeploymentPackageExporter : IDeploymentPackageExporter
                 CopyFile(stagingDirectory, asset.SourceFilePath, asset.RelativePath, entries);
             }
 
+            WritePayloadManifest(stagingDirectory, request.DryRun, entries);
             VerifyEntries(stagingDirectory, entries);
             var manifest = new DeploymentPackageManifest(
                 ManifestFormatVersion,
@@ -204,7 +205,7 @@ public sealed class DeploymentPackageExporter : IDeploymentPackageExporter
         if (asset.Kind == DeploymentPackageAssetKind.Installer && !profile.Applications.Any(application =>
                 application.SourceKind == ApplicationSourceKind.PackageRelative &&
                 string.Equals(
-                    NormalizeRelativePath(application.PackageRelativePath!),
+                    ConfigurationSetPayloadLayout.RootRelativePath + "/" + NormalizeRelativePath(application.PackageRelativePath!),
                     normalizedRelativePath,
                     StringComparison.OrdinalIgnoreCase)))
         {
@@ -223,13 +224,7 @@ public sealed class DeploymentPackageExporter : IDeploymentPackageExporter
     private static bool HasRequiredDirectory(DeploymentPackageAssetKind kind, string relativePath)
     {
         var normalizedPath = NormalizeRelativePath(relativePath);
-        return kind switch
-        {
-            DeploymentPackageAssetKind.LocalPayload => normalizedPath.StartsWith("payload/", StringComparison.OrdinalIgnoreCase),
-            DeploymentPackageAssetKind.Script => normalizedPath.StartsWith("scripts/", StringComparison.OrdinalIgnoreCase),
-            DeploymentPackageAssetKind.Installer => normalizedPath.StartsWith("installers/", StringComparison.OrdinalIgnoreCase),
-            _ => false,
-        };
+        return normalizedPath.StartsWith(ConfigurationSetPayloadLayout.GetAssetDirectory(kind), StringComparison.OrdinalIgnoreCase);
     }
 
     private static string NormalizeRelativePath(string path) => path.Replace('\\', '/');
@@ -274,6 +269,38 @@ public sealed class DeploymentPackageExporter : IDeploymentPackageExporter
                 throw new IOException("Deployment package integrity verification failed.");
             }
         }
+    }
+
+    private static void WritePayloadManifest(
+        string stagingDirectory,
+        DeploymentDryRun dryRun,
+        ICollection<DeploymentPackageManifestEntry> entries)
+    {
+        var payloadEntries = entries
+            .Where(static entry => ConfigurationSetPayloadLayout.IsPayloadAssetPath(entry.RelativePath))
+            .Select(static entry => entry with
+            {
+                RelativePath = ConfigurationSetPayloadLayout.GetPayloadRelativePath(entry.RelativePath),
+            })
+            .OrderBy(static entry => entry.RelativePath, StringComparer.Ordinal)
+            .ToArray();
+        if (payloadEntries.Length == 0)
+        {
+            return;
+        }
+
+        var manifest = new DeploymentPackageManifest(
+            ManifestFormatVersion,
+            dryRun.EffectiveProfile.ProfileId,
+            dryRun.EffectiveProfile.Revision,
+            dryRun.Preview.Target,
+            dryRun.Preview.CompatibilityState,
+            payloadEntries);
+        WriteFile(
+            stagingDirectory,
+            ConfigurationSetPayloadLayout.PayloadManifestRelativePath,
+            JsonSerializer.SerializeToUtf8Bytes(manifest, ManifestSerializerOptions),
+            entries);
     }
 
     private static byte[] CreateInstructions() => Encoding.UTF8.GetBytes(
