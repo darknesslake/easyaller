@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using Easyaller.Core.Profiles;
 
 namespace Easyaller.App;
@@ -137,6 +138,37 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         ConfirmDeleteCheckBox.IsChecked = false;
         UpdateSelectionDetails();
         SetStatus("Несохранённые изменения сброшены. Показана сохранённая версия профиля.");
+    }
+
+    private void ToggleWindowsSection_Click(object? sender, RoutedEventArgs e) =>
+        ToggleProfileSection(WindowsSectionContent, WindowsSectionChevron);
+
+    private void ToggleNetworkSection_Click(object? sender, RoutedEventArgs e) =>
+        ToggleProfileSection(NetworkSectionContent, NetworkSectionChevron);
+
+    private void ToggleDomainSection_Click(object? sender, RoutedEventArgs e) =>
+        ToggleProfileSection(DomainSectionContent, DomainSectionChevron);
+
+    private void ToggleApplicationsSection_Click(object? sender, RoutedEventArgs e) =>
+        ToggleProfileSection(ApplicationsSectionContent, ApplicationsSectionChevron);
+
+    private void ToggleProfileSection(Border targetContent, TextBlock targetChevron)
+    {
+        var shouldOpen = !targetContent.IsVisible;
+        WindowsSectionContent.IsVisible = false;
+        NetworkSectionContent.IsVisible = false;
+        DomainSectionContent.IsVisible = false;
+        ApplicationsSectionContent.IsVisible = false;
+        WindowsSectionChevron.Text = "⌄";
+        NetworkSectionChevron.Text = "⌄";
+        DomainSectionChevron.Text = "⌄";
+        ApplicationsSectionChevron.Text = "⌄";
+
+        if (shouldOpen)
+        {
+            targetContent.IsVisible = true;
+            targetChevron.Text = "⌃";
+        }
     }
 
     private async void ImportProfile_Click(object? sender, RoutedEventArgs e)
@@ -376,6 +408,10 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         {
             SetStatus($"Повреждённых локальных файлов профиля: {list.Issues.Count}. Они перемещены в Corrupted.");
         }
+        else if (selected is not null)
+        {
+            SetStatus($"Выбран профиль «{selected.Name}». Измените настройки или откройте экран применения.");
+        }
     }
 
     private void UpdateSelectionDetails()
@@ -398,6 +434,10 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         PopulateSettingsControls(_selectedProfile?.Profile);
         ConfirmDeleteCheckBox.IsChecked = false;
         UpdateDeleteButtonState();
+        ProfileEditorScrollViewer.Offset = default;
+        Dispatcher.UIThread.Post(
+            () => ProfileEditorScrollViewer.Offset = default,
+            DispatcherPriority.Background);
 
         OnPropertyChanged(nameof(HasSelectedProfile));
     }

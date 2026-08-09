@@ -28,14 +28,15 @@
       <Setter Property="FontWeight" Value="Bold" />
       <Setter Property="Foreground" Value="#C8E3FF" />
     </Style>
-    <Style Selector="Expander.profileSection /template/ ToggleButton">
+    <Style Selector="Button.profileSectionButton">
       <Setter Property="Background" Value="#1D2A3E" />
       <Setter Property="BorderBrush" Value="#2A3B55" />
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="CornerRadius" Value="14" />
       <Setter Property="Padding" Value="16,11" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
     </Style>
-    <Style Selector="Expander.profileSection /template/ ToggleButton:pointerover">
+    <Style Selector="Button.profileSectionButton:pointerover">
       <Setter Property="Background" Value="#22344D" />
       <Setter Property="BorderBrush" Value="#3A5A81" />
     </Style>

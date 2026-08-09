@@ -341,4 +341,8 @@ Corrected the first task-oriented editor layout after visual review: widened the
 
 ### [x] WP-077: Soft collapsible section styling
 
-Replaced the platform-default black Expander headers in the profile editor with compact rounded section cards, including a lighter hover state and explicit 16-pixel Russian section titles. The workflow remains collapsible, but headers no longer look like unrelated oversized black buttons or dominate the editor visually. The contextual `!` badges remain part of each section header and retain their hover explanations.
+Replaced the platform-default black Expander controls in the profile editor with custom full-width rounded section buttons and an accordion flow. Only one configuration section stays open, its chevron reflects the current state, and the system accent color can no longer override the Easyaller palette. The contextual `!` badges remain part of each section header and retain their hover explanations.
+
+### [x] WP-078: Live desktop visual review
+
+Launched the real Avalonia application on macOS and reviewed system screenshots of the rendered main window rather than relying only on XAML. The review found and corrected the remaining black Expander template, macOS accent-colored toggle state, centered page subtitle, stale initial status, partial-width section header, duplicated fixed description, and an editor that reopened in the middle of the form. Profile selection now resets the editor to the top, displays an accurate status, and leaves more vertical space for the active section. Screenshots remain temporary review artifacts outside Git.

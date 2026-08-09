@@ -39,7 +39,7 @@
       <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,24">
         <StackPanel Spacing="6">
           <TextBlock Text="Профили" FontSize="30" FontWeight="SemiBold" Foreground="#F7F9FE" />
-          <TextBlock Text="Создайте понятный стандарт подготовки компьютера. Пароли и учётные данные не сохраняются." TextWrapping="Wrap" MaxWidth="470" Foreground="#A9B7CD" />
+          <TextBlock Text="Создайте понятный стандарт подготовки компьютера. Пароли и учётные данные не сохраняются." TextWrapping="Wrap" MaxWidth="470" HorizontalAlignment="Left" Foreground="#A9B7CD" />
         </StackPanel>
         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
           <Button Content="Импорт" Click="ImportProfile_Click" />
@@ -69,15 +69,14 @@
         </Border>
 
         <Border Grid.Column="1" Background="#172233" BorderBrush="#2A3B55" BorderThickness="1" CornerRadius="20" Padding="26">
-          <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" RowSpacing="16">
+          <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="16">
             <TextBlock Text="{Binding SelectedProfileName}" FontSize="22" FontWeight="SemiBold" Foreground="#F7F9FE" />
-            <TextBlock Grid.Row="1" Text="{Binding SelectedProfileDescription}" TextWrapping="Wrap" Foreground="#A9B7CD" />
-            <Grid Grid.Row="2" ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="8">
+            <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="8">
               <Border Background="#203653" CornerRadius="999" Padding="10,5"><TextBlock Text="{Binding SelectedProfileRevision}" Foreground="#A9CCFF" FontSize="12" /></Border>
               <Border Grid.Column="1" Background="#203653" CornerRadius="999" Padding="10,5"><TextBlock Text="Без учётных данных" Foreground="#A9CCFF" FontSize="12" /></Border>
               <Border Grid.Column="2" Background="#203653" CornerRadius="999" Padding="10,5"><TextBlock Text="Проверенный формат" Foreground="#A9CCFF" FontSize="12" /></Border>
             </Grid>
-            <ScrollViewer Grid.Row="3" HorizontalScrollBarVisibility="Disabled">
+            <ScrollViewer x:Name="ProfileEditorScrollViewer" Grid.Row="2" HorizontalScrollBarVisibility="Disabled">
               <StackPanel Spacing="12" Margin="0,10,0,0">
               <TextBlock Text="Карточка профиля" FontWeight="SemiBold" Foreground="#EAF0FA" />
               <StackPanel Spacing="6">
@@ -94,16 +93,20 @@
                   <TextBlock Text="Сначала задайте стандарт Windows, затем сеть и доступ, после этого правила первого запуска. Адреса, домен и пароли не нужно хранить в каждом профиле: необходимые значения программа запросит перед применением." TextWrapping="Wrap" FontSize="12" Foreground="#A9B7CD" />
                 </StackPanel>
               </Border>
-              <Expander Classes="profileSection" IsExpanded="True">
-                <Expander.Header>
-                  <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="1. Windows и первый запуск" FontSize="16" FontWeight="SemiBold" />
-                    <Border Classes="helpBadge" ToolTip.Tip="Настройки, которые будут использованы при подготовке новой Windows. Они не изменяют уже работающий компьютер.">
-                      <TextBlock Classes="helpBadgeText" Text="!" />
-                    </Border>
-                  </StackPanel>
-                </Expander.Header>
-                <StackPanel Margin="0,12,0,0" Spacing="12">
+              <StackPanel>
+                <Button Classes="profileSectionButton" Click="ToggleWindowsSection_Click" HorizontalAlignment="Stretch">
+                  <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Orientation="Horizontal">
+                      <TextBlock Text="1. Windows и первый запуск" FontSize="16" FontWeight="SemiBold" />
+                      <Border Classes="helpBadge" ToolTip.Tip="Настройки, которые будут использованы при подготовке новой Windows. Они не изменяют уже работающий компьютер.">
+                        <TextBlock Classes="helpBadgeText" Text="!" />
+                      </Border>
+                    </StackPanel>
+                    <TextBlock x:Name="WindowsSectionChevron" Grid.Column="1" Text="⌃" FontSize="18" Foreground="#8FA4C4" VerticalAlignment="Center" />
+                  </Grid>
+                </Button>
+                <Border x:Name="WindowsSectionContent" IsVisible="True" Background="#1A283B" CornerRadius="14" Margin="0,6,0,0" Padding="16">
+                <StackPanel Spacing="12">
                   <TextBlock Text="Это стандарт для устанавливаемой Windows. Он не меняет уже работающий компьютер." TextWrapping="Wrap" FontSize="12" Foreground="#93C5FD" />
                   <StackPanel Spacing="6">
                     <TextBlock Text="Поддерживаемые редакции" FontSize="12" Foreground="#A9B7CD" />
@@ -183,17 +186,22 @@
                     <TextBlock Text="Выберите единый режим для служб геолокации, рекламы и персонализации. «Не настраивать» ничего не меняет." TextWrapping="Wrap" FontSize="12" Foreground="#7F93B4" />
                   </StackPanel>
                 </StackPanel>
-              </Expander>
-              <Expander Classes="profileSection">
-                <Expander.Header>
-                  <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="2. Сеть и доступ" FontSize="16" FontWeight="SemiBold" />
-                    <Border Classes="helpBadge" ToolTip.Tip="Профиль может хранить статические сетевые параметры и правила WinHTTP-прокси. Адаптер и адрес прокси выбираются перед применением.">
-                      <TextBlock Classes="helpBadgeText" Text="!" />
-                    </Border>
-                  </StackPanel>
-                </Expander.Header>
-                <StackPanel Margin="0,12,0,0" Spacing="12">
+                </Border>
+              </StackPanel>
+              <StackPanel>
+                <Button Classes="profileSectionButton" Click="ToggleNetworkSection_Click" HorizontalAlignment="Stretch">
+                  <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Orientation="Horizontal">
+                      <TextBlock Text="2. Сеть и доступ" FontSize="16" FontWeight="SemiBold" />
+                      <Border Classes="helpBadge" ToolTip.Tip="Профиль может хранить статические сетевые параметры и правила WinHTTP-прокси. Адаптер и адрес прокси выбираются перед применением.">
+                        <TextBlock Classes="helpBadgeText" Text="!" />
+                      </Border>
+                    </StackPanel>
+                    <TextBlock x:Name="NetworkSectionChevron" Grid.Column="1" Text="⌄" FontSize="18" Foreground="#8FA4C4" VerticalAlignment="Center" />
+                  </Grid>
+                </Button>
+                <Border x:Name="NetworkSectionContent" IsVisible="False" Background="#1A283B" CornerRadius="14" Margin="0,6,0,0" Padding="16">
+                <StackPanel Spacing="12">
                   <TextBlock Text="Выберите, что профиль должен помнить о сети. Сам сетевой адаптер всегда выбирается перед применением." TextWrapping="Wrap" FontSize="12" Foreground="#93C5FD" />
                   <StackPanel Spacing="6">
                     <TextBlock Text="Префикс имени компьютера" FontSize="12" Foreground="#A9B7CD" />
@@ -268,17 +276,22 @@
                     </StackPanel>
                   </Border>
                 </StackPanel>
-              </Expander>
-              <Expander Classes="profileSection">
-                <Expander.Header>
-                  <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="3. Домен и запуск настройки" FontSize="16" FontWeight="SemiBold" />
-                    <Border Classes="helpBadge" ToolTip.Tip="Правила для домена и запуска Easyaller. Пароль домена никогда не сохраняется в профиле.">
-                      <TextBlock Classes="helpBadgeText" Text="!" />
-                    </Border>
-                  </StackPanel>
-                </Expander.Header>
-                <StackPanel Margin="0,12,0,0" Spacing="12">
+                </Border>
+              </StackPanel>
+              <StackPanel>
+                <Button Classes="profileSectionButton" Click="ToggleDomainSection_Click" HorizontalAlignment="Stretch">
+                  <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Orientation="Horizontal">
+                      <TextBlock Text="3. Домен и запуск настройки" FontSize="16" FontWeight="SemiBold" />
+                      <Border Classes="helpBadge" ToolTip.Tip="Правила для домена и запуска Easyaller. Пароль домена никогда не сохраняется в профиле.">
+                        <TextBlock Classes="helpBadgeText" Text="!" />
+                      </Border>
+                    </StackPanel>
+                    <TextBlock x:Name="DomainSectionChevron" Grid.Column="1" Text="⌄" FontSize="18" Foreground="#8FA4C4" VerticalAlignment="Center" />
+                  </Grid>
+                </Button>
+                <Border x:Name="DomainSectionContent" IsVisible="False" Background="#1A283B" CornerRadius="14" Margin="0,6,0,0" Padding="16">
+                <StackPanel Spacing="12">
                   <TextBlock Text="Эти правила определяют, когда Easyaller запускается и требуется ли присоединение к домену. Учётные данные всегда вводятся позднее и не сохраняются." TextWrapping="Wrap" FontSize="12" Foreground="#93C5FD" />
                   <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
                     <StackPanel Spacing="6">
@@ -321,17 +334,22 @@
                     <TextBlock Text="Это правило сработает только после подтверждённой проверки. Оно не удаляет обычные учётные записи пользователя." TextWrapping="Wrap" FontSize="12" Foreground="#7F93B4" />
                   </StackPanel>
                 </StackPanel>
-              </Expander>
-              <Expander Classes="profileSection">
-                <Expander.Header>
-                  <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="4. Приложения и ручные инструкции" FontSize="16" FontWeight="SemiBold" />
-                    <Border Classes="helpBadge" ToolTip.Tip="Приложение описывает установку из пакета или ручной источник. Инструкция хранит текст для оператора и никогда не исполняется как команда.">
-                      <TextBlock Classes="helpBadgeText" Text="!" />
-                    </Border>
-                  </StackPanel>
-                </Expander.Header>
-                <StackPanel Margin="0,12,0,0" Spacing="12">
+                </Border>
+              </StackPanel>
+              <StackPanel>
+                <Button Classes="profileSectionButton" Click="ToggleApplicationsSection_Click" HorizontalAlignment="Stretch">
+                  <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Orientation="Horizontal">
+                      <TextBlock Text="4. Приложения и ручные инструкции" FontSize="16" FontWeight="SemiBold" />
+                      <Border Classes="helpBadge" ToolTip.Tip="Приложение описывает установку из пакета или ручной источник. Инструкция хранит текст для оператора и никогда не исполняется как команда.">
+                        <TextBlock Classes="helpBadgeText" Text="!" />
+                      </Border>
+                    </StackPanel>
+                    <TextBlock x:Name="ApplicationsSectionChevron" Grid.Column="1" Text="⌄" FontSize="18" Foreground="#8FA4C4" VerticalAlignment="Center" />
+                  </Grid>
+                </Button>
+                <Border x:Name="ApplicationsSectionContent" IsVisible="False" Background="#1A283B" CornerRadius="14" Margin="0,6,0,0" Padding="16">
+                <StackPanel Spacing="12">
                   <TextBlock Text="Добавляйте только то, что нужно повторять для каждого компьютера. Инструкция описывает ручной шаг и не исполняется как команда." TextWrapping="Wrap" FontSize="12" Foreground="#93C5FD" />
                   <TextBlock Text="Приложения" FontWeight="SemiBold" Foreground="#EAF0FA" />
                   <ListBox x:Name="ApplicationsList" Height="96" Background="#1D2A3E" BorderThickness="0">
@@ -405,7 +423,8 @@
                     <Button Content="Удалить выбранную инструкцию" Click="RemoveInstruction_Click" />
                   </StackPanel>
                 </StackPanel>
-              </Expander>
+                </Border>
+              </StackPanel>
               <Border Background="#1D2A3E" CornerRadius="16" Padding="14">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Хранилище" FontWeight="SemiBold" Foreground="#EAF0FA" />
@@ -414,7 +433,7 @@
               </Border>
               </StackPanel>
             </ScrollViewer>
-            <Border Grid.Row="4" Background="#1D2A3E" CornerRadius="16" Padding="12">
+            <Border Grid.Row="3" Background="#1D2A3E" CornerRadius="16" Padding="12">
               <StackPanel Spacing="10">
                 <WrapPanel Orientation="Horizontal" ItemHeight="40" HorizontalAlignment="Left">
                   <Button Content="Сохранить" Click="SaveProfile_Click" IsEnabled="{Binding HasSelectedProfile}" Background="#2D6CDF" Foreground="White" ToolTip.Tip="Сохранить все изменения в текущем локальном профиле." />
