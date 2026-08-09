@@ -41,6 +41,7 @@ These are static pre-alpha interface previews, created before the current Russia
 - Set up this PC screen that previews the selected profile plan and validates runtime-only computer, network, proxy, and domain input without applying it yet.
 - Deployment module contracts for compatibility validation, answer-file generation, preview, dry run, package planning, and file-only export.
 - Deterministic, XML-writer-based `autounattend.xml` generation for validated locale, time-zone, explicitly configured OOBE values, and an optional ephemeral local account. The desktop UI and package export do not expose it yet.
+- Windows-host validation harness that records ISO, image, and answer-file hashes plus explicit Windows SIM evidence without mounting images or touching disks. See [`docs/WINDOWS_SIM_VALIDATION.md`](docs/WINDOWS_SIM_VALIDATION.md).
 - Initial Windows 11 compatibility catalog for documented Pro and Enterprise amd64 24H2 and 25H2 targets. See [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md).
 - Neutral profile fixtures and unit tests.
 
@@ -82,6 +83,8 @@ Read [`PRODUCT_SPEC.md`](PRODUCT_SPEC.md) for product decisions.
 Read [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md) for a practical guide to running the desktop application, creating profiles, importing and exporting them, and understanding the current pre-alpha limits.
 
 Русская инструкция: [`docs/GETTING_STARTED_RU.md`](docs/GETTING_STARTED_RU.md).
+
+Windows-host validation instructions: [`docs/WINDOWS_SIM_VALIDATION.md`](docs/WINDOWS_SIM_VALIDATION.md) and [`docs/WINDOWS_SIM_VALIDATION_RU.md`](docs/WINDOWS_SIM_VALIDATION_RU.md).
 
 ## License
 

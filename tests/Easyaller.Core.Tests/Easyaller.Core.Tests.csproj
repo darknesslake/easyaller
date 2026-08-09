@@ -31,6 +31,9 @@
     <None Include="..\..\schemas\provisioning-profile.schema.json" Link="Fixtures\provisioning-profile.schema.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="..\..\scripts\Validate-AnswerFile.ps1" Link="Fixtures\Validate-AnswerFile.ps1">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

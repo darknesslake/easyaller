@@ -137,9 +137,13 @@ Implemented `UnattendXmlGenerator` using `XmlWriter` with fixed namespace, compo
 
 Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 53 passing tests.
 
-### [ ] WP-024: Windows SIM validation harness
+### [x] WP-024: Windows SIM validation harness
 
 Document and automate answer-file validation against a supplied `install.wim` or `install.esd`. Record ISO hash, edition index, ADK/Windows SIM version, and validation result without committing image files.
+
+Implemented the Windows-host-only `scripts/Validate-AnswerFile.ps1` harness and English/Russian validation guides. The harness requires an official ISO, exact `install.wim` or `install.esd`, image index, and generated answer file. It runs non-destructive XML policy checks and DISM image inspection, then records ISO/image/answer-file SHA-256 hashes, selected index, image metadata, Windows SIM result, version, and message in JSON outside the repository. Windows SIM validation remains a documented manual step with explicit `NotRun`, `Passed`, or `Failed` evidence, so the script cannot fabricate `SchemaValidated`. A static safety test protects the no-mount, no-format, no-diskpart boundary. No ISO, Windows image, catalog, or Windows SIM run was available in this macOS development environment.
+
+Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 54 passing tests. The PowerShell harness is not executable in this macOS environment because PowerShell, DISM, Windows ADK, Windows SIM, and a supplied Windows image are unavailable.
 
 ### [ ] WP-025: Temporary per-package local-account credential
 
