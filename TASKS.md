@@ -338,3 +338,7 @@ Moved the profile actions out of the scrollable form into a persistent rounded p
 ### [x] WP-076: Responsive profile-editor layout
 
 Corrected the first task-oriented editor layout after visual review: widened the default desktop window, gave the editor the larger share of the workspace, wrapped the explanatory header instead of clipping it, shortened sidebar labels, and changed the fixed action strip to a wrapping control row. Save, reset, and clone actions remain visible on narrower windows instead of running beyond the card edge; the confirmed delete action stays on its own row. Existing stored profile names are user data and intentionally are not auto-translated or renamed.
+
+### [x] WP-077: Soft collapsible section styling
+
+Replaced the platform-default black Expander headers in the profile editor with compact rounded section cards, including a lighter hover state and explicit 16-pixel Russian section titles. The workflow remains collapsible, but headers no longer look like unrelated oversized black buttons or dominate the editor visually. The contextual `!` badges remain part of each section header and retain their hover explanations.

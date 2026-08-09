@@ -94,10 +94,10 @@
                   <TextBlock Text="Сначала задайте стандарт Windows, затем сеть и доступ, после этого правила первого запуска. Адреса, домен и пароли не нужно хранить в каждом профиле: необходимые значения программа запросит перед применением." TextWrapping="Wrap" FontSize="12" Foreground="#A9B7CD" />
                 </StackPanel>
               </Border>
-              <Expander IsExpanded="True">
+              <Expander Classes="profileSection" IsExpanded="True">
                 <Expander.Header>
                   <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="1. Windows и первый запуск" />
+                    <TextBlock Text="1. Windows и первый запуск" FontSize="16" FontWeight="SemiBold" />
                     <Border Classes="helpBadge" ToolTip.Tip="Настройки, которые будут использованы при подготовке новой Windows. Они не изменяют уже работающий компьютер.">
                       <TextBlock Classes="helpBadgeText" Text="!" />
                     </Border>
@@ -184,10 +184,10 @@
                   </StackPanel>
                 </StackPanel>
               </Expander>
-              <Expander>
+              <Expander Classes="profileSection">
                 <Expander.Header>
                   <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="2. Сеть и доступ" />
+                    <TextBlock Text="2. Сеть и доступ" FontSize="16" FontWeight="SemiBold" />
                     <Border Classes="helpBadge" ToolTip.Tip="Профиль может хранить статические сетевые параметры и правила WinHTTP-прокси. Адаптер и адрес прокси выбираются перед применением.">
                       <TextBlock Classes="helpBadgeText" Text="!" />
                     </Border>
@@ -269,10 +269,10 @@
                   </Border>
                 </StackPanel>
               </Expander>
-              <Expander>
+              <Expander Classes="profileSection">
                 <Expander.Header>
                   <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="3. Домен и запуск настройки" />
+                    <TextBlock Text="3. Домен и запуск настройки" FontSize="16" FontWeight="SemiBold" />
                     <Border Classes="helpBadge" ToolTip.Tip="Правила для домена и запуска Easyaller. Пароль домена никогда не сохраняется в профиле.">
                       <TextBlock Classes="helpBadgeText" Text="!" />
                     </Border>
@@ -322,10 +322,10 @@
                   </StackPanel>
                 </StackPanel>
               </Expander>
-              <Expander>
+              <Expander Classes="profileSection">
                 <Expander.Header>
                   <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="4. Приложения и ручные инструкции" />
+                    <TextBlock Text="4. Приложения и ручные инструкции" FontSize="16" FontWeight="SemiBold" />
                     <Border Classes="helpBadge" ToolTip.Tip="Приложение описывает установку из пакета или ручной источник. Инструкция хранит текст для оператора и никогда не исполняется как команда.">
                       <TextBlock Classes="helpBadgeText" Text="!" />
                     </Border>
