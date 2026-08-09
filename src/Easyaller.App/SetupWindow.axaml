@@ -1,0 +1,90 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:Easyaller.App"
+        x:Class="Easyaller.App.SetupWindow"
+        Title="Easyaller - Set up this PC"
+        Width="1080"
+        Height="720"
+        MinWidth="860"
+        MinHeight="580"
+        Background="#101826">
+  <Grid RowDefinitions="Auto,*,Auto" Margin="30">
+    <StackPanel Spacing="6" Margin="0,0,0,24">
+      <TextBlock Text="Set up this PC" FontSize="29" FontWeight="SemiBold" Foreground="#F7F9FE" />
+      <TextBlock Text="Review a selected profile and collect runtime-only values. This screen does not change Windows yet." Foreground="#A9B7CD" />
+    </StackPanel>
+    <Grid Grid.Row="1" ColumnDefinitions="300,*" ColumnSpacing="20">
+      <Border Background="#172233" BorderBrush="#2A3B55" BorderThickness="1" CornerRadius="12" Padding="12">
+        <Grid RowDefinitions="Auto,*">
+          <TextBlock Text="Profiles" FontWeight="SemiBold" Foreground="#EAF0FA" Margin="8,6,8,12" />
+          <ListBox x:Name="SetupProfilesList" Grid.Row="1" SelectionChanged="SetupProfilesList_SelectionChanged" Background="Transparent" BorderThickness="0">
+            <ListBox.ItemTemplate>
+              <DataTemplate DataType="{x:Type local:ProfileListItem}">
+                <StackPanel Margin="8,6" Spacing="3">
+                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="#EDF3FC" />
+                  <TextBlock Text="{Binding Detail}" FontSize="12" Foreground="#9EB0CC" />
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+      </Border>
+      <Border Grid.Column="1" Background="#172233" BorderBrush="#2A3B55" BorderThickness="1" CornerRadius="12" Padding="26">
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+          <StackPanel Spacing="16">
+            <TextBlock x:Name="SelectedProfileText" Text="Select a profile" FontSize="22" FontWeight="SemiBold" Foreground="#F7F9FE" />
+            <Border Background="#1D2A3E" CornerRadius="8" Padding="14">
+              <StackPanel Spacing="5">
+                <TextBlock Text="Plan preview" FontWeight="SemiBold" Foreground="#EAF0FA" />
+                <TextBlock x:Name="PlanSummaryText" Text="No plan selected." TextWrapping="Wrap" Foreground="#A9B7CD" />
+              </StackPanel>
+            </Border>
+            <TextBlock Text="Runtime prompts" FontWeight="SemiBold" Foreground="#EAF0FA" />
+            <ListBox x:Name="RuntimePromptsList" Height="116" Background="#1D2A3E" BorderThickness="0">
+              <ListBox.ItemTemplate>
+                <DataTemplate DataType="{x:Type local:RuntimePromptListItem}">
+                  <StackPanel Margin="8,4" Spacing="2">
+                    <TextBlock Text="{Binding Title}" Foreground="#EDF3FC" />
+                    <TextBlock Text="{Binding Description}" TextWrapping="Wrap" FontSize="12" Foreground="#9EB0CC" />
+                  </StackPanel>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+            <TextBlock Text="Runtime-only values" FontWeight="SemiBold" Foreground="#EAF0FA" />
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="12" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="12">
+              <StackPanel Spacing="6">
+                <TextBlock Text="Computer name" FontSize="12" Foreground="#A9B7CD" />
+                <TextBox x:Name="ComputerNameTextBox" PlaceholderText="For example, LAB-WS-01" />
+              </StackPanel>
+              <StackPanel Grid.Column="1" Spacing="6">
+                <TextBlock Text="Network adapter ID" FontSize="12" Foreground="#A9B7CD" />
+                <TextBox x:Name="NetworkAdapterTextBox" PlaceholderText="Choose later from local adapters" />
+              </StackPanel>
+              <StackPanel Grid.Row="1" Spacing="6">
+                <TextBlock Text="Proxy address" FontSize="12" Foreground="#A9B7CD" />
+                <TextBox x:Name="ProxyAddressTextBox" PlaceholderText="Only if prompted by the profile" />
+              </StackPanel>
+              <StackPanel Grid.Row="1" Grid.Column="1" Spacing="6">
+                <TextBlock Text="Domain name" FontSize="12" Foreground="#A9B7CD" />
+                <TextBox x:Name="DomainNameTextBox" PlaceholderText="Only if joining a domain" />
+              </StackPanel>
+              <StackPanel Grid.Row="2" Spacing="6">
+                <TextBlock Text="Domain user name" FontSize="12" Foreground="#A9B7CD" />
+                <TextBox x:Name="DomainUserNameTextBox" />
+              </StackPanel>
+              <StackPanel Grid.Row="2" Grid.Column="1" Spacing="6">
+                <TextBlock Text="Domain password" FontSize="12" Foreground="#A9B7CD" />
+                <TextBox x:Name="DomainPasswordTextBox" PasswordChar="•" />
+              </StackPanel>
+            </Grid>
+            <TextBlock Text="Credentials stay in memory only for the current validation or future execution. They are never stored in a reusable profile." TextWrapping="Wrap" FontSize="12" Foreground="#93C5FD" />
+            <Button Content="Validate runtime inputs" Click="ValidateRuntimeInputs_Click" HorizontalAlignment="Left" Background="#2D6CDF" Foreground="White" />
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+    </Grid>
+    <Border Grid.Row="2" Background="#182537" CornerRadius="8" Padding="14" Margin="0,20,0,0">
+      <TextBlock x:Name="SetupStatusText" Text="Select a profile to preview its provisioning plan." Foreground="#B7C7E1" />
+    </Border>
+  </Grid>
+</Window>

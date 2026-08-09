@@ -88,9 +88,9 @@ Acceptance criteria:
 - Credentials are short-lived in memory and redacted in logs.
 - Reboot and resume behavior has integration coverage.
 
-Implemented the shared `ProvisioningPlan` contract and builder. A valid profile maps to declarative steps and explicit runtime prompts for computer name, adapter and network choice, proxy, and domain join. `notConfigured` preferences produce no system-change step. Runtime domain credentials are an in-memory disposable object with redacted string output. The task remains open until the desktop flow collects these prompts and an executor applies the plan with reboot and resume coverage.
+Implemented the shared `ProvisioningPlan` contract and builder, plus the Set up this PC desktop screen. A valid profile maps to declarative steps and explicit runtime prompts for computer name, adapter and network choice, proxy, and domain join. The screen previews the same plan and validates runtime input without changing Windows. `notConfigured` preferences produce no system-change step. Runtime domain credentials are an in-memory disposable object with redacted string output and the password field is cleared after validation. The task remains open until an executor applies the plan with reboot and resume coverage.
 
-Verified: `dotnet test Easyaller.slnx` with 37 passing tests.
+Verified: `dotnet test Easyaller.slnx` with 38 passing tests.
 
 ## Phase 2: Windows deployment package
 

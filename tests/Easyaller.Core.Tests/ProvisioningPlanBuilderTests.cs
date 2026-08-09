@@ -69,4 +69,22 @@ public sealed class ProvisioningPlanBuilderTests
 
         Assert.True(credential.IsDisposed);
     }
+
+    [Fact]
+    public void Validate_RequiredRuntimeInputs_ReportsOnlyMissingOrUnsafeValues()
+    {
+        var profile = ProvisioningProfileFactory.CreateDefault();
+        var plan = new ProvisioningPlanBuilder().Create(profile).Plan!;
+        using var inputs = new RuntimeProvisioningInputs
+        {
+            ComputerName = "invalid computer name",
+            NetworkAdapterId = null,
+        };
+
+        var result = new RuntimeProvisioningInputValidator().Validate(plan, inputs);
+
+        Assert.Contains(result.Errors, error => error.Code == "runtime.computerName.invalid");
+        Assert.Contains(result.Errors, error => error.Code == "runtime.network.adapter.required");
+        Assert.DoesNotContain(result.Errors, error => error.Code == "runtime.domain.required");
+    }
 }

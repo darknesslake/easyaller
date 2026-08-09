@@ -21,7 +21,7 @@
           <Border Background="#263A5A" CornerRadius="8" Padding="12,10">
             <TextBlock Text="Profiles" FontWeight="SemiBold" Foreground="#F6F8FC" />
           </Border>
-          <TextBlock Text="Set up this PC" Margin="12,7" Foreground="#9BAAC3" />
+          <Button Content="Set up this PC" Click="OpenSetup_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="12,7" Background="Transparent" Foreground="#9BAAC3" BorderThickness="0" />
           <TextBlock Text="Prepare Windows 11" Margin="12,7" Foreground="#9BAAC3" />
           <TextBlock Text="Create installation USB" Margin="12,7" Foreground="#9BAAC3" />
         </StackPanel>
