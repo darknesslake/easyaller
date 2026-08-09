@@ -40,6 +40,7 @@ These are static pre-alpha interface previews. They show the intended English UI
 - Avalonia desktop screen for listing, creating, cloning, editing all current profile sections, refreshing, importing, exporting, and explicitly deleting local profiles.
 - Set up this PC screen that previews the selected profile plan and validates runtime-only computer, network, proxy, and domain input without applying it yet.
 - Deployment module contracts for compatibility validation, answer-file generation, preview, dry run, package planning, and file-only export.
+- Initial Windows 11 compatibility catalog for documented Pro and Enterprise amd64 24H2 and 25H2 targets. See [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md).
 - Neutral profile fixtures and unit tests.
 
 ## Repository layout

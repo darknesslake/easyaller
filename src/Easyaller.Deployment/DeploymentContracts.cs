@@ -20,6 +20,33 @@ public enum DeploymentOperationKind
     CopyAllowedInstaller,
 }
 
+public enum DeploymentSetting
+{
+    Locale,
+    TimeZone,
+    Oobe,
+    FirstLogon,
+}
+
+public sealed record WindowsBuildRange(int MinimumBuild, int MaximumBuild)
+{
+    public bool Contains(int build) => build >= MinimumBuild && build <= MaximumBuild;
+}
+
+public sealed record CompatibilityEvidence(
+    bool IsDocumented,
+    bool IsSchemaValidated,
+    bool IsVmValidated);
+
+public sealed record WindowsCompatibilityEntry(
+    WindowsEdition Edition,
+    WindowsArchitecture Architecture,
+    string DisplayVersion,
+    WindowsBuildRange BuildRange,
+    IReadOnlySet<DeploymentSetting> SupportedSettings,
+    IReadOnlyList<Uri> SourceLinks,
+    CompatibilityEvidence Evidence);
+
 public sealed record WindowsDeploymentTarget(
     WindowsEdition Edition,
     WindowsArchitecture Architecture,
@@ -67,6 +94,13 @@ public sealed record DeploymentPackageFile(string RelativePath, string Purpose);
 public interface IDeploymentCompatibilityValidator
 {
     DeploymentCompatibilityResult Validate(WindowsDeploymentTarget target, ProvisioningProfile profile);
+}
+
+public interface IWindowsCompatibilityCatalog
+{
+    IReadOnlyList<WindowsCompatibilityEntry> Entries { get; }
+
+    WindowsCompatibilityEntry? Find(WindowsDeploymentTarget target);
 }
 
 public interface IDeploymentPreviewService
@@ -122,14 +156,6 @@ public sealed class BasicDeploymentCompatibilityValidator : IDeploymentCompatibi
                 "Target edition is not supported by the profile."));
         }
 
-        if (string.IsNullOrWhiteSpace(target.DisplayVersion))
-        {
-            warnings.Add(new DeploymentValidationError(
-                "deployment.target.displayVersion.unknown",
-                "target.displayVersion",
-                "Target display version is unknown and requires later compatibility validation."));
-        }
-
         return new DeploymentCompatibilityResult(
             errors.Count > 0
                 ? DeploymentCompatibilityState.Unsupported
@@ -141,11 +167,84 @@ public sealed class BasicDeploymentCompatibilityValidator : IDeploymentCompatibi
     }
 }
 
+public sealed class Windows11CompatibilityCatalog : IWindowsCompatibilityCatalog
+{
+    private const string Windows11ReleaseInformationUrl = "https://learn.microsoft.com/en-us/windows/release-health/windows11-release-information";
+    private static readonly IReadOnlySet<DeploymentSetting> InitialSupportedSettings = new HashSet<DeploymentSetting>
+    {
+        DeploymentSetting.Locale,
+        DeploymentSetting.TimeZone,
+        DeploymentSetting.Oobe,
+        DeploymentSetting.FirstLogon,
+    };
+
+    public IReadOnlyList<WindowsCompatibilityEntry> Entries { get; } =
+    [
+        CreateEntry(WindowsEdition.Professional, "24H2", 26100),
+        CreateEntry(WindowsEdition.Enterprise, "24H2", 26100),
+        CreateEntry(WindowsEdition.Professional, "25H2", 26200),
+        CreateEntry(WindowsEdition.Enterprise, "25H2", 26200),
+    ];
+
+    public WindowsCompatibilityEntry? Find(WindowsDeploymentTarget target) => Entries.SingleOrDefault(entry =>
+        entry.Edition == target.Edition &&
+        entry.Architecture == target.Architecture &&
+        string.Equals(entry.DisplayVersion, target.DisplayVersion, StringComparison.OrdinalIgnoreCase));
+
+    private static WindowsCompatibilityEntry CreateEntry(WindowsEdition edition, string displayVersion, int baseBuild) => new(
+        edition,
+        WindowsArchitecture.Amd64,
+        displayVersion,
+        new WindowsBuildRange(baseBuild, baseBuild),
+        InitialSupportedSettings,
+        [new Uri(Windows11ReleaseInformationUrl)],
+        new CompatibilityEvidence(IsDocumented: true, IsSchemaValidated: false, IsVmValidated: false));
+}
+
+public sealed class CatalogDeploymentCompatibilityValidator(
+    IWindowsCompatibilityCatalog? catalog = null,
+    IDeploymentCompatibilityValidator? baselineValidator = null) : IDeploymentCompatibilityValidator
+{
+    private readonly IWindowsCompatibilityCatalog _catalog = catalog ?? new Windows11CompatibilityCatalog();
+    private readonly IDeploymentCompatibilityValidator _baselineValidator = baselineValidator ?? new BasicDeploymentCompatibilityValidator();
+
+    public DeploymentCompatibilityResult Validate(WindowsDeploymentTarget target, ProvisioningProfile profile)
+    {
+        var baseline = _baselineValidator.Validate(target, profile);
+        if (!baseline.CanContinue)
+        {
+            return baseline;
+        }
+
+        var warnings = baseline.Warnings.ToList();
+        var entry = _catalog.Find(target);
+        if (entry is null)
+        {
+            warnings.Add(new DeploymentValidationError(
+                "deployment.target.version.unknown",
+                "target.displayVersion",
+                "Target Windows version is not in the documented compatibility catalog."));
+        }
+        else if (!entry.BuildRange.Contains(target.Build))
+        {
+            warnings.Add(new DeploymentValidationError(
+                "deployment.target.build.unknown",
+                "target.build",
+                "Target Windows build is outside the documented compatibility catalog range."));
+        }
+
+        return new DeploymentCompatibilityResult(
+            warnings.Count == 0 ? DeploymentCompatibilityState.Documented : DeploymentCompatibilityState.Warning,
+            [],
+            warnings);
+    }
+}
+
 public sealed class DeploymentPreviewService(
     IDeploymentCompatibilityValidator? compatibilityValidator = null,
     IProvisioningPlanBuilder? provisioningPlanBuilder = null) : IDeploymentPreviewService
 {
-    private readonly IDeploymentCompatibilityValidator _compatibilityValidator = compatibilityValidator ?? new BasicDeploymentCompatibilityValidator();
+    private readonly IDeploymentCompatibilityValidator _compatibilityValidator = compatibilityValidator ?? new CatalogDeploymentCompatibilityValidator();
     private readonly IProvisioningPlanBuilder _provisioningPlanBuilder = provisioningPlanBuilder ?? new ProvisioningPlanBuilder();
 
     public DeploymentPreviewResult CreatePreview(DeploymentPreparationRequest request)

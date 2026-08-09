@@ -56,6 +56,39 @@ public sealed class DeploymentPreviewServiceTests
 
         Assert.True(result.IsValid);
         Assert.Equal(DeploymentCompatibilityState.Warning, result.Preview!.CompatibilityState);
-        Assert.Contains(result.Warnings, warning => warning.Code == "deployment.target.displayVersion.unknown");
+        Assert.Contains(result.Warnings, warning => warning.Code == "deployment.target.version.unknown");
+    }
+
+    [Fact]
+    public void Catalog_ContainsOnlyDocumentedInitialWindows11Targets()
+    {
+        var catalog = new Windows11CompatibilityCatalog();
+
+        Assert.Equal(4, catalog.Entries.Count);
+        Assert.All(catalog.Entries, entry =>
+        {
+            Assert.True(entry.Evidence.IsDocumented);
+            Assert.False(entry.Evidence.IsSchemaValidated);
+            Assert.False(entry.Evidence.IsVmValidated);
+            Assert.Equal(WindowsArchitecture.Amd64, entry.Architecture);
+            Assert.True(new[] { "24H2", "25H2" }.Contains(entry.DisplayVersion));
+            Assert.Contains(DeploymentSetting.Oobe, entry.SupportedSettings);
+            Assert.NotEmpty(entry.SourceLinks);
+        });
+    }
+
+    [Fact]
+    public void CreatePreview_KnownVersionWithUnexpectedBuild_WarnsInsteadOfGuessingSupport()
+    {
+        var profile = ProvisioningProfileFactory.CreateDefault();
+        var request = new DeploymentPreparationRequest(
+            profile,
+            new WindowsDeploymentTarget(WindowsEdition.Professional, WindowsArchitecture.Amd64, "24H2", 26199));
+
+        var result = new DeploymentPreviewService().CreatePreview(request);
+
+        Assert.True(result.IsValid);
+        Assert.Equal(DeploymentCompatibilityState.Warning, result.Preview!.CompatibilityState);
+        Assert.Contains(result.Warnings, warning => warning.Code == "deployment.target.build.unknown");
     }
 }

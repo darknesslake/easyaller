@@ -102,11 +102,15 @@ Implemented `Easyaller.Deployment` contracts and a file-only preview path. `Depl
 
 Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 41 passing tests.
 
-### [ ] WP-021: Windows compatibility catalog
+### [x] WP-021: Windows compatibility catalog
 
 Model edition, architecture, display version, build range, supported settings, source links, and validation evidence. Start with Windows 11 Pro and Enterprise, amd64, 24H2 and 25H2.
 
 Use `Documented`, `SchemaValidated`, `VmValidated`, `Warning`, and `Unsupported` as distinct states. Unknown builds must warn rather than use a workaround.
+
+Implemented `Windows11CompatibilityCatalog` for documented Windows 11 Pro and Enterprise amd64 targets: 24H2 base build 26100 and 25H2 base build 26200. The catalog records supported setting categories, official source URI, and separate documented, schema, and VM evidence flags. Version and build outside this initial catalog warn rather than enable a workaround; edition and architecture conflicts block the preview. Public catalog notes are in `docs/COMPATIBILITY.md`.
+
+Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 43 passing tests.
 
 ### [ ] WP-022: Deployment profile validator
 
