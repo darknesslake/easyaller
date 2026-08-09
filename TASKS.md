@@ -70,6 +70,8 @@ Acceptance criteria:
 - The functional UI matches the documented safety model, not only the static preview.
 - Core user states have UI or view-model tests.
 
+Initial desktop shell added: a cross-platform Avalonia screen lists, creates, clones, refreshes, and explicitly deletes local profiles through `FileProfileRepository`. It is intentionally not marked complete because profile editing, import/export preview, and UI-level tests still remain.
+
 ### [ ] WP-015: Connect a selected profile to the provisioning pipeline
 
 Map a selected profile into the existing setup pipeline without creating a second engine. Collect final computer name, adapter choice, network values, and credentials only at runtime.

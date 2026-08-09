@@ -2,7 +2,7 @@
 
 Easyaller is an open-source Windows workstation provisioning tool. It separates reusable, versioned configuration profiles from sensitive per-machine deployment packages, so teams can share setup standards without committing credentials or local configuration to Git.
 
-> Status: pre-alpha. The profile contract, validation foundation, and local profile storage are implemented. Windows deployment, first boot orchestration, and USB creation are planned but not implemented yet.
+> Status: pre-alpha. The profile contract, validation foundation, local profile storage, and first functional desktop screen are implemented. Windows deployment, first boot orchestration, and USB creation are planned but not implemented yet.
 
 ## Interface previews
 
@@ -35,12 +35,14 @@ These are static pre-alpha interface previews. They show the intended English UI
 - Deterministic UTF-8 JSON serialization with a stable property order and a final newline.
 - Strict profile loading with schema-version, duplicate-property, required-field, locale, OOBE, and package-path validation.
 - Local profile repository with revision-conflict detection, atomic writes, recoverable backups, and corrupted-file isolation.
+- Avalonia desktop screen for listing, creating, cloning, refreshing, and explicitly deleting local profiles.
 - Neutral profile fixtures and unit tests.
 
 ## Repository layout
 
 ```text
 src/
+  Easyaller.App/           Avalonia desktop application
   Easyaller.Core/          Profile model, validation, serialization, local storage
   Easyaller.Deployment/    Future Windows deployment module
 tests/
@@ -58,6 +60,14 @@ Prerequisite: .NET SDK 10.
 dotnet build Easyaller.slnx
 dotnet test Easyaller.slnx --no-build
 ```
+
+Run the desktop application:
+
+```sh
+dotnet run --project src/Easyaller.App/Easyaller.App.csproj
+```
+
+On Windows, profiles are stored in `%ProgramData%\Easyaller\Profiles`. On other desktop platforms, the pre-alpha app uses the current user's local application-data directory.
 
 Local organization configuration, real exported profiles, deployment output, ISO files, VM disks, installers, and build output are ignored by Git. Only neutral test fixtures and future public examples may use the `*.wpprofile.json` extension in the repository.
 

@@ -1,0 +1,100 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:Easyaller.App"
+        x:Class="Easyaller.App.MainWindow"
+        x:DataType="local:MainWindow"
+        Title="Easyaller"
+        Width="1140"
+        Height="740"
+        MinWidth="900"
+        MinHeight="620"
+        Background="#101826">
+  <Grid ColumnDefinitions="250,*">
+    <Border Background="#151E2D" BorderBrush="#27364E" BorderThickness="0,0,1,0" Padding="20">
+      <Grid RowDefinitions="Auto,Auto,*,Auto">
+        <StackPanel Spacing="6">
+          <TextBlock Text="easyaller" FontSize="25" FontWeight="SemiBold" Foreground="#F6F8FC" />
+          <TextBlock Text="Windows provisioning" FontSize="12" Foreground="#8EA1C2" />
+        </StackPanel>
+
+        <StackPanel Grid.Row="1" Margin="0,42,0,0" Spacing="8">
+          <Border Background="#263A5A" CornerRadius="8" Padding="12,10">
+            <TextBlock Text="Profiles" FontWeight="SemiBold" Foreground="#F6F8FC" />
+          </Border>
+          <TextBlock Text="Set up this PC" Margin="12,7" Foreground="#9BAAC3" />
+          <TextBlock Text="Prepare Windows 11" Margin="12,7" Foreground="#9BAAC3" />
+          <TextBlock Text="Create installation USB" Margin="12,7" Foreground="#9BAAC3" />
+        </StackPanel>
+
+        <Border Grid.Row="3" Background="#1D2A3E" CornerRadius="8" Padding="12">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Pre-alpha" FontWeight="SemiBold" Foreground="#93C5FD" />
+            <TextBlock Text="Profiles are stored locally." TextWrapping="Wrap" FontSize="12" Foreground="#A8B6CC" />
+          </StackPanel>
+        </Border>
+      </Grid>
+    </Border>
+
+    <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto" Margin="34,28,34,28">
+      <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,24">
+        <StackPanel Spacing="6">
+          <TextBlock Text="Profiles" FontSize="30" FontWeight="SemiBold" Foreground="#F7F9FE" />
+          <TextBlock Text="Reusable settings with no stored credentials." Foreground="#A9B7CD" />
+        </StackPanel>
+        <Button Grid.Column="1" Content="New profile" Click="CreateProfile_Click" Background="#2D6CDF" Foreground="White" Padding="18,10" VerticalAlignment="Center" />
+      </Grid>
+
+      <Grid Grid.Row="1" ColumnDefinitions="1.1*,1.35*" ColumnSpacing="20">
+        <Border Background="#172233" BorderBrush="#2A3B55" BorderThickness="1" CornerRadius="12" Padding="12">
+          <Grid RowDefinitions="Auto,*,Auto">
+            <TextBlock Text="Saved profiles" FontSize="15" FontWeight="SemiBold" Foreground="#EAF0FA" Margin="8,6,8,12" />
+            <ListBox x:Name="ProfilesList" Grid.Row="1" SelectionChanged="ProfilesList_SelectionChanged" Background="Transparent" BorderThickness="0">
+              <ListBox.ItemTemplate>
+                <DataTemplate DataType="{x:Type local:ProfileListItem}">
+                  <Border Padding="10" Margin="0,2" CornerRadius="7">
+                    <StackPanel Spacing="3">
+                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="#EDF3FC" />
+                      <TextBlock Text="{Binding Detail}" FontSize="12" Foreground="#9EB0CC" />
+                    </StackPanel>
+                  </Border>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+            <Button Grid.Row="2" Content="Refresh list" Click="Refresh_Click" HorizontalAlignment="Left" Margin="8,12,8,4" />
+          </Grid>
+        </Border>
+
+        <Border Grid.Column="1" Background="#172233" BorderBrush="#2A3B55" BorderThickness="1" CornerRadius="12" Padding="26">
+          <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" RowSpacing="16">
+            <TextBlock Text="{Binding SelectedProfileName}" FontSize="22" FontWeight="SemiBold" Foreground="#F7F9FE" />
+            <TextBlock Grid.Row="1" Text="{Binding SelectedProfileDescription}" TextWrapping="Wrap" Foreground="#A9B7CD" />
+            <Grid Grid.Row="2" ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="8">
+              <Border Background="#203653" CornerRadius="999" Padding="10,5"><TextBlock Text="{Binding SelectedProfileRevision}" Foreground="#A9CCFF" FontSize="12" /></Border>
+              <Border Grid.Column="1" Background="#203653" CornerRadius="999" Padding="10,5"><TextBlock Text="No credentials" Foreground="#A9CCFF" FontSize="12" /></Border>
+              <Border Grid.Column="2" Background="#203653" CornerRadius="999" Padding="10,5"><TextBlock Text="Validated format" Foreground="#A9CCFF" FontSize="12" /></Border>
+            </Grid>
+            <StackPanel Grid.Row="3" Spacing="12" Margin="0,10,0,0">
+              <TextBlock Text="Current capability" FontWeight="SemiBold" Foreground="#EAF0FA" />
+              <TextBlock Text="Create, clone and delete locally stored provisioning profiles. Editing, import and export will be added next." TextWrapping="Wrap" LineHeight="22" Foreground="#A9B7CD" />
+              <Border Background="#1D2A3E" CornerRadius="8" Padding="14">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Storage" FontWeight="SemiBold" Foreground="#EAF0FA" />
+                  <TextBlock x:Name="StoragePathText" TextWrapping="Wrap" FontSize="12" Foreground="#9EB0CC" />
+                </StackPanel>
+              </Border>
+            </StackPanel>
+            <Grid Grid.Row="4" ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="10">
+              <Button Content="Clone" Click="CloneProfile_Click" IsEnabled="{Binding HasSelectedProfile}" />
+              <CheckBox x:Name="ConfirmDeleteCheckBox" Grid.Column="2" Content="I understand this removes the local profile" VerticalAlignment="Center" Foreground="#A9B7CD" />
+              <Button Grid.Column="3" Content="Delete" Click="DeleteProfile_Click" IsEnabled="{Binding HasSelectedProfile}" Background="#5F2631" Foreground="White" />
+            </Grid>
+          </Grid>
+        </Border>
+      </Grid>
+
+      <Border Grid.Row="2" Background="#182537" CornerRadius="8" Padding="14" Margin="0,20,0,0">
+        <TextBlock x:Name="StatusText" Text="Ready. Create a profile to get started." Foreground="#B7C7E1" />
+      </Border>
+    </Grid>
+  </Grid>
+</Window>

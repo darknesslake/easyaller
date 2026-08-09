@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/Easyaller.App/Easyaller.App.csproj" />
     <Project Path="src/Easyaller.Core/Easyaller.Core.csproj" />
     <Project Path="src/Easyaller.Deployment/Easyaller.Deployment.csproj" />
   </Folder>
