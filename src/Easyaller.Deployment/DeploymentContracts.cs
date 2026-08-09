@@ -25,6 +25,7 @@ public enum DeploymentSetting
     Locale,
     TimeZone,
     Oobe,
+    LocalAccount,
     FirstLogon,
 }
 
@@ -65,7 +66,8 @@ public sealed record DeploymentValidationError(string Code, string FieldPath, st
 
 public sealed record DeploymentPreparationRequest(
     ProvisioningProfile Profile,
-    WindowsDeploymentTarget Target);
+    WindowsDeploymentTarget Target,
+    EphemeralLocalAccountCredential? TemporaryLocalAccount = null);
 
 public sealed record DeploymentPreview(
     Guid ProfileId,
@@ -188,6 +190,7 @@ public sealed class Windows11CompatibilityCatalog : IWindowsCompatibilityCatalog
         DeploymentSetting.Locale,
         DeploymentSetting.TimeZone,
         DeploymentSetting.Oobe,
+        DeploymentSetting.LocalAccount,
         DeploymentSetting.FirstLogon,
     };
 

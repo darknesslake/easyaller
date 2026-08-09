@@ -2,11 +2,11 @@
 
 Easyaller is an open-source Windows workstation provisioning tool. It separates reusable, versioned configuration profiles from sensitive per-machine deployment packages, so teams can share setup standards without committing credentials or local configuration to Git.
 
-> Status: pre-alpha. The profile contract, validation foundation, local profile storage, import/export service, and first functional desktop screen are implemented. Windows deployment, first boot orchestration, and USB creation are planned but not implemented yet.
+> Status: pre-alpha. The profile contract, validation foundation, local profile storage, import/export service, first functional desktop screen, and deterministic answer-file generator are implemented. Deployment-package export, Windows SIM validation, first-boot orchestration, and USB creation are not implemented yet.
 
 ## Interface previews
 
-These are static pre-alpha interface previews. They show the intended English UI direction and are not screenshots of a completed desktop application.
+These are static pre-alpha interface previews, created before the current Russian desktop UI. They are not screenshots of the completed application.
 
 ![Easyaller Profiles preview](docs/assets/profiles-preview.png)
 
@@ -40,6 +40,7 @@ These are static pre-alpha interface previews. They show the intended English UI
 - Avalonia desktop screen for listing, creating, cloning, editing all current profile sections, refreshing, importing, exporting, and explicitly deleting local profiles.
 - Set up this PC screen that previews the selected profile plan and validates runtime-only computer, network, proxy, and domain input without applying it yet.
 - Deployment module contracts for compatibility validation, answer-file generation, preview, dry run, package planning, and file-only export.
+- Deterministic, XML-writer-based `autounattend.xml` generation for validated locale, time-zone, explicitly configured OOBE values, and an optional ephemeral local account. The desktop UI and package export do not expose it yet.
 - Initial Windows 11 compatibility catalog for documented Pro and Enterprise amd64 24H2 and 25H2 targets. See [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md).
 - Neutral profile fixtures and unit tests.
 

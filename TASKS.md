@@ -122,7 +122,7 @@ Implemented `DeploymentProfileValidator` as the deployment boundary before a pre
 
 Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 46 passing tests.
 
-### [ ] WP-023: Deterministic `autounattend.xml` generator
+### [x] WP-023: Deterministic `autounattend.xml` generator
 
 Implement `IUnattendGenerator` with an XML API. Generate only validated, explicitly configured settings: locale, time zone, documented OOBE settings, and the temporary local account from an ephemeral credential object.
 
@@ -132,6 +132,10 @@ Acceptance criteria:
 - No product key, domain join, disk partitioning, or profile credential.
 - Byte-identical output for identical inputs.
 - XML escaping, validity, and prohibited-section tests.
+
+Implemented `UnattendXmlGenerator` using `XmlWriter` with fixed namespace, component, pass, element, indentation, newline, and encoding rules. It writes documented locale settings in `windowsPE` and `oobeSystem`, time zone in `specialize`, and only explicitly configured OOBE settings. A temporary local account can be supplied only through `EphemeralLocalAccountCredential`, which redacts itself, zeroizes its password on disposal, and writes a Windows-SIM-style obfuscated password value with `PlainText=false`; account creation is omitted when no ephemeral object is supplied. The generator reuses deployment validation and refuses invalid profiles, required domain join, disposed account credentials, and unsupported account names. It never writes product keys, domain accounts, disk configuration, AutoLogon, FirstLogonCommands, or raw command sections.
+
+Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 53 passing tests.
 
 ### [ ] WP-024: Windows SIM validation harness
 

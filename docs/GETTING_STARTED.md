@@ -1,6 +1,6 @@
 # Getting started with Easyaller
 
-Easyaller is pre-alpha software. It can safely create, edit, validate, import, and export reusable workstation profiles. It does not yet change Windows settings, generate an answer file, export a deployment package, or create a USB installer.
+Easyaller is pre-alpha software. It can safely create, edit, validate, import, and export reusable workstation profiles. The source code can generate a validated `autounattend.xml`, but the desktop application does not expose that workflow or export a deployment package yet. It does not change Windows settings or create a USB installer.
 
 Русская версия: [GETTING_STARTED_RU.md](GETTING_STARTED_RU.md).
 
@@ -39,12 +39,12 @@ Domain credentials are intentionally collected only at runtime. They are not pro
 
 ## Deployment status
 
-The repository includes a documented Windows 11 compatibility catalog and a deployment-profile validator. They are preparation work for a future file-only deployment package.
+The repository includes a documented Windows 11 compatibility catalog, a deployment-profile validator, and a deterministic `autounattend.xml` generator. They are preparation work for a future file-only deployment package. The generator allows only validated locale, time-zone, explicitly configured OOBE values, and an optional ephemeral local account. It does not generate disk configuration, product keys, domain joins, or AutoLogon.
 
 The following are not implemented yet:
 
-- Generating `autounattend.xml`
-- Exporting deployment files
+- Generating `autounattend.xml` from the desktop UI
+- Exporting deployment files or a complete package
 - Downloading or modifying ISO images
 - Formatting disks or creating USB installers
 - Joining a domain during Windows Setup
