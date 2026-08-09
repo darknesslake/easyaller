@@ -36,7 +36,7 @@ These are static pre-alpha interface previews. They show the intended English UI
 - Strict profile loading with schema-version, duplicate-property, required-field, locale, OOBE, and package-path validation.
 - Local profile repository with revision-conflict detection, atomic writes, recoverable backups, and corrupted-file isolation.
 - Import/export service with UTF-8 and size limits, secret-field scanning, strict loading, conflict resolution, export previews, and atomic file output.
-- Avalonia desktop screen for listing, creating, cloning, editing profile metadata, refreshing, importing, exporting, and explicitly deleting local profiles.
+- Avalonia desktop screen for listing, creating, cloning, editing profile metadata plus Windows and machine settings, refreshing, importing, exporting, and explicitly deleting local profiles.
 - Neutral profile fixtures and unit tests.
 
 ## Repository layout

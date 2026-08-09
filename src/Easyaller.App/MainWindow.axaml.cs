@@ -100,10 +100,9 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        var result = _profileEditorController.Save(
+        var result = _profileEditorController.SaveSettings(
             _selectedProfile.Profile,
-            ProfileNameTextBox.Text,
-            ProfileDescriptionTextBox.Text);
+            CreateProfileSettingsEdit(_selectedProfile.Profile));
         if (result.Status != ProfileRepositoryStatus.Success)
         {
             SetStatus($"Could not save profile: {GetMessage(result.Errors)}");
@@ -312,6 +311,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
         ProfileNameTextBox.Text = _selectedProfile?.Profile.Metadata.Name ?? string.Empty;
         ProfileDescriptionTextBox.Text = _selectedProfile?.Profile.Metadata.Description ?? string.Empty;
+        PopulateSettingsControls(_selectedProfile?.Profile);
 
         OnPropertyChanged(nameof(HasSelectedProfile));
     }
@@ -331,6 +331,95 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         errors.FirstOrDefault()?.Message ?? "Please try again.";
 
     private void SetStatus(string message) => StatusText.Text = message;
+
+    private ProfileSettingsEdit CreateProfileSettingsEdit(ProvisioningProfile original) => new(
+        ProfileNameTextBox.Text,
+        ProfileDescriptionTextBox.Text,
+        GetSelectedEditions(),
+        UiLanguageTextBox.Text,
+        InputLocaleTextBox.Text,
+        SystemLocaleTextBox.Text,
+        UserLocaleTextBox.Text,
+        TimeZoneTextBox.Text,
+        OfflineInitialSetupCheckBox.IsChecked == true,
+        GetOptionalBoolean(HideWirelessSetupComboBox),
+        GetOptionalBoolean(HideOnlineAccountComboBox),
+        ComputerNamePrefixTextBox.Text,
+        GetSelectedEnum(ProxyModeComboBox, original.Machine.Proxy.Mode),
+        GetSelectedEnum(DomainModeComboBox, original.Domain.Mode),
+        GetSelectedEnum(LaunchModeComboBox, original.Deployment.LaunchMode),
+        GetSelectedEnum(CleanupModeComboBox, original.Cleanup.ProvisioningAccount));
+
+    private IReadOnlyList<WindowsEdition> GetSelectedEditions()
+    {
+        var editions = new List<WindowsEdition>();
+        if (ProfessionalEditionCheckBox.IsChecked == true)
+        {
+            editions.Add(WindowsEdition.Professional);
+        }
+
+        if (EnterpriseEditionCheckBox.IsChecked == true)
+        {
+            editions.Add(WindowsEdition.Enterprise);
+        }
+
+        return editions;
+    }
+
+    private void PopulateSettingsControls(ProvisioningProfile? profile)
+    {
+        var windows = profile?.Windows;
+        ProfessionalEditionCheckBox.IsChecked = windows?.SupportedEditions.Contains(WindowsEdition.Professional) == true;
+        EnterpriseEditionCheckBox.IsChecked = windows?.SupportedEditions.Contains(WindowsEdition.Enterprise) == true;
+        UiLanguageTextBox.Text = windows?.Locale.UiLanguage ?? string.Empty;
+        InputLocaleTextBox.Text = windows?.Locale.InputLocale ?? string.Empty;
+        SystemLocaleTextBox.Text = windows?.Locale.SystemLocale ?? string.Empty;
+        UserLocaleTextBox.Text = windows?.Locale.UserLocale ?? string.Empty;
+        TimeZoneTextBox.Text = windows?.TimeZone ?? string.Empty;
+        OfflineInitialSetupCheckBox.IsChecked = windows?.Oobe.OfflineInitialSetup == true;
+        SetOptionalBoolean(HideWirelessSetupComboBox, windows?.Oobe.HideWirelessSetup);
+        SetOptionalBoolean(HideOnlineAccountComboBox, windows?.Oobe.HideOnlineAccountScreens);
+        ComputerNamePrefixTextBox.Text = profile?.Machine.ComputerName.Prefix ?? string.Empty;
+        SetSelectedEnum(ProxyModeComboBox, profile?.Machine.Proxy.Mode);
+        SetSelectedEnum(DomainModeComboBox, profile?.Domain.Mode);
+        SetSelectedEnum(LaunchModeComboBox, profile?.Deployment.LaunchMode);
+        SetSelectedEnum(CleanupModeComboBox, profile?.Cleanup.ProvisioningAccount);
+    }
+
+    private static bool? GetOptionalBoolean(ComboBox comboBox) =>
+        (comboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() switch
+        {
+            "true" => true,
+            "false" => false,
+            _ => null,
+        };
+
+    private static void SetOptionalBoolean(ComboBox comboBox, bool? value)
+    {
+        var target = value switch
+        {
+            true => "true",
+            false => "false",
+            null => "unset",
+        };
+        comboBox.SelectedItem = comboBox.Items
+            .OfType<ComboBoxItem>()
+            .FirstOrDefault(item => string.Equals(item.Tag?.ToString(), target, StringComparison.Ordinal));
+    }
+
+    private static T GetSelectedEnum<T>(ComboBox comboBox, T fallback)
+        where T : struct, Enum =>
+        Enum.TryParse<T>((comboBox.SelectedItem as ComboBoxItem)?.Content?.ToString(), out var selected)
+            ? selected
+            : fallback;
+
+    private static void SetSelectedEnum<T>(ComboBox comboBox, T? value)
+        where T : struct, Enum
+    {
+        comboBox.SelectedItem = comboBox.Items
+            .OfType<ComboBoxItem>()
+            .FirstOrDefault(item => string.Equals(item.Content?.ToString(), value?.ToString(), StringComparison.Ordinal));
+    }
 
     private void SaveImportedProfile(ProfileImportConflictResolution resolution)
     {

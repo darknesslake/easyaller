@@ -77,7 +77,8 @@
               <Border Grid.Column="1" Background="#203653" CornerRadius="999" Padding="10,5"><TextBlock Text="No credentials" Foreground="#A9CCFF" FontSize="12" /></Border>
               <Border Grid.Column="2" Background="#203653" CornerRadius="999" Padding="10,5"><TextBlock Text="Validated format" Foreground="#A9CCFF" FontSize="12" /></Border>
             </Grid>
-            <StackPanel Grid.Row="3" Spacing="12" Margin="0,10,0,0">
+            <ScrollViewer Grid.Row="3" HorizontalScrollBarVisibility="Disabled">
+              <StackPanel Spacing="12" Margin="0,10,0,0">
               <TextBlock Text="Edit profile" FontWeight="SemiBold" Foreground="#EAF0FA" />
               <StackPanel Spacing="6">
                 <TextBlock Text="Name" FontSize="12" Foreground="#A9B7CD" />
@@ -87,6 +88,95 @@
                 <TextBlock Text="Description" FontSize="12" Foreground="#A9B7CD" />
                 <TextBox x:Name="ProfileDescriptionTextBox" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="54" />
               </StackPanel>
+              <Expander Header="Windows and machine settings">
+                <StackPanel Margin="0,12,0,0" Spacing="12">
+                  <TextBlock Text="Windows editions" FontSize="12" Foreground="#A9B7CD" />
+                  <StackPanel Orientation="Horizontal" Spacing="18">
+                    <CheckBox x:Name="ProfessionalEditionCheckBox" Content="Windows 11 Pro" />
+                    <CheckBox x:Name="EnterpriseEditionCheckBox" Content="Windows 11 Enterprise" />
+                  </StackPanel>
+                  <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                    <StackPanel Spacing="6">
+                      <TextBlock Text="UI language" FontSize="12" Foreground="#A9B7CD" />
+                      <TextBox x:Name="UiLanguageTextBox" PlaceholderText="en-US" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="6">
+                      <TextBlock Text="Time zone" FontSize="12" Foreground="#A9B7CD" />
+                      <TextBox x:Name="TimeZoneTextBox" PlaceholderText="UTC" />
+                    </StackPanel>
+                  </Grid>
+                  <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
+                    <StackPanel Spacing="6">
+                      <TextBlock Text="Input locale" FontSize="12" Foreground="#A9B7CD" />
+                      <TextBox x:Name="InputLocaleTextBox" PlaceholderText="en-US" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="6">
+                      <TextBlock Text="System locale" FontSize="12" Foreground="#A9B7CD" />
+                      <TextBox x:Name="SystemLocaleTextBox" PlaceholderText="en-US" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Spacing="6">
+                      <TextBlock Text="User locale" FontSize="12" Foreground="#A9B7CD" />
+                      <TextBox x:Name="UserLocaleTextBox" PlaceholderText="en-US" />
+                    </StackPanel>
+                  </Grid>
+                  <CheckBox x:Name="OfflineInitialSetupCheckBox" Content="Request offline initial setup" />
+                  <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                    <StackPanel Spacing="6">
+                      <TextBlock Text="Wireless setup in OOBE" FontSize="12" Foreground="#A9B7CD" />
+                      <ComboBox x:Name="HideWirelessSetupComboBox">
+                        <ComboBoxItem Tag="unset">Not configured</ComboBoxItem>
+                        <ComboBoxItem Tag="true">Hide</ComboBoxItem>
+                        <ComboBoxItem Tag="false">Show</ComboBoxItem>
+                      </ComboBox>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="6">
+                      <TextBlock Text="Online account screens" FontSize="12" Foreground="#A9B7CD" />
+                      <ComboBox x:Name="HideOnlineAccountComboBox">
+                        <ComboBoxItem Tag="unset">Not configured</ComboBoxItem>
+                        <ComboBoxItem Tag="true">Hide</ComboBoxItem>
+                        <ComboBoxItem Tag="false">Show</ComboBoxItem>
+                      </ComboBox>
+                    </StackPanel>
+                  </Grid>
+                  <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                    <StackPanel Spacing="6">
+                      <TextBlock Text="Computer name prefix" FontSize="12" Foreground="#A9B7CD" />
+                      <TextBox x:Name="ComputerNamePrefixTextBox" PlaceholderText="Optional, for example OFFICE" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="6">
+                      <TextBlock Text="Proxy configuration" FontSize="12" Foreground="#A9B7CD" />
+                      <ComboBox x:Name="ProxyModeComboBox">
+                        <ComboBoxItem>NotConfigured</ComboBoxItem>
+                        <ComboBoxItem>PromptAtRuntime</ComboBoxItem>
+                      </ComboBox>
+                    </StackPanel>
+                  </Grid>
+                  <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
+                    <StackPanel Spacing="6">
+                      <TextBlock Text="Domain mode" FontSize="12" Foreground="#A9B7CD" />
+                      <ComboBox x:Name="DomainModeComboBox">
+                        <ComboBoxItem>NotConfigured</ComboBoxItem>
+                        <ComboBoxItem>Optional</ComboBoxItem>
+                        <ComboBoxItem>Required</ComboBoxItem>
+                      </ComboBox>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="6">
+                      <TextBlock Text="Provisioner launch" FontSize="12" Foreground="#A9B7CD" />
+                      <ComboBox x:Name="LaunchModeComboBox">
+                        <ComboBoxItem>Manual</ComboBoxItem>
+                        <ComboBoxItem>FirstLogon</ComboBoxItem>
+                      </ComboBox>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Spacing="6">
+                      <TextBlock Text="Temporary account cleanup" FontSize="12" Foreground="#A9B7CD" />
+                      <ComboBox x:Name="CleanupModeComboBox">
+                        <ComboBoxItem>DisableAfterValidation</ComboBoxItem>
+                        <ComboBoxItem>DeleteAfterValidation</ComboBoxItem>
+                      </ComboBox>
+                    </StackPanel>
+                  </Grid>
+                </StackPanel>
+              </Expander>
               <Button Content="Save changes" Click="SaveProfile_Click" IsEnabled="{Binding HasSelectedProfile}" HorizontalAlignment="Left" />
               <Border Background="#1D2A3E" CornerRadius="8" Padding="14">
                 <StackPanel Spacing="4">
@@ -94,7 +184,8 @@
                   <TextBlock x:Name="StoragePathText" TextWrapping="Wrap" FontSize="12" Foreground="#9EB0CC" />
                 </StackPanel>
               </Border>
-            </StackPanel>
+              </StackPanel>
+            </ScrollViewer>
             <Grid Grid.Row="4" ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="10">
               <Button Content="Clone" Click="CloneProfile_Click" IsEnabled="{Binding HasSelectedProfile}" />
               <CheckBox x:Name="ConfirmDeleteCheckBox" Grid.Column="2" Content="I understand this removes the local profile" VerticalAlignment="Center" Foreground="#A9B7CD" />

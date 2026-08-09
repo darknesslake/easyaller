@@ -74,7 +74,7 @@ Acceptance criteria:
 - The functional UI matches the documented safety model, not only the static preview.
 - Core user states have UI or view-model tests.
 
-The current cross-platform Avalonia screen lists, creates, clones, edits profile metadata, refreshes, and explicitly deletes local profiles through `FileProfileRepository`. It opens native import/export dialogs, previews an import, requires an explicit conflict choice, and requires an explicit export confirmation after displaying confidential-field count. `ProfileEditorController` has focused tests for valid edits and validation failures. It remains intentionally incomplete until every supported profile setting has an editor and the wider UI flow has coverage.
+The current cross-platform Avalonia screen lists, creates, clones, edits profile metadata, Windows target, locale, OOBE, machine prefix, proxy mode, domain mode, launch mode, and temporary-account cleanup. It opens native import/export dialogs, previews an import, requires an explicit conflict choice, and requires an explicit export confirmation after displaying confidential-field count. `ProfileEditorController` has focused tests for metadata validation and Windows and machine settings. It remains intentionally incomplete until applications, instructions, privacy controls, and wider UI-flow coverage are added.
 
 ### [ ] WP-015: Connect a selected profile to the provisioning pipeline
 
