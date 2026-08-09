@@ -41,7 +41,11 @@
           <TextBlock Text="Profiles" FontSize="30" FontWeight="SemiBold" Foreground="#F7F9FE" />
           <TextBlock Text="Reusable settings with no stored credentials." Foreground="#A9B7CD" />
         </StackPanel>
-        <Button Grid.Column="1" Content="New profile" Click="CreateProfile_Click" Background="#2D6CDF" Foreground="White" Padding="18,10" VerticalAlignment="Center" />
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+          <Button Content="Import" Click="ImportProfile_Click" />
+          <Button Content="Export" Click="ExportProfile_Click" IsEnabled="{Binding HasSelectedProfile}" />
+          <Button Content="New profile" Click="CreateProfile_Click" Background="#2D6CDF" Foreground="White" Padding="18,10" />
+        </StackPanel>
       </Grid>
 
       <Grid Grid.Row="1" ColumnDefinitions="1.1*,1.35*" ColumnSpacing="20">
@@ -74,8 +78,16 @@
               <Border Grid.Column="2" Background="#203653" CornerRadius="999" Padding="10,5"><TextBlock Text="Validated format" Foreground="#A9CCFF" FontSize="12" /></Border>
             </Grid>
             <StackPanel Grid.Row="3" Spacing="12" Margin="0,10,0,0">
-              <TextBlock Text="Current capability" FontWeight="SemiBold" Foreground="#EAF0FA" />
-              <TextBlock Text="Create, clone and delete locally stored provisioning profiles. Editing, import and export will be added next." TextWrapping="Wrap" LineHeight="22" Foreground="#A9B7CD" />
+              <TextBlock Text="Edit profile" FontWeight="SemiBold" Foreground="#EAF0FA" />
+              <StackPanel Spacing="6">
+                <TextBlock Text="Name" FontSize="12" Foreground="#A9B7CD" />
+                <TextBox x:Name="ProfileNameTextBox" />
+              </StackPanel>
+              <StackPanel Spacing="6">
+                <TextBlock Text="Description" FontSize="12" Foreground="#A9B7CD" />
+                <TextBox x:Name="ProfileDescriptionTextBox" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="54" />
+              </StackPanel>
+              <Button Content="Save changes" Click="SaveProfile_Click" IsEnabled="{Binding HasSelectedProfile}" HorizontalAlignment="Left" />
               <Border Background="#1D2A3E" CornerRadius="8" Padding="14">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Storage" FontWeight="SemiBold" Foreground="#EAF0FA" />
@@ -92,9 +104,26 @@
         </Border>
       </Grid>
 
-      <Border Grid.Row="2" Background="#182537" CornerRadius="8" Padding="14" Margin="0,20,0,0">
-        <TextBlock x:Name="StatusText" Text="Ready. Create a profile to get started." Foreground="#B7C7E1" />
-      </Border>
+      <StackPanel Grid.Row="2" Spacing="10" Margin="0,20,0,0">
+        <Border Background="#182537" CornerRadius="8" Padding="14">
+          <TextBlock x:Name="StatusText" Text="Ready. Create a profile to get started." Foreground="#B7C7E1" />
+        </Border>
+        <Border x:Name="ImportConflictPanel" IsVisible="False" Background="#3A2D16" BorderBrush="#896A25" BorderThickness="1" CornerRadius="8" Padding="14">
+          <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="10">
+            <TextBlock Text="This profile ID already exists. Choose how to continue." VerticalAlignment="Center" Foreground="#F5DFA0" />
+            <Button Grid.Column="1" Content="Create copy" Click="ImportCreateCopy_Click" />
+            <Button Grid.Column="2" Content="Replace" Click="ImportReplace_Click" Background="#725C22" Foreground="White" />
+            <Button Grid.Column="3" Content="Cancel" Click="ImportCancel_Click" />
+          </Grid>
+        </Border>
+        <Border x:Name="ExportConfirmationPanel" IsVisible="False" Background="#1B3140" BorderBrush="#35667E" BorderThickness="1" CornerRadius="8" Padding="14">
+          <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+            <TextBlock x:Name="ExportWarningText" VerticalAlignment="Center" Foreground="#B9E3F5" />
+            <Button Grid.Column="1" Content="Confirm export" Click="ConfirmExport_Click" Background="#2D6CDF" Foreground="White" />
+            <Button Grid.Column="2" Content="Cancel" Click="CancelExport_Click" />
+          </Grid>
+        </Border>
+      </StackPanel>
     </Grid>
   </Grid>
 </Window>

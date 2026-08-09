@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
 using Easyaller.Core.Profiles;
 
 namespace Easyaller.App;
@@ -10,8 +11,12 @@ namespace Easyaller.App;
 public sealed partial class MainWindow : Window, INotifyPropertyChanged
 {
     private readonly FileProfileRepository _repository;
+    private readonly ProfileImportExportService _profileImportExportService;
+    private readonly ProfileEditorController _profileEditorController;
     private readonly ObservableCollection<ProfileListItem> _profiles = [];
     private ProfileListItem? _selectedProfile;
+    private byte[]? _pendingImportSource;
+    private ProvisioningProfile? _pendingExportProfile;
     private string _selectedProfileName = "Select a profile";
     private string _selectedProfileDescription = "Choose a saved profile to inspect its local state.";
     private string _selectedProfileRevision = "No profile selected";
@@ -22,6 +27,8 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         InitializeComponent();
         DataContext = this;
         _repository = new FileProfileRepository(GetLocalProfileDirectory());
+        _profileImportExportService = new ProfileImportExportService(_repository);
+        _profileEditorController = new ProfileEditorController(_repository);
         ProfilesList.ItemsSource = _profiles;
         StoragePathText.Text = _repository.RootDirectory;
         RefreshProfiles();
@@ -84,6 +91,149 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
         RefreshProfiles(result.Profile!.ProfileId);
         SetStatus($"Created a copy of {sourceName}.");
+    }
+
+    private void SaveProfile_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_selectedProfile is null)
+        {
+            return;
+        }
+
+        var result = _profileEditorController.Save(
+            _selectedProfile.Profile,
+            ProfileNameTextBox.Text,
+            ProfileDescriptionTextBox.Text);
+        if (result.Status != ProfileRepositoryStatus.Success)
+        {
+            SetStatus($"Could not save profile: {GetMessage(result.Errors)}");
+            return;
+        }
+
+        RefreshProfiles(result.Profile!.ProfileId);
+        SetStatus("Profile changes saved.");
+    }
+
+    private async void ImportProfile_Click(object? sender, RoutedEventArgs e)
+    {
+        if (!StorageProvider.CanOpen)
+        {
+            SetStatus("File import is not available on this platform.");
+            return;
+        }
+
+        HideImportConflict();
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Import Easyaller profile",
+            AllowMultiple = false,
+            FileTypeFilter = [ProfileFileType],
+        });
+        var file = files.FirstOrDefault();
+        if (file is null)
+        {
+            SetStatus("Profile import cancelled.");
+            return;
+        }
+
+        var source = await ReadFileWithinLimitAsync(file, ProfileImportExportService.DefaultMaximumImportBytes);
+        if (source is null)
+        {
+            SetStatus("Profile import exceeds the 1 MiB limit.");
+            return;
+        }
+
+        var preview = _profileImportExportService.PreviewImport(source);
+        if (preview.Status == ProfileImportPreviewStatus.Invalid)
+        {
+            SetStatus($"Import rejected: {GetMessage(preview.Errors)}");
+            return;
+        }
+
+        if (preview.Status == ProfileImportPreviewStatus.IoFailure)
+        {
+            SetStatus($"Could not inspect import: {GetMessage(preview.Errors)}");
+            return;
+        }
+
+        _pendingImportSource = source;
+        if (preview.Status == ProfileImportPreviewStatus.Conflict)
+        {
+            ImportConflictPanel.IsVisible = true;
+            SetStatus($"Import preview: {preview.Profile!.Metadata.Name}. Review the conflict choice below.");
+            return;
+        }
+
+        SaveImportedProfile(ProfileImportConflictResolution.Create);
+    }
+
+    private void ImportCreateCopy_Click(object? sender, RoutedEventArgs e) =>
+        SaveImportedProfile(ProfileImportConflictResolution.CreateCopy);
+
+    private void ImportReplace_Click(object? sender, RoutedEventArgs e) =>
+        SaveImportedProfile(ProfileImportConflictResolution.Replace);
+
+    private void ImportCancel_Click(object? sender, RoutedEventArgs e)
+    {
+        HideImportConflict();
+        SetStatus("Profile import cancelled. No local files changed.");
+    }
+
+    private void ExportProfile_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_selectedProfile is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var preview = _profileImportExportService.PreviewExport(_selectedProfile.Profile);
+            _pendingExportProfile = preview.Profile;
+            ExportWarningText.Text = preview.ConfidentialFields.Count == 0
+                ? "Export contains no fields marked as confidential."
+                : $"Export review: {preview.ConfidentialFields.Count} field(s) may contain organization-specific information.";
+            ExportConfirmationPanel.IsVisible = true;
+        }
+        catch (ProfileJsonException exception)
+        {
+            SetStatus($"Export rejected: {exception.Message}");
+        }
+    }
+
+    private async void ConfirmExport_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_pendingExportProfile is null || !StorageProvider.CanSave)
+        {
+            SetStatus("File export is not available on this platform.");
+            return;
+        }
+
+        var destination = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Export Easyaller profile",
+            SuggestedFileName = ToExportFileName(_pendingExportProfile.Metadata.Name),
+            DefaultExtension = "wpprofile.json",
+            FileTypeChoices = [ProfileFileType],
+            ShowOverwritePrompt = true,
+        });
+        if (destination is null)
+        {
+            SetStatus("Profile export cancelled.");
+            return;
+        }
+
+        var result = _profileImportExportService.ExportToFile(_pendingExportProfile, destination.Path.LocalPath);
+        HideExportConfirmation();
+        SetStatus(result.IsSuccess
+            ? "Profile exported successfully."
+            : $"Could not export profile: {GetMessage(result.Errors)}");
+    }
+
+    private void CancelExport_Click(object? sender, RoutedEventArgs e)
+    {
+        HideExportConfirmation();
+        SetStatus("Profile export cancelled.");
     }
 
     private void DeleteProfile_Click(object? sender, RoutedEventArgs e)
@@ -160,6 +310,9 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             SelectedProfileRevision = $"Revision {_selectedProfile.Profile.Revision}";
         }
 
+        ProfileNameTextBox.Text = _selectedProfile?.Profile.Metadata.Name ?? string.Empty;
+        ProfileDescriptionTextBox.Text = _selectedProfile?.Profile.Metadata.Description ?? string.Empty;
+
         OnPropertyChanged(nameof(HasSelectedProfile));
     }
 
@@ -178,6 +331,76 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         errors.FirstOrDefault()?.Message ?? "Please try again.";
 
     private void SetStatus(string message) => StatusText.Text = message;
+
+    private void SaveImportedProfile(ProfileImportConflictResolution resolution)
+    {
+        if (_pendingImportSource is null)
+        {
+            return;
+        }
+
+        var result = _profileImportExportService.Import(_pendingImportSource, resolution);
+        HideImportConflict();
+        if (result.Status != ProfileImportStatus.Saved)
+        {
+            SetStatus($"Could not import profile: {GetMessage(result.Errors)}");
+            return;
+        }
+
+        RefreshProfiles(result.Profile!.ProfileId);
+        SetStatus("Profile imported successfully.");
+    }
+
+    private void HideImportConflict()
+    {
+        _pendingImportSource = null;
+        ImportConflictPanel.IsVisible = false;
+    }
+
+    private void HideExportConfirmation()
+    {
+        _pendingExportProfile = null;
+        ExportConfirmationPanel.IsVisible = false;
+    }
+
+    private static async Task<byte[]?> ReadFileWithinLimitAsync(IStorageFile file, int maximumBytes)
+    {
+        await using var source = await file.OpenReadAsync();
+        await using var destination = new MemoryStream();
+        var buffer = new byte[81920];
+        while (true)
+        {
+            var read = await source.ReadAsync(buffer);
+            if (read == 0)
+            {
+                return destination.ToArray();
+            }
+
+            if (destination.Length + read > maximumBytes)
+            {
+                return null;
+            }
+
+            await destination.WriteAsync(buffer.AsMemory(0, read));
+        }
+    }
+
+    private static string ToExportFileName(string profileName)
+    {
+        var invalidCharacters = Path.GetInvalidFileNameChars();
+        var normalizedName = new string(profileName
+            .Select(character => invalidCharacters.Contains(character) ? '-' : character)
+            .ToArray())
+            .Trim();
+        return string.IsNullOrEmpty(normalizedName) ? "easyaller-profile" : normalizedName;
+    }
+
+    private static readonly FilePickerFileType ProfileFileType = new("Easyaller profile")
+    {
+        Patterns = ["*.wpprofile.json"],
+        MimeTypes = ["application/json"],
+        AppleUniformTypeIdentifiers = ["public.json"],
+    };
 
     private void SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
     {
