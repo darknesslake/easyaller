@@ -211,9 +211,13 @@ Implemented an explicit `PrivacyConfigurationService` with a separately injectab
 
 Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 83 passing tests. The adapter was not invoked against Windows in this macOS environment; Windows SIM and VM validation are required before workstation use.
 
-### [ ] WP-034: Runtime Windows version gate
+### [x] WP-034: Runtime Windows version gate
 
 Detect edition, display version, build, and architecture after installation. Compare them with the package manifest and profile. Unknown builds warn and skip unvalidated actions.
+
+Implemented a read-only `RuntimeWindowsVersionGate` and Windows-only runtime provider. It compares detected edition, architecture, display version, and build exactly with the deployment manifest, then verifies that the selected profile identity, revision, architecture, and supported edition agree. Any mismatch blocks validated actions. A missing detector result or build outside the documented compatibility catalog produces a warning and skips validated actions without a workaround. The desktop UI does not invoke the gate yet. English and Russian notes are in `docs/RUNTIME_VERSION_GATE.md` and `docs/RUNTIME_VERSION_GATE_RU.md`.
+
+Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 88 passing tests. The provider was not executed against Windows in this macOS environment; Windows SIM and VM validation remain required.
 
 ## Phase 4: VM validation
 
