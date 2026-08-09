@@ -2,7 +2,7 @@
 
 Easyaller is an open-source Windows workstation provisioning tool. It separates reusable, versioned configuration profiles from sensitive per-machine deployment packages, so teams can share setup standards without committing credentials or local configuration to Git.
 
-> Status: pre-alpha. The profile contract, validation foundation, local profile storage, and first functional desktop screen are implemented. Windows deployment, first boot orchestration, and USB creation are planned but not implemented yet.
+> Status: pre-alpha. The profile contract, validation foundation, local profile storage, import/export service, and first functional desktop screen are implemented. Windows deployment, first boot orchestration, and USB creation are planned but not implemented yet.
 
 ## Interface previews
 
@@ -35,6 +35,7 @@ These are static pre-alpha interface previews. They show the intended English UI
 - Deterministic UTF-8 JSON serialization with a stable property order and a final newline.
 - Strict profile loading with schema-version, duplicate-property, required-field, locale, OOBE, and package-path validation.
 - Local profile repository with revision-conflict detection, atomic writes, recoverable backups, and corrupted-file isolation.
+- Import/export service with UTF-8 and size limits, secret-field scanning, strict loading, conflict resolution, export previews, and atomic file output.
 - Avalonia desktop screen for listing, creating, cloning, refreshing, and explicitly deleting local profiles.
 - Neutral profile fixtures and unit tests.
 

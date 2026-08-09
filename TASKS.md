@@ -48,7 +48,7 @@ Implemented `IProfileRepository` and `FileProfileRepository`. The production roo
 
 Verified: `dotnet test Easyaller.slnx` with 20 passing tests.
 
-### [ ] WP-013: Import and export application service
+### [x] WP-013: Import and export application service
 
 Build the full import pipeline: size and UTF-8 limits, strict loader, schema, migration hook, semantic validation, secret scan, path checks, preview, conflict choice, and atomic save.
 
@@ -58,6 +58,10 @@ Acceptance criteria:
 - `password`, token-like fields, raw commands, absolute paths, and traversal paths stop the import with a clear field path.
 - Export preview identifies confidential non-secret fields.
 - Tests cover malformed UTF-8, duplicate keys, future versions, collisions, cancellation, and round trips.
+
+Implemented `ProfileImportExportService` with a 1 MiB default size limit, strict UTF-8 decoding, migration-pipeline seam, secret and raw-command field scan, strict JSON loader, semantic validation, repository conflict preview, cancellation, copy and replace choices, confidential-field preview, deterministic export, and atomic file output. Imports do not execute content or change Windows.
+
+Verified: `dotnet test Easyaller.slnx` with 30 passing tests.
 
 ### [ ] WP-014: Profile management UI
 
