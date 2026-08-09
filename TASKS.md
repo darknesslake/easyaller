@@ -334,3 +334,7 @@ Reorganized the profile editor from a single technical field list into four orde
 ### [x] WP-075: Visible profile actions and contextual help
 
 Moved the profile actions out of the scrollable form into a persistent rounded panel: save, reset unsaved changes, clone, and a deliberately confirmed local-profile deletion. Reset restores the currently saved profile without changing disk state. Deletion remains blocked until the operator marks the confirmation checkbox, then uses the existing recoverable repository delete flow. Added hoverable circular `!` help badges for the main configuration sections and high-impact options, plus a shared rounded style for buttons, text fields, selectors, and nested cards. This changes only desktop usability and does not weaken profile validation or deletion safeguards.
+
+### [x] WP-076: Responsive profile-editor layout
+
+Corrected the first task-oriented editor layout after visual review: widened the default desktop window, gave the editor the larger share of the workspace, wrapped the explanatory header instead of clipping it, shortened sidebar labels, and changed the fixed action strip to a wrapping control row. Save, reset, and clone actions remain visible on narrower windows instead of running beyond the card edge; the confirmed delete action stays on its own row. Existing stored profile names are user data and intentionally are not auto-translated or renamed.

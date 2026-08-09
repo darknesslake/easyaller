@@ -4,12 +4,12 @@
         x:Class="Easyaller.App.MainWindow"
         x:DataType="local:MainWindow"
         Title="Easyaller"
-        Width="1140"
-        Height="740"
-        MinWidth="900"
-        MinHeight="620"
+        Width="1280"
+        Height="840"
+        MinWidth="1040"
+        MinHeight="720"
         Background="#101826">
-  <Grid ColumnDefinitions="250,*">
+  <Grid ColumnDefinitions="236,*">
     <Border Background="#151E2D" BorderBrush="#27364E" BorderThickness="0,0,1,0" Padding="20">
       <Grid RowDefinitions="Auto,Auto,*,Auto">
         <StackPanel Spacing="6">
@@ -21,9 +21,9 @@
           <Border Background="#263A5A" CornerRadius="8" Padding="12,10">
             <TextBlock Text="Профили" FontWeight="SemiBold" Foreground="#F6F8FC" />
           </Border>
-          <Button Content="Проверить и применить профиль" Click="OpenSetup_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="12,7" Background="Transparent" Foreground="#9BAAC3" BorderThickness="0" />
+          <Button Content="Применить профиль" Click="OpenSetup_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="12,7" Background="Transparent" Foreground="#9BAAC3" BorderThickness="0" />
           <TextBlock Text="Там же: подготовка файлов Windows 11" Margin="12,2,12,7" TextWrapping="Wrap" FontSize="12" Foreground="#71839F" />
-          <Button Content="Создать установочный USB" Click="OpenUsbCreator_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="12,7" Background="Transparent" Foreground="#9BAAC3" BorderThickness="0" />
+          <Button Content="Установочный USB" Click="OpenUsbCreator_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="12,7" Background="Transparent" Foreground="#9BAAC3" BorderThickness="0" />
         </StackPanel>
 
         <Border Grid.Row="3" Background="#1D2A3E" CornerRadius="8" Padding="12">
@@ -39,7 +39,7 @@
       <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,24">
         <StackPanel Spacing="6">
           <TextBlock Text="Профили" FontSize="30" FontWeight="SemiBold" Foreground="#F7F9FE" />
-          <TextBlock Text="Создайте понятный стандарт подготовки компьютера. Пароли и учётные данные не сохраняются." Foreground="#A9B7CD" />
+          <TextBlock Text="Создайте понятный стандарт подготовки компьютера. Пароли и учётные данные не сохраняются." TextWrapping="Wrap" MaxWidth="470" Foreground="#A9B7CD" />
         </StackPanel>
         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
           <Button Content="Импорт" Click="ImportProfile_Click" />
@@ -48,7 +48,7 @@
         </StackPanel>
       </Grid>
 
-      <Grid Grid.Row="1" ColumnDefinitions="1.1*,1.35*" ColumnSpacing="20">
+      <Grid Grid.Row="1" ColumnDefinitions="0.82*,1.55*" ColumnSpacing="20">
         <Border Background="#172233" BorderBrush="#2A3B55" BorderThickness="1" CornerRadius="20" Padding="14">
           <Grid RowDefinitions="Auto,*,Auto">
             <TextBlock Text="Сохранённые профили" FontSize="15" FontWeight="SemiBold" Foreground="#EAF0FA" Margin="8,6,8,12" />
@@ -416,13 +416,13 @@
             </ScrollViewer>
             <Border Grid.Row="4" Background="#1D2A3E" CornerRadius="16" Padding="12">
               <StackPanel Spacing="10">
-                <StackPanel Orientation="Horizontal" Spacing="10">
-                  <Button Content="Сохранить профиль" Click="SaveProfile_Click" IsEnabled="{Binding HasSelectedProfile}" Background="#2D6CDF" Foreground="White" />
-                  <Button Content="Сбросить несохранённые изменения" Click="ResetProfile_Click" IsEnabled="{Binding HasSelectedProfile}" />
-                  <Button Content="Создать копию" Click="CloneProfile_Click" IsEnabled="{Binding HasSelectedProfile}" />
-                </StackPanel>
+                <WrapPanel Orientation="Horizontal" ItemHeight="40" HorizontalAlignment="Left">
+                  <Button Content="Сохранить" Click="SaveProfile_Click" IsEnabled="{Binding HasSelectedProfile}" Background="#2D6CDF" Foreground="White" ToolTip.Tip="Сохранить все изменения в текущем локальном профиле." />
+                  <Button Content="Сбросить" Click="ResetProfile_Click" IsEnabled="{Binding HasSelectedProfile}" ToolTip.Tip="Отменить несохранённые изменения и вернуть сохранённую версию профиля." Margin="8,0,0,0" />
+                  <Button Content="Создать копию" Click="CloneProfile_Click" IsEnabled="{Binding HasSelectedProfile}" ToolTip.Tip="Создать независимую копию текущего профиля." Margin="8,0,0,0" />
+                </WrapPanel>
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-                  <CheckBox x:Name="ConfirmDeleteCheckBox" Content="Подтверждаю удаление локального профиля" IsCheckedChanged="ConfirmDeleteCheckBox_IsCheckedChanged" VerticalAlignment="Center" Foreground="#A9B7CD" />
+                  <CheckBox x:Name="ConfirmDeleteCheckBox" Content="Подтверждаю удаление профиля" IsCheckedChanged="ConfirmDeleteCheckBox_IsCheckedChanged" VerticalAlignment="Center" Foreground="#A9B7CD" />
                   <Button x:Name="DeleteProfileButton" Grid.Column="1" Content="Удалить профиль" Click="DeleteProfile_Click" Background="#7A3340" Foreground="White" />
                 </Grid>
               </StackPanel>
