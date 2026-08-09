@@ -169,9 +169,13 @@ Implemented `DeploymentPackageExporter`. It accepts a validated `DeploymentDryRu
 
 Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 64 passing tests.
 
-### [ ] WP-028: Functional Prepare Windows 11 screen
+### [x] WP-028: Functional Prepare Windows 11 screen
 
 Connect profile selection, validation, preview, dry run, and file-only package export. USB formatting must not appear in this screen yet.
+
+Implemented the Russian **Set up this PC** deployment workflow. It selects a stored profile plus Windows 11 edition, display version, and build; shows compatibility preview, dry-run effective OOBE and privacy state, generated answer-file size, and sensitive-material warnings; then exports a basic package only after an explicit parent-folder choice. The screen clears a dry run when its profile or target changes and does not expose optional assets, temporary-account credentials, ISO handling, USB creation, or formatting. `DeploymentPreparationController` tests cover the documented target preview and basic package handoff.
+
+Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 66 passing tests. The Avalonia window starts locally, but this macOS environment does not expose it to the available accessibility automation, so layout was verified by XAML compilation rather than an automated screenshot.
 
 ## Phase 3: first boot and privacy
 

@@ -11,7 +11,7 @@
   <Grid RowDefinitions="Auto,*,Auto" Margin="30">
     <StackPanel Spacing="6" Margin="0,0,0,24">
       <TextBlock Text="Настройка этого ПК" FontSize="29" FontWeight="SemiBold" Foreground="#F7F9FE" />
-      <TextBlock Text="Просмотрите выбранный профиль и введите значения только для текущего запуска. Этот экран пока не меняет Windows." Foreground="#A9B7CD" />
+      <TextBlock Text="Просмотрите выбранный профиль, создайте файловый пакет или введите значения только для текущего запуска. Этот экран не меняет Windows." Foreground="#A9B7CD" />
     </StackPanel>
     <Grid Grid.Row="1" ColumnDefinitions="300,*" ColumnSpacing="20">
       <Border Background="#172233" BorderBrush="#2A3B55" BorderThickness="1" CornerRadius="12" Padding="12">
@@ -37,6 +37,38 @@
               <StackPanel Spacing="5">
                 <TextBlock Text="Предпросмотр плана" FontWeight="SemiBold" Foreground="#EAF0FA" />
                 <TextBlock x:Name="PlanSummaryText" Text="План не выбран." TextWrapping="Wrap" Foreground="#A9B7CD" />
+              </StackPanel>
+            </Border>
+            <Border Background="#1D2A3E" BorderBrush="#35667E" BorderThickness="1" CornerRadius="8" Padding="14">
+              <StackPanel Spacing="12">
+                <TextBlock Text="Подготовить Windows 11" FontWeight="SemiBold" Foreground="#EAF0FA" />
+                <TextBlock Text="Только файловый пакет. ISO, USB-накопители, диски и параметры Windows не изменяются." TextWrapping="Wrap" FontSize="12" Foreground="#93C5FD" />
+                <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
+                  <StackPanel Spacing="6">
+                    <TextBlock Text="Редакция" FontSize="12" Foreground="#A9B7CD" />
+                    <ComboBox x:Name="DeploymentEditionComboBox" SelectionChanged="DeploymentEdition_SelectionChanged">
+                      <ComboBoxItem Tag="Professional">Windows 11 Pro</ComboBoxItem>
+                      <ComboBoxItem Tag="Enterprise">Windows 11 Enterprise</ComboBoxItem>
+                    </ComboBox>
+                  </StackPanel>
+                  <StackPanel Grid.Column="1" Spacing="6">
+                    <TextBlock Text="Версия" FontSize="12" Foreground="#A9B7CD" />
+                    <ComboBox x:Name="DeploymentVersionComboBox" SelectionChanged="DeploymentVersion_SelectionChanged">
+                      <ComboBoxItem Tag="24H2">24H2</ComboBoxItem>
+                      <ComboBoxItem Tag="25H2">25H2</ComboBoxItem>
+                    </ComboBox>
+                  </StackPanel>
+                  <StackPanel Grid.Column="2" Spacing="6">
+                    <TextBlock Text="Сборка" FontSize="12" Foreground="#A9B7CD" />
+                    <TextBox x:Name="DeploymentBuildTextBox" Text="26100" TextChanged="DeploymentBuild_TextChanged" />
+                  </StackPanel>
+                </Grid>
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                  <Button Content="Проверить совместимость" Click="PreviewDeployment_Click" />
+                  <Button Content="Создать dry run" Click="CreateDryRun_Click" Background="#2D6CDF" Foreground="White" />
+                  <Button x:Name="ExportDeploymentButton" Content="Экспортировать пакет" Click="ExportDeploymentPackage_Click" IsEnabled="False" />
+                </StackPanel>
+                <TextBox x:Name="DeploymentPreviewTextBox" Text="Выберите профиль и целевую версию Windows, затем проверьте совместимость." IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="108" Background="#101826" Foreground="#C7D7EE" BorderThickness="0" />
               </StackPanel>
             </Border>
             <TextBlock Text="Запросы при настройке" FontWeight="SemiBold" Foreground="#EAF0FA" />

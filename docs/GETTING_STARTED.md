@@ -1,6 +1,6 @@
 # Getting started with Easyaller
 
-Easyaller is pre-alpha software. It can safely create, edit, validate, import, and export reusable workstation profiles. The source code can generate a validated `autounattend.xml`, but the desktop application does not expose that workflow or export a deployment package yet. It does not change Windows settings or create a USB installer.
+Easyaller is pre-alpha software. It can safely create, edit, validate, import, and export reusable workstation profiles. The desktop application can preview a Windows 11 target, create an in-memory dry run, and export a basic validated file-only package with `autounattend.xml`. It does not change Windows settings or create a USB installer.
 
 Русская версия: [GETTING_STARTED_RU.md](GETTING_STARTED_RU.md).
 
@@ -39,12 +39,11 @@ Domain credentials are intentionally collected only at runtime. They are not pro
 
 ## Deployment status
 
-The repository includes a documented Windows 11 compatibility catalog, a deployment-profile validator, and a deterministic `autounattend.xml` generator. An in-memory dry run uses that same generator to show the effective profile, OOBE and privacy choices, compatibility status, and the exact answer-file bytes without writing files or changing Windows. A code-level file-only exporter writes a package through a staging directory, verifies SHA-256 hashes, and atomically creates a new destination. It warns that organization-specific profile data and any obfuscated temporary-account password are sensitive and must be reviewed before sharing. The generator allows only validated locale, time-zone, explicitly configured OOBE values, and an optional ephemeral local account. Its 24-character password is generated cryptographically, can be revealed once, and its internal character buffers are cleared after reveal or disposal. It does not generate disk configuration, product keys, domain joins, or AutoLogon.
+The repository includes a documented Windows 11 compatibility catalog, a deployment-profile validator, and a deterministic `autounattend.xml` generator. Open **Set up this PC**, choose the Windows edition, display version, and build, then select **Check compatibility** or **Create dry run**. The dry run shows the effective profile, OOBE and privacy choices, compatibility status, and the exact answer-file size without writing files or changing Windows. After a dry run, choose **Export package** and select a parent folder. The application creates a new `<profile-name>-deployment-package` directory through a staging directory, verifies SHA-256 hashes, and atomically finalizes it. It warns that organization-specific profile data and any obfuscated temporary-account password are sensitive and must be reviewed before sharing. The generator allows only validated locale, time-zone, explicitly configured OOBE values, and an optional ephemeral local account. Its 24-character password is generated cryptographically, can be revealed once, and its internal character buffers are cleared after reveal or disposal. It does not generate disk configuration, product keys, domain joins, or AutoLogon.
 
 The following are not implemented yet:
 
-- Generating `autounattend.xml` from the desktop UI
-- Generating or exporting a deployment package from the desktop UI
+- Adding payload, scripts, installers, or a temporary local account from the desktop UI
 - Downloading or modifying ISO images
 - Formatting disks or creating USB installers
 - Joining a domain during Windows Setup

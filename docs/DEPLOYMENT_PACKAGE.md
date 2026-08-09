@@ -1,6 +1,6 @@
 # Deployment package safety
 
-Easyaller can create a file-only deployment package through its deployment API. The desktop application does not expose package creation yet.
+Easyaller can create a file-only deployment package through its deployment API and the **Set up this PC** desktop screen. In the desktop screen, select a profile and Windows target, create a dry run, then choose a parent folder for a new basic package. The screen does not accept optional payload, script, installer, or temporary-local-account inputs yet.
 
 ## What the exporter writes
 

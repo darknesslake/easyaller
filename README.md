@@ -2,7 +2,7 @@
 
 Easyaller is an open-source Windows workstation provisioning tool. It separates reusable, versioned configuration profiles from sensitive per-machine deployment packages, so teams can share setup standards without committing credentials or local configuration to Git.
 
-> Status: pre-alpha. The profile contract, validation foundation, local profile storage, import/export service, deterministic answer-file generation, in-memory dry run, and safe file-only deployment-package export are implemented. The desktop deployment workflow, completed Windows SIM validation, first-boot orchestration, and USB creation are not implemented yet.
+> Status: pre-alpha. The profile contract, validation foundation, local profile storage, import/export service, deterministic answer-file generation, in-memory dry run, safe file-only deployment-package export, and its desktop workflow are implemented. Completed Windows SIM validation, first-boot orchestration, payload delivery, and USB creation are not implemented yet.
 
 ## Interface previews
 
@@ -38,7 +38,7 @@ These are static pre-alpha interface previews, created before the current Russia
 - Import/export service with UTF-8 and size limits, secret-field scanning, strict loading, conflict resolution, export previews, and atomic file output.
 - Provisioning-plan contract that maps a validated profile to future setup steps and explicit runtime prompts without executing Windows changes.
 - Avalonia desktop screen for listing, creating, cloning, editing all current profile sections, refreshing, importing, exporting, and explicitly deleting local profiles.
-- Set up this PC screen that previews the selected profile plan and validates runtime-only computer, network, proxy, and domain input without applying it yet.
+- Set up this PC screen that previews the selected profile plan, validates runtime-only computer, network, proxy, and domain input without applying it, and prepares a basic file-only Windows 11 package through preview, dry run, and explicit folder selection.
 - Deployment module contracts for compatibility validation, answer-file generation, in-memory dry run, package planning, and safe file-only export.
 - In-memory deployment dry run exposes the effective profile, OOBE and privacy choices, compatibility status, and the exact generated XML without writing files or changing Windows. It warns that profile data and any obfuscated temporary-account password must be treated as sensitive.
 - Deterministic, XML-writer-based `autounattend.xml` generation for validated locale, time-zone, explicitly configured OOBE values, and an optional ephemeral local account. The desktop UI does not expose it yet.
