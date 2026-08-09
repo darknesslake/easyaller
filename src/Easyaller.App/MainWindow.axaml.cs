@@ -84,6 +84,8 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
     private void OpenSetup_Click(object? sender, RoutedEventArgs e) => new SetupWindow(_repository).Show(this);
 
+    private void OpenUsbCreator_Click(object? sender, RoutedEventArgs e) => new UsbCreatorWindow().Show(this);
+
     private void CloneProfile_Click(object? sender, RoutedEventArgs e)
     {
         if (_selectedProfile is null)

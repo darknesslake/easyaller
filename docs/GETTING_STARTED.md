@@ -1,6 +1,6 @@
 # Getting started with Easyaller
 
-Easyaller is pre-alpha software. It can safely create, edit, validate, import, and export reusable workstation profiles. The desktop application can preview a Windows 11 target, create an in-memory dry run, and export a basic validated file-only package with `autounattend.xml`. It does not change Windows settings or create a USB installer.
+Easyaller is pre-alpha software. It can safely create, edit, validate, import, and export reusable workstation profiles. The desktop application can preview a Windows 11 target, create an in-memory dry run, export a basic validated file-only package with `autounattend.xml`, and copy a protected USB installer layout to an empty preformatted USB volume from Windows Setup media and an exported package. Use a dedicated test USB for the first physical run.
 
 Русская версия: [GETTING_STARTED_RU.md](GETTING_STARTED_RU.md).
 
@@ -45,7 +45,7 @@ The following are not implemented yet:
 
 - Adding payload, scripts, installers, or a temporary local account from the desktop UI
 - Downloading or modifying ISO images
-- Formatting disks or creating USB installers
+- Formatting disks or validating a physical USB result in this development environment
 - Joining a domain during Windows Setup
 
 See [COMPATIBILITY.md](COMPATIBILITY.md) for the currently documented Windows targets and [PRODUCT_SPEC.md](../PRODUCT_SPEC.md) for product boundaries.

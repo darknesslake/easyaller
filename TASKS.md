@@ -273,9 +273,13 @@ Added a Windows-only `WindowsUsbVolumeBindingInspector` and `DiskBoundDirectoryU
 
 Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 111 passing tests. The Windows query was checked by script-contract tests, while the staging target was exercised only against a temporary test directory with a mock binding inspector.
 
-### [ ] WP-054: Create installation USB screen
+### [x] WP-054: Create installation USB screen
 
 Add the functional UI only after the safety engine and mock-disk tests pass. The normal UI must never expose a system or fixed internal disk as a target.
+
+Implemented the Russian desktop window **Создать установочный USB** and `UsbCreationController`. The screen obtains read-only inventory and shows only eligible removable candidates, never selecting one by default or exposing blocked system and fixed disks as targets. It picks Windows Setup and deployment-package directories, prepares a hash-verified plan, displays vendor, serial or immutable ID, disk number, and size, requires exact `ERASE`, refreshes inventory, resolves exactly one volume root for the authorized disk, and sends it through disk-bound staging and final hash verification. A nonempty root, changed disk, ambiguous volume, changed source, or failed hash stops without ready status. English and Russian notes are in `docs/USB_CREATOR.md` and `docs/USB_CREATOR_RU.md`.
+
+Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 115 passing tests. The desktop XAML compiled, and controller, binding, and write flows were tested with mocks and temporary directories. No physical USB was written in this macOS environment.
 
 ## Phase 6: public release and pilot
 

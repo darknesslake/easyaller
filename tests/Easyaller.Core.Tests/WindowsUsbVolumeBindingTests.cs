@@ -79,6 +79,22 @@ public sealed class WindowsUsbVolumeBindingTests
         Assert.DoesNotContain("Set-Disk", script, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void WindowsRootResolver_RequiresExactlyOneDriveLetterWithoutDiskMutation()
+    {
+        var script = (string?)typeof(WindowsUsbVolumeRootResolver)
+            .GetField("Query", BindingFlags.Static | BindingFlags.NonPublic)
+            ?.GetRawConstantValue();
+
+        Assert.NotNull(script);
+        Assert.Contains("Get-Disk -Number", script!, StringComparison.Ordinal);
+        Assert.Contains("Get-Partition -DiskNumber", script, StringComparison.Ordinal);
+        Assert.Contains("$partitions.Count -ne 1", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("Format-Volume", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("Clear-Disk", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("Set-Disk", script, StringComparison.Ordinal);
+    }
+
     private static UsbMediaWritePlan Plan(DiskInventoryItem disk, string sourcePath) => new(
         new DiskSelection(disk.Identity, disk.DiskNumber),
         [new UsbMediaWriteFile(

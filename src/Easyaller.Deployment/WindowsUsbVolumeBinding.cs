@@ -17,6 +17,89 @@ public interface IUsbVolumeBindingInspector
     UsbVolumeBindingResult Inspect(string rootDirectory);
 }
 
+public sealed record UsbVolumeRootResolutionResult(
+    string? RootDirectory,
+    IReadOnlyList<DeploymentValidationError> Errors)
+{
+    public bool IsResolved => !string.IsNullOrWhiteSpace(RootDirectory) && Errors.Count == 0;
+}
+
+public interface IUsbVolumeRootResolver
+{
+    UsbVolumeRootResolutionResult Resolve(DiskInventoryItem disk);
+}
+
+public sealed class WindowsUsbVolumeRootResolver : IUsbVolumeRootResolver
+{
+    private const string Query = "& { $ErrorActionPreference='Stop'; $numberText=$env:EASYALLER_USB_DISK_NUMBER; $uniqueId=$env:EASYALLER_USB_UNIQUE_ID; if([string]::IsNullOrWhiteSpace($numberText) -or [string]::IsNullOrWhiteSpace($uniqueId)){throw 'Easyaller disk identity was not supplied.'}; $disk=Get-Disk -Number ([int]$numberText) -ErrorAction Stop; if($disk.UniqueId -ne $uniqueId){throw 'Disk identity changed before volume resolution.'}; $partitions=@(Get-Partition -DiskNumber $disk.Number -ErrorAction Stop | Where-Object { $null -ne $_.DriveLetter }); if($partitions.Count -ne 1){throw 'The authorized disk must have exactly one partition with a drive letter.'}; [pscustomobject]@{ RootDirectory=([string]$partitions[0].DriveLetter)+':\\' } | ConvertTo-Json -Compress }";
+
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+    };
+
+    public UsbVolumeRootResolutionResult Resolve(DiskInventoryItem disk)
+    {
+        ArgumentNullException.ThrowIfNull(disk);
+        if (!disk.Identity.IsUsable || disk.DiskNumber < 0)
+        {
+            return Failure("usb.volume.root.identity.invalid", "Authorized disk identity is incomplete.");
+        }
+
+        if (!OperatingSystem.IsWindows())
+        {
+            return Failure("usb.volume.root.platform.unsupported", "USB volume resolution is available only on Windows.");
+        }
+
+        try
+        {
+            using var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = "powershell.exe",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                },
+            };
+            process.StartInfo.Environment["EASYALLER_USB_DISK_NUMBER"] = disk.DiskNumber.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            process.StartInfo.Environment["EASYALLER_USB_UNIQUE_ID"] = disk.Identity.UniqueId;
+            process.StartInfo.ArgumentList.Add("-NoLogo");
+            process.StartInfo.ArgumentList.Add("-NoProfile");
+            process.StartInfo.ArgumentList.Add("-NonInteractive");
+            process.StartInfo.ArgumentList.Add("-Command");
+            process.StartInfo.ArgumentList.Add(Query);
+            process.Start();
+            var output = process.StandardOutput.ReadToEnd();
+            var error = process.StandardError.ReadToEnd();
+            process.WaitForExit();
+            if (process.ExitCode != 0)
+            {
+                return Failure("usb.volume.root.resolve.failed", string.IsNullOrWhiteSpace(error) ? "USB volume resolution failed." : error.Trim());
+            }
+
+            var probe = JsonSerializer.Deserialize<VolumeRootProbe>(output, JsonOptions);
+            if (probe is null || string.IsNullOrWhiteSpace(probe.RootDirectory) || !Path.IsPathFullyQualified(probe.RootDirectory))
+            {
+                return Failure("usb.volume.root.resolve.failed", "USB volume resolution produced an invalid root.");
+            }
+
+            return new UsbVolumeRootResolutionResult(probe.RootDirectory, []);
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception or JsonException)
+        {
+            return Failure("usb.volume.root.resolve.failed", exception.Message);
+        }
+    }
+
+    private static UsbVolumeRootResolutionResult Failure(string code, string message) =>
+        new(null, [new DeploymentValidationError(code, "usbVolumeRoot", message)]);
+
+    private sealed record VolumeRootProbe(string? RootDirectory);
+}
+
 public sealed class WindowsUsbVolumeBindingInspector : IUsbVolumeBindingInspector
 {
     private const string Query = "& { $ErrorActionPreference='Stop'; $root=$env:EASYALLER_USB_ROOT; if([string]::IsNullOrWhiteSpace($root)){throw 'Easyaller USB root was not supplied.'}; $volume=Get-Volume -FilePath $root -ErrorAction Stop; $partitions=@($volume | Get-Partition -ErrorAction Stop); if($partitions.Count -ne 1){throw 'The USB root did not resolve to exactly one partition.'}; $disk=Get-Disk -Number $partitions[0].DiskNumber -ErrorAction Stop; $drive=Get-CimInstance Win32_DiskDrive | Where-Object { [int]$_.Index -eq [int]$disk.Number } | Select-Object -First 1; [pscustomobject]@{ DiskNumber=$disk.Number; UniqueId=$disk.UniqueId; SerialNumber=$disk.SerialNumber; FriendlyName=$disk.FriendlyName; BusType=[string]$disk.BusType; Size=$disk.Size; IsSystem=$disk.IsSystem; IsBoot=$disk.IsBoot; IsReadOnly=$disk.IsReadOnly; IsOffline=$disk.IsOffline; IsRemovable=if($null -eq $drive){$false}else{[string]$drive.MediaType -match 'Removable'} } | ConvertTo-Json -Compress }";
