@@ -340,6 +340,13 @@ public sealed class ProfileImportExportService
                 "Contains organization-specific network settings."));
         }
 
+        if (profile.Machine.Proxy.BypassList?.Count > 0)
+        {
+            fields.Add(new ProfileConfidentialField(
+                "machine.proxy.bypassList",
+                "Contains organization-specific proxy bypass settings."));
+        }
+
         for (var index = 0; index < profile.Applications.Count; index++)
         {
             if (!string.IsNullOrWhiteSpace(profile.Applications[index].PackageRelativePath))

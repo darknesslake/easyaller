@@ -11,6 +11,10 @@ public sealed class ProvisioningProfileValidator
         "^[A-Za-z0-9-]{1,15}$",
         RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
+    private static readonly Regex ProxyBypassEntryPattern = new(
+        "^(?:<local>|[A-Za-z0-9*][A-Za-z0-9*._:-]{0,252})$",
+        RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
     private static readonly HashSet<string> KnownCultureNames = CultureInfo
         .GetCultures(CultureTypes.AllCultures)
         .Select(static culture => culture.Name)
@@ -199,6 +203,64 @@ public sealed class ProvisioningProfileValidator
                     "machine.network.mode",
                     "Network configuration mode is not supported."));
                 break;
+        }
+
+        ValidateProxy(machine.Proxy, errors);
+    }
+
+    private static void ValidateProxy(ProxySettings proxy, ICollection<ProfileValidationError> errors)
+    {
+        if (proxy.Mode is not (ProxyConfigurationMode.NotConfigured or ProxyConfigurationMode.PromptAtRuntime))
+        {
+            errors.Add(new ProfileValidationError(
+                "machine.proxy.mode.invalid",
+                "machine.proxy.mode",
+                "Proxy configuration mode is not supported."));
+        }
+
+        if (proxy.BypassList is null || proxy.BypassList.Count == 0)
+        {
+            return;
+        }
+
+        if (proxy.Mode != ProxyConfigurationMode.PromptAtRuntime)
+        {
+            errors.Add(new ProfileValidationError(
+                "machine.proxy.bypassList.unexpected",
+                "machine.proxy.bypassList",
+                "A proxy bypass list requires promptAtRuntime proxy mode."));
+            return;
+        }
+
+        if (proxy.BypassList.Count > 256)
+        {
+            errors.Add(new ProfileValidationError(
+                "machine.proxy.bypassList.count.invalid",
+                "machine.proxy.bypassList",
+                "Proxy bypass list can contain at most 256 entries."));
+        }
+
+        var entries = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        for (var index = 0; index < proxy.BypassList.Count; index++)
+        {
+            var entry = proxy.BypassList[index];
+            var fieldPath = $"machine.proxy.bypassList[{index}]";
+            if (string.IsNullOrWhiteSpace(entry) || entry != entry.Trim() || !ProxyBypassEntryPattern.IsMatch(entry))
+            {
+                errors.Add(new ProfileValidationError(
+                    "machine.proxy.bypassList.entry.invalid",
+                    fieldPath,
+                    "Proxy bypass entries must be host, IPv4, wildcard, or <local> values without spaces or commands."));
+                continue;
+            }
+
+            if (!entries.Add(entry))
+            {
+                errors.Add(new ProfileValidationError(
+                    "machine.proxy.bypassList.entry.duplicate",
+                    fieldPath,
+                    "Proxy bypass entries must be unique."));
+            }
         }
     }
 

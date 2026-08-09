@@ -22,7 +22,7 @@ public static class ProvisioningProfileFactory
         Machine = new MachineSettings(
             new ComputerNameRule(ComputerNameMode.RequiredAtRuntime, null),
             new NetworkSettings(NetworkConfigurationMode.PromptAtRuntime),
-            new ProxySettings(ProxyConfigurationMode.NotConfigured)),
+            new ProxySettings(ProxyConfigurationMode.NotConfigured, [])),
         Domain = new DomainSettings(DomainMode.Optional, CredentialHandling.PromptAtRuntime),
         Deployment = new DeploymentSettings(ProvisionerLaunchMode.FirstLogon),
         Cleanup = new CleanupSettings(ProvisioningAccountCleanupMode.DisableAfterValidation),

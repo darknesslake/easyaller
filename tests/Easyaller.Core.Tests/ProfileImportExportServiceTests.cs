@@ -50,6 +50,25 @@ public sealed class ProfileImportExportServiceTests
     }
 
     [Fact]
+    public void PreviewExport_ProxyBypassListIsMarkedAsConfidential()
+    {
+        using var directory = new TemporaryDirectory();
+        var service = CreateService(directory.Path);
+        var defaultProfile = ProvisioningProfileFactory.CreateDefault();
+        var profile = defaultProfile with
+        {
+            Machine = defaultProfile.Machine with
+            {
+                Proxy = new ProxySettings(ProxyConfigurationMode.PromptAtRuntime, ["*.example.test", "<local>"]),
+            },
+        };
+
+        var preview = service.PreviewExport(profile);
+
+        Assert.Contains(preview.ConfidentialFields, field => field.FieldPath == "machine.proxy.bypassList");
+    }
+
+    [Fact]
     public void PreviewImport_MalformedUtf8_IsRejectedBeforeDeserialization()
     {
         using var directory = new TemporaryDirectory();

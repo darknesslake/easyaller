@@ -424,7 +424,8 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         StaticIpv4AddressTextBox.Text,
         StaticIpv4SubnetMaskTextBox.Text,
         StaticIpv4DefaultGatewayTextBox.Text,
-        StaticIpv4DnsServersTextBox.Text);
+        StaticIpv4DnsServersTextBox.Text,
+        ProxyBypassListTextBox.Text);
 
     private IReadOnlyList<WindowsEdition> GetSelectedEditions()
     {
@@ -465,6 +466,9 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             ? string.Join(", ", staticIpv4.DnsServers)
             : string.Empty;
         SetSelectedEnum(ProxyModeComboBox, profile?.Machine.Proxy.Mode);
+        ProxyBypassListTextBox.Text = profile is null
+            ? string.Empty
+            : string.Join(", ", profile.Machine.Proxy.BypassList ?? []);
         SetSelectedEnum(DomainModeComboBox, profile?.Domain.Mode);
         SetSelectedEnum(LaunchModeComboBox, profile?.Deployment.LaunchMode);
         SetSelectedEnum(CleanupModeComboBox, profile?.Cleanup.ProvisioningAccount);

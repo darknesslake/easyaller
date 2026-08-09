@@ -66,7 +66,10 @@ public sealed class ProfileEditorController(IProfileRepository repository)
                     Prefix = string.IsNullOrWhiteSpace(settings.ComputerNamePrefix) ? null : settings.ComputerNamePrefix.Trim(),
                 },
                 Network = CreateNetworkSettings(settings),
-                Proxy = new ProxySettings(settings.ProxyMode),
+                Proxy = new ProxySettings(
+                    settings.ProxyMode,
+                    (settings.ProxyBypassList ?? string.Empty)
+                        .Split([',', ';', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)),
             },
             Domain = original.Domain with { Mode = settings.DomainMode },
             Deployment = new DeploymentSettings(settings.LaunchMode),
@@ -114,4 +117,5 @@ public sealed record ProfileSettingsEdit(
     string? StaticIpv4Address = null,
     string? StaticIpv4SubnetMask = null,
     string? StaticIpv4DefaultGateway = null,
-    string? StaticIpv4DnsServers = null);
+    string? StaticIpv4DnsServers = null,
+    string? ProxyBypassList = null);

@@ -101,7 +101,14 @@ public sealed class WindowsProvisioningSystemAdapter : IProvisioningSystemAdapte
         if ($matches.Count -ne 1 -or $matches[0].Status -eq 'Disabled') { exit 2 }
         """;
 
-    private const string SetProxyScript = "Set-WinHttpProxy -ProxyServer $env:EASYALLER_PROXY_ADDRESS -ErrorAction Stop";
+    private const string SetProxyScript = """
+        if ([string]::IsNullOrWhiteSpace($env:EASYALLER_PROXY_BYPASS_LIST)) {
+            Set-WinHttpProxy -ProxyServer $env:EASYALLER_PROXY_ADDRESS -ErrorAction Stop
+        }
+        else {
+            Set-WinHttpProxy -ProxyServer $env:EASYALLER_PROXY_ADDRESS -BypassList $env:EASYALLER_PROXY_BYPASS_LIST -ErrorAction Stop
+        }
+        """;
     private const string ConfigureStaticIpv4Script = """
         $matches = @(Get-NetAdapter -IncludeHidden -ErrorAction Stop | Where-Object {
             $_.InterfaceGuid.Guid -eq $env:EASYALLER_NETWORK_ADAPTER_ID -or $_.Name -eq $env:EASYALLER_NETWORK_ADAPTER_ID
@@ -188,11 +195,15 @@ public sealed class WindowsProvisioningSystemAdapter : IProvisioningSystemAdapte
             startInfo.Environment["EASYALLER_NETWORK_ADAPTER_ID"] = adapterId);
     }
 
-    public ProvisioningSystemOperationResult SetWinHttpProxy(string proxyAddress)
+    public ProvisioningSystemOperationResult SetWinHttpProxy(string proxyAddress, IReadOnlyList<string> bypassList)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(proxyAddress);
+        ArgumentNullException.ThrowIfNull(bypassList);
         var result = RunPowerShell(SetProxyScript, startInfo =>
-            startInfo.Environment["EASYALLER_PROXY_ADDRESS"] = proxyAddress);
+        {
+            startInfo.Environment["EASYALLER_PROXY_ADDRESS"] = proxyAddress;
+            startInfo.Environment["EASYALLER_PROXY_BYPASS_LIST"] = string.Join(';', bypassList);
+        });
         return result.IsSuccess
             ? ProvisioningSystemOperationResult.Success()
             : result;

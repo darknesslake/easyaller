@@ -41,7 +41,8 @@ public sealed record ProvisioningPlan(
     int ProfileRevision,
     IReadOnlyList<ProvisioningStep> Steps,
     IReadOnlyList<RuntimePrompt> RuntimePrompts,
-    StaticIpv4Configuration? StaticIpv4 = null);
+    StaticIpv4Configuration? StaticIpv4 = null,
+    IReadOnlyList<string>? ProxyBypassList = null);
 
 public sealed record ProvisioningPlanResult(
     ProvisioningPlan? Plan,
@@ -161,7 +162,13 @@ public sealed class ProvisioningPlanBuilder(ProvisioningProfileValidator? valida
             "Keep temporary-account cleanup gated on post-provisioning validation."));
 
         return new ProvisioningPlanResult(
-            new ProvisioningPlan(profile.ProfileId, profile.Revision, steps, prompts, profile.Machine.Network.StaticIpv4),
+            new ProvisioningPlan(
+                profile.ProfileId,
+                profile.Revision,
+                steps,
+                prompts,
+                profile.Machine.Network.StaticIpv4,
+                profile.Machine.Proxy.BypassList?.ToArray() ?? []),
             []);
     }
 

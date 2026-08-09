@@ -160,6 +160,40 @@ public sealed class ProfileEditorControllerTests
         Assert.Equal(["192.0.2.53", "198.51.100.53", "203.0.113.53"], result.Profile.Machine.Network.StaticIpv4.DnsServers);
     }
 
+    [Fact]
+    public void SaveSettings_ProxyBypassList_PersistsTrimmedEntries()
+    {
+        using var directory = new TemporaryDirectory();
+        var repository = new FileProfileRepository(directory.Path);
+        var original = ProvisioningProfileFactory.CreateDefault("Original profile");
+        Assert.Equal(ProfileRepositoryStatus.Success, repository.Create(original).Status);
+        var controller = new ProfileEditorController(repository);
+        var settings = new ProfileSettingsEdit(
+            original.Metadata.Name,
+            original.Metadata.Description,
+            original.Windows.SupportedEditions,
+            original.Windows.Locale.UiLanguage,
+            original.Windows.Locale.InputLocale,
+            original.Windows.Locale.SystemLocale,
+            original.Windows.Locale.UserLocale,
+            original.Windows.TimeZone,
+            original.Windows.Oobe.OfflineInitialSetup,
+            original.Windows.Oobe.HideWirelessSetup,
+            original.Windows.Oobe.HideOnlineAccountScreens,
+            null,
+            original.Machine.ComputerName.Prefix,
+            ProxyConfigurationMode.PromptAtRuntime,
+            original.Domain.Mode,
+            original.Deployment.LaunchMode,
+            original.Cleanup.ProvisioningAccount,
+            ProxyBypassList: " *.example.test; <local>\n192.0.2.53 ");
+
+        var result = controller.SaveSettings(original, settings);
+
+        Assert.Equal(ProfileRepositoryStatus.Success, result.Status);
+        Assert.Equal(["*.example.test", "<local>", "192.0.2.53"], result.Profile!.Machine.Proxy.BypassList);
+    }
+
     private sealed class TemporaryDirectory : IDisposable
     {
         public TemporaryDirectory()

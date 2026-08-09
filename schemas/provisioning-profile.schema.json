@@ -124,7 +124,20 @@
           "type": "object",
           "additionalProperties": false,
           "required": ["mode"],
-          "properties": { "mode": { "enum": ["notConfigured", "promptAtRuntime"] } }
+          "properties": {
+            "mode": { "enum": ["notConfigured", "promptAtRuntime"] },
+            "bypassList": {
+              "type": "array",
+              "maxItems": 256,
+              "items": { "type": "string", "minLength": 1, "maxLength": 253 }
+            }
+          },
+          "allOf": [
+            {
+              "if": { "properties": { "mode": { "const": "notConfigured" } } },
+              "then": { "properties": { "bypassList": { "maxItems": 0 } } }
+            }
+          ]
         }
       }
     },

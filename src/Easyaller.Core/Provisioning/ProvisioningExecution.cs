@@ -58,7 +58,7 @@ public interface IProvisioningSystemAdapter
 
     ProvisioningSystemOperationResult ConfigureStaticIpv4(string adapterId, StaticIpv4Configuration configuration);
 
-    ProvisioningSystemOperationResult SetWinHttpProxy(string proxyAddress);
+    ProvisioningSystemOperationResult SetWinHttpProxy(string proxyAddress, IReadOnlyList<string> bypassList);
 
     ProvisioningSystemOperationResult RenameComputer(string computerName);
 
@@ -151,7 +151,7 @@ public sealed class ProvisioningExecutionService(
 
         if (HasPrompt(plan, RuntimePromptKind.ProxyConfiguration))
         {
-            var proxyResult = _systemAdapter.SetWinHttpProxy(inputs.ProxyAddress!);
+            var proxyResult = _systemAdapter.SetWinHttpProxy(inputs.ProxyAddress!, plan.ProxyBypassList ?? []);
             if (!proxyResult.IsSuccess)
             {
                 return Failed(operations, proxyResult, "execution.proxy.failed");

@@ -105,6 +105,11 @@
                       <TextBox x:Name="TimeZoneTextBox" PlaceholderText="UTC" />
                     </StackPanel>
                   </Grid>
+                  <StackPanel Spacing="6">
+                    <TextBlock Text="Исключения WinHTTP-прокси" FontSize="12" Foreground="#A9B7CD" />
+                    <TextBox x:Name="ProxyBypassListTextBox" PlaceholderText="Необязательно: *.example.test, &lt;local&gt;, 192.0.2.53" />
+                    <TextBlock Text="До 256 адресов или шаблонов через запятую. Список работает для WinHTTP, а не автоматически для каждого браузера." TextWrapping="Wrap" FontSize="12" Foreground="#93C5FD" />
+                  </StackPanel>
                   <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
                     <StackPanel Spacing="6">
                       <TextBlock Text="Язык ввода" FontSize="12" Foreground="#A9B7CD" />

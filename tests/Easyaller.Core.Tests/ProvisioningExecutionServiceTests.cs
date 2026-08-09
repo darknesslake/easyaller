@@ -146,6 +146,34 @@ public sealed class ProvisioningExecutionServiceTests
         Assert.Equal("adapter-1", adapter.StaticIpv4AdapterId);
     }
 
+    [Fact]
+    public void Execute_RuntimeProxyProfile_AppliesTheProfileBypassList()
+    {
+        var defaultProfile = ProvisioningProfileFactory.CreateDefault();
+        var profile = defaultProfile with
+        {
+            Domain = defaultProfile.Domain with { Mode = DomainMode.NotConfigured },
+            Machine = defaultProfile.Machine with
+            {
+                Proxy = new ProxySettings(ProxyConfigurationMode.PromptAtRuntime, ["*.example.test", "<local>"]),
+            },
+        };
+        var adapter = new FakeSystemAdapter();
+        var service = CreateService(adapter, out _, out _);
+        using var inputs = new RuntimeProvisioningInputs
+        {
+            ComputerName = "LAB-WS-01",
+            NetworkAdapterId = "adapter-1",
+            ProxyAddress = "http://proxy.example.test:8080",
+        };
+
+        var result = service.Execute(CreatePlan(profile), inputs, ProvisioningExecutionService.ConfirmationPhrase);
+
+        Assert.True(result.IsSuccess);
+        Assert.Contains("SetWinHttpProxy", adapter.Calls);
+        Assert.Equal(["*.example.test", "<local>"], adapter.ProxyBypassList);
+    }
+
     private static ProvisioningExecutionService CreateService(
         FakeSystemAdapter adapter,
         out InMemoryStateStore stateStore,
@@ -197,9 +225,12 @@ public sealed class ProvisioningExecutionServiceTests
             return ProvisioningSystemOperationResult.Success();
         }
 
-        public ProvisioningSystemOperationResult SetWinHttpProxy(string proxyAddress)
+        public IReadOnlyList<string> ProxyBypassList { get; private set; } = [];
+
+        public ProvisioningSystemOperationResult SetWinHttpProxy(string proxyAddress, IReadOnlyList<string> bypassList)
         {
             Calls.Add(nameof(SetWinHttpProxy));
+            ProxyBypassList = bypassList;
             return ProvisioningSystemOperationResult.Success();
         }
 

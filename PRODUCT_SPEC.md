@@ -35,7 +35,7 @@ The public, Git-friendly format is `*.wpprofile.json`.
 - `schemaVersion`, stable `profileId`, and `revision` identify and evolve a profile.
 - The profile is declarative. It must not contain raw shell commands or credentials.
 - Domain credentials are represented only by `promptAtRuntime`.
-- A profile may contain confidential but non-secret information such as an internal domain name, proxy address, or a static IPv4, gateway, and DNS configuration. Export must show those fields for review.
+- A profile may contain confidential but non-secret information such as an internal domain name, a WinHTTP proxy bypass list, or a static IPv4, gateway, and DNS configuration. Export must show those fields for review. The proxy address remains runtime-only.
 - Imported profiles are untrusted until schema validation, semantic validation, and user review have completed.
 - The profile contract is [`schemas/provisioning-profile.schema.json`](schemas/provisioning-profile.schema.json).
 

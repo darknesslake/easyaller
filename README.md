@@ -15,7 +15,7 @@ These are static pre-alpha interface previews, created before the current Russia
 ## What Easyaller is for
 
 - Build and exchange portable workstation profiles.
-- Require the final computer name, network adapter, proxy, and domain credentials at runtime, and apply an explicitly configured static IPv4/DNS profile only after confirmation.
+- Require the final computer name, network adapter, proxy address, and domain credentials at runtime, and apply explicitly configured static IPv4/DNS and WinHTTP proxy-bypass profile values only after confirmation.
 - Prepare a Windows 11 deployment package using documented Windows Setup mechanisms.
 - Reuse one provisioning pipeline after Windows first boot rather than maintaining a second deployment engine.
 - Make destructive USB creation an explicit, separately protected workflow.
@@ -38,7 +38,7 @@ These are static pre-alpha interface previews, created before the current Russia
 - Import/export service with UTF-8 and size limits, secret-field scanning, strict loading, conflict resolution, export previews, and atomic file output.
 - Provisioning-plan contract that maps a validated profile to future setup steps and explicit runtime prompts without executing Windows changes.
 - Avalonia desktop screen for listing, creating, cloning, editing all current profile sections, refreshing, importing, exporting, and explicitly deleting local profiles.
-- Set up this PC screen that previews a selected profile plan, validates runtime-only computer, network, proxy, and domain input, and can apply fixed confirmed Windows operations with administrator rights, restart, and resume verification. Static IPv4, gateway, and DNS values are profile fields, but the adapter must be explicitly selected at runtime. It also prepares a basic file-only Windows 11 package through preview, dry run, and explicit folder selection. The runtime executor still needs Windows VM validation. See [`docs/STATIC_IPV4_DNS.md`](docs/STATIC_IPV4_DNS.md).
+- Set up this PC screen that previews a selected profile plan, validates runtime-only computer, network, proxy, and domain input, and can apply fixed confirmed Windows operations with administrator rights, restart, and resume verification. Static IPv4, gateway, DNS, and a WinHTTP-only proxy bypass list are profile fields, but the adapter and proxy address must be explicitly selected at runtime. It also prepares a basic file-only Windows 11 package through preview, dry run, and explicit folder selection. The runtime executor still needs Windows VM validation. See [`docs/STATIC_IPV4_DNS.md`](docs/STATIC_IPV4_DNS.md) and [`docs/PROXY_BYPASS.md`](docs/PROXY_BYPASS.md).
 - Deployment module contracts for compatibility validation, answer-file generation, in-memory dry run, package planning, and safe file-only export.
 - In-memory deployment dry run exposes the effective profile, OOBE and privacy choices, compatibility status, and the exact generated XML without writing files or changing Windows. It warns that profile data and any obfuscated temporary-account password must be treated as sensitive.
 - Deterministic, XML-writer-based `autounattend.xml` generation for validated locale, time-zone, explicitly configured OOBE values, and an optional ephemeral local account. The desktop UI does not expose it yet.

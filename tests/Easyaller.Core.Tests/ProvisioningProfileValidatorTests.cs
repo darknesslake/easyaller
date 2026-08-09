@@ -155,6 +155,64 @@ public sealed class ProvisioningProfileValidatorTests
         Assert.Contains(result.Errors, error => error.Code == "machine.network.staticIpv4.unexpected");
     }
 
+    [Fact]
+    public void Validate_ProxyBypassListForRuntimeProxy_IsValid()
+    {
+        var defaultProfile = ProvisioningProfileFactory.CreateDefault();
+        var profile = defaultProfile with
+        {
+            Machine = defaultProfile.Machine with
+            {
+                Proxy = new ProxySettings(
+                    ProxyConfigurationMode.PromptAtRuntime,
+                    ["*.example.test", "<local>", "192.0.2.53"]),
+            },
+        };
+
+        var result = _validator.Validate(profile);
+
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void Validate_ProxyBypassListWithUnsafeOrDuplicateEntries_IsRejected()
+    {
+        var defaultProfile = ProvisioningProfileFactory.CreateDefault();
+        var profile = defaultProfile with
+        {
+            Machine = defaultProfile.Machine with
+            {
+                Proxy = new ProxySettings(
+                    ProxyConfigurationMode.PromptAtRuntime,
+                    ["*.example.test", "unsafe;entry", "*.EXAMPLE.TEST"]),
+            },
+        };
+
+        var result = _validator.Validate(profile);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, error => error.Code == "machine.proxy.bypassList.entry.invalid");
+        Assert.Contains(result.Errors, error => error.Code == "machine.proxy.bypassList.entry.duplicate");
+    }
+
+    [Fact]
+    public void Validate_ProxyBypassListWithoutRuntimeProxy_IsRejected()
+    {
+        var defaultProfile = ProvisioningProfileFactory.CreateDefault();
+        var profile = defaultProfile with
+        {
+            Machine = defaultProfile.Machine with
+            {
+                Proxy = new ProxySettings(ProxyConfigurationMode.NotConfigured, ["*.example.test"]),
+            },
+        };
+
+        var result = _validator.Validate(profile);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, error => error.Code == "machine.proxy.bypassList.unexpected");
+    }
+
     private static NetworkSettings StaticNetwork() => new(
         NetworkConfigurationMode.StaticIpv4,
         new StaticIpv4Configuration(

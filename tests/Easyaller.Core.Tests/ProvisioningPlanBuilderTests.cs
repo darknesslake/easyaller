@@ -109,4 +109,22 @@ public sealed class ProvisioningPlanBuilderTests
         Assert.Contains(result.Plan.RuntimePrompts, prompt => prompt.Kind == RuntimePromptKind.NetworkConfiguration && prompt.IsRequired);
         Assert.Contains(result.Plan.Steps, step => step.Kind == ProvisioningStepKind.ConfigureStaticIpv4);
     }
+
+    [Fact]
+    public void Create_RuntimeProxyProfile_KeepsBypassListInThePlan()
+    {
+        var defaultProfile = ProvisioningProfileFactory.CreateDefault();
+        var profile = defaultProfile with
+        {
+            Machine = defaultProfile.Machine with
+            {
+                Proxy = new ProxySettings(ProxyConfigurationMode.PromptAtRuntime, ["*.example.test", "<local>"]),
+            },
+        };
+
+        var result = new ProvisioningPlanBuilder().Create(profile);
+
+        Assert.True(result.IsValid);
+        Assert.Equal(["*.example.test", "<local>"], result.Plan!.ProxyBypassList);
+    }
 }

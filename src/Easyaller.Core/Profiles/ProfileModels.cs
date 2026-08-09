@@ -119,7 +119,9 @@ public sealed record StaticIpv4Configuration(
     [property: JsonRequired] string DefaultGateway,
     [property: JsonRequired] IReadOnlyList<string> DnsServers);
 
-public sealed record ProxySettings([property: JsonRequired] ProxyConfigurationMode Mode);
+public sealed record ProxySettings(
+    [property: JsonRequired] ProxyConfigurationMode Mode,
+    IReadOnlyList<string>? BypassList = null);
 
 public enum ProxyConfigurationMode
 {
