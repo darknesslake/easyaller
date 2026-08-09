@@ -28,6 +28,7 @@ public sealed class DeploymentProfileValidator(
 
         ValidatePrivacyPreferences(request.Profile.Windows.Privacy, errors);
         ValidateDeploymentBoundary(request.Profile, errors);
+        FirstLogonBootstrapper.Validate(request, errors);
 
         var compatibility = _compatibilityValidator.Validate(request.Target, request.Profile);
         errors.AddRange(compatibility.Errors);

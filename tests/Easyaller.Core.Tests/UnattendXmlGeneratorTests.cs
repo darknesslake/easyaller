@@ -65,6 +65,36 @@ public sealed class UnattendXmlGeneratorTests
     }
 
     [Fact]
+    public void Generate_EnabledFirstLogonBootstrap_UsesOnlyTheFixedCommand()
+    {
+        using var credential = new EphemeralLocalAccountCredential("ProvisioningAdmin", "safe<&password".AsSpan());
+
+        var text = Encoding.UTF8.GetString(new UnattendXmlGenerator().Generate(CreateRequest(
+            temporaryLocalAccount: credential,
+            enableFirstLogonBootstrap: true)));
+        var xml = XDocument.Parse(text);
+        var ns = XNamespace.Get(UnattendNamespace);
+
+        var command = xml.Descendants(ns + "SynchronousCommand").Single();
+        Assert.Equal(FirstLogonBootstrapper.CreateCommandLine(), command.Element(ns + "CommandLine")!.Value);
+        Assert.Equal("1", command.Element(ns + "Order")!.Value);
+        Assert.Equal("false", command.Element(ns + "RequiresUserInput")!.Value);
+        Assert.Equal("add", command.Attribute(XName.Get("action", "http://schemas.microsoft.com/WMIConfig/2002/State"))!.Value);
+        Assert.DoesNotContain("safe<&password", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("AutoLogon", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("RunSynchronous", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Generate_EnabledFirstLogonBootstrapWithoutProvisioningAdmin_IsBlocked()
+    {
+        var exception = Assert.Throws<DeploymentGenerationException>(() =>
+            new UnattendXmlGenerator().Generate(CreateRequest(enableFirstLogonBootstrap: true)));
+
+        Assert.Contains(exception.Errors, error => error.Code == "deployment.firstLogon.account.invalid");
+    }
+
+    [Fact]
     public void Generate_EscapesConfiguredValuesThroughTheXmlWriter()
     {
         var defaultProfile = ProvisioningProfileFactory.CreateDefault();
@@ -131,8 +161,10 @@ public sealed class UnattendXmlGeneratorTests
 
     private static DeploymentPreparationRequest CreateRequest(
         ProvisioningProfile? profile = null,
-        EphemeralLocalAccountCredential? temporaryLocalAccount = null) => new(
+        EphemeralLocalAccountCredential? temporaryLocalAccount = null,
+        bool enableFirstLogonBootstrap = false) => new(
             profile ?? ProvisioningProfileFactory.CreateDefault(),
             new WindowsDeploymentTarget(WindowsEdition.Professional, WindowsArchitecture.Amd64, "24H2", 26100),
-            temporaryLocalAccount);
+            temporaryLocalAccount,
+            enableFirstLogonBootstrap);
 }

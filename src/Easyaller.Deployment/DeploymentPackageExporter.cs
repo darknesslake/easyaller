@@ -70,6 +70,7 @@ public sealed class DeploymentPackageExporter : IDeploymentPackageExporter
                 CopyFile(stagingDirectory, asset.SourceFilePath, asset.RelativePath, entries);
             }
 
+            WriteFirstLogonBootstrapScript(stagingDirectory, request.DryRun.FirstLogonBootstrap, entries);
             WritePayloadManifest(stagingDirectory, request.DryRun, entries);
             VerifyEntries(stagingDirectory, entries);
             var manifest = new DeploymentPackageManifest(
@@ -153,6 +154,21 @@ public sealed class DeploymentPackageExporter : IDeploymentPackageExporter
             ManifestPath,
             InstructionsPath,
         };
+        if (request.DryRun.FirstLogonBootstrap is not null)
+        {
+            reservedPaths.Add(FirstLogonBootstrapper.ScriptPackageRelativePath);
+            if (!request.Assets.Any(asset => string.Equals(
+                    NormalizeRelativePath(asset.RelativePath),
+                    FirstLogonBootstrapper.RequiredApplicationPackageRelativePath,
+                    StringComparison.OrdinalIgnoreCase)))
+            {
+                errors.Add(new DeploymentValidationError(
+                    "deployment.firstLogon.application.missing",
+                    "assets",
+                    "First-logon bootstrap requires the Easyaller application payload."));
+            }
+        }
+
         foreach (var asset in request.Assets)
         {
             ValidateAsset(asset, request.DryRun.EffectiveProfile, reservedPaths, errors);
@@ -301,6 +317,17 @@ public sealed class DeploymentPackageExporter : IDeploymentPackageExporter
             ConfigurationSetPayloadLayout.PayloadManifestRelativePath,
             JsonSerializer.SerializeToUtf8Bytes(manifest, ManifestSerializerOptions),
             entries);
+    }
+
+    private static void WriteFirstLogonBootstrapScript(
+        string stagingDirectory,
+        FirstLogonBootstrapPlan? bootstrap,
+        ICollection<DeploymentPackageManifestEntry> entries)
+    {
+        if (bootstrap is not null)
+        {
+            WriteFile(stagingDirectory, bootstrap.ScriptPackageRelativePath, FirstLogonBootstrapper.CreateScript(bootstrap), entries);
+        }
     }
 
     private static byte[] CreateInstructions() => Encoding.UTF8.GetBytes(

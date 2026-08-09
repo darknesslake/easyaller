@@ -31,7 +31,8 @@ public sealed class DeploymentDryRunService(
                     request.Profile.Windows.Oobe,
                     request.Profile.Windows.Privacy,
                     answerFile,
-                    CreateSensitiveMaterialWarnings(request.TemporaryLocalAccount)),
+                    CreateSensitiveMaterialWarnings(request.TemporaryLocalAccount),
+                    FirstLogonBootstrapper.CreatePlan(request)),
                 [],
                 previewResult.Warnings);
         }

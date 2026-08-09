@@ -133,7 +133,7 @@ Acceptance criteria:
 - Byte-identical output for identical inputs.
 - XML escaping, validity, and prohibited-section tests.
 
-Implemented `UnattendXmlGenerator` using `XmlWriter` with fixed namespace, component, pass, element, indentation, newline, and encoding rules. It writes documented locale settings in `windowsPE` and `oobeSystem`, time zone in `specialize`, and only explicitly configured OOBE settings. A temporary local account can be supplied only through `EphemeralLocalAccountCredential`, which redacts itself, zeroizes its password on disposal, and writes a Windows-SIM-style obfuscated password value with `PlainText=false`; account creation is omitted when no ephemeral object is supplied. The generator reuses deployment validation and refuses invalid profiles, required domain join, disposed account credentials, and unsupported account names. It never writes product keys, domain accounts, disk configuration, AutoLogon, FirstLogonCommands, or raw command sections.
+Implemented `UnattendXmlGenerator` using `XmlWriter` with fixed namespace, component, pass, element, indentation, newline, and encoding rules. It writes documented locale settings in `windowsPE` and `oobeSystem`, time zone in `specialize`, and only explicitly configured OOBE settings. A temporary local account can be supplied only through `EphemeralLocalAccountCredential`, which redacts itself, zeroizes its password on disposal, and writes a Windows-SIM-style obfuscated password value with `PlainText=false`; account creation is omitted when no ephemeral object is supplied. The generator reuses deployment validation and refuses invalid profiles, required domain join, disposed account credentials, and unsupported account names. It never writes product keys, domain accounts, disk configuration, AutoLogon, or raw command sections. `FirstLogonCommands` remains absent unless the later explicit fixed bootstrapper option is validated.
 
 Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 53 passing tests.
 
@@ -187,9 +187,13 @@ Implemented `ConfigurationSetPayloadLayout` and `ConfigurationSetPayloadVerifier
 
 Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 68 passing tests.
 
-### [ ] WP-031: FirstLogon bootstrapper
+### [x] WP-031: FirstLogon bootstrapper
 
 After one manual `ProvisioningAdmin` sign-in, run a small idempotent bootstrapper through `FirstLogonCommands`. It verifies the local payload, activates resume, launches Easyaller, and removes its one-time launch mechanism after success.
+
+Implemented the opt-in `FirstLogonBootstrapper`. It is valid only for an active temporary `ProvisioningAdmin` account, `FirstLogon` launch mode, and a package that includes `Easyaller.App.exe` below the verified configuration-set payload. It writes one fixed ordered `FirstLogonCommands/SynchronousCommand` and embeds a hash-verifying script into the payload. After the manual administrator sign-in, the initial invocation validates each payload file, writes the fixed `!EasyallerBootstrapResume` value under `HKLM\Software\Microsoft\Windows\CurrentVersion\RunOnce`, and starts `Easyaller.App.exe --resume` without blocking the desktop. The resume invocation never writes RunOnce. On the exact resume argument, Easyaller removes RunOnce when possible and records completed state after its main window is created. The script accepts no profile command, secret, domain input, or dynamic argument. `AutoLogon` remains absent. English and Russian safety notes are in `docs/FIRST_LOGON_BOOTSTRAP.md` and `docs/FIRST_LOGON_BOOTSTRAP_RU.md`.
+
+Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 73 passing tests. The first-logon behavior was not executed on Windows in this macOS environment; Windows SIM and VM validation remain required.
 
 ### [ ] WP-032: Temporary-account cleanup state machine
 

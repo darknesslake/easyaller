@@ -25,6 +25,7 @@ public sealed class UnattendXmlGenerator(DeploymentProfileValidator? profileVali
         }
 
         ValidateTemporaryLocalAccount(request.TemporaryLocalAccount);
+        var firstLogonBootstrap = FirstLogonBootstrapper.CreatePlan(request);
 
         using var stream = new MemoryStream();
         var settings = new XmlWriterSettings
@@ -45,7 +46,7 @@ public sealed class UnattendXmlGenerator(DeploymentProfileValidator? profileVali
 
             WriteWindowsPeSettings(writer, request.Profile.Windows.Locale);
             WriteSpecializeSettings(writer, request.Profile.Windows.TimeZone);
-            WriteOobeSystemSettings(writer, request.Profile.Windows, request.TemporaryLocalAccount);
+            WriteOobeSystemSettings(writer, request.Profile.Windows, request.TemporaryLocalAccount, firstLogonBootstrap);
 
             writer.WriteEndElement();
             writer.WriteEndDocument();
@@ -73,12 +74,13 @@ public sealed class UnattendXmlGenerator(DeploymentProfileValidator? profileVali
     private static void WriteOobeSystemSettings(
         XmlWriter writer,
         WindowsSettings windows,
-        EphemeralLocalAccountCredential? temporaryLocalAccount)
+        EphemeralLocalAccountCredential? temporaryLocalAccount,
+        FirstLogonBootstrapPlan? firstLogonBootstrap)
     {
         WriteSettings(writer, "oobeSystem", () =>
         {
             WriteComponent(writer, "Microsoft-Windows-International-Core", () => WriteLocale(writer, windows.Locale));
-            if (HasConfiguredOobeSetting(windows.Oobe) || temporaryLocalAccount is not null)
+            if (HasConfiguredOobeSetting(windows.Oobe) || temporaryLocalAccount is not null || firstLogonBootstrap is not null)
             {
                 WriteComponent(writer, "Microsoft-Windows-Shell-Setup", () =>
                 {
@@ -86,6 +88,11 @@ public sealed class UnattendXmlGenerator(DeploymentProfileValidator? profileVali
                     if (temporaryLocalAccount is not null)
                     {
                         WriteLocalAccount(writer, temporaryLocalAccount);
+                    }
+
+                    if (firstLogonBootstrap is not null)
+                    {
+                        WriteFirstLogonBootstrap(writer, firstLogonBootstrap);
                     }
                 });
             }
@@ -152,6 +159,19 @@ public sealed class UnattendXmlGenerator(DeploymentProfileValidator? profileVali
         WriteElement(writer, "Group", "Administrators");
         WriteElement(writer, "Name", credential.AccountName);
         writer.WriteEndElement();
+        writer.WriteEndElement();
+        writer.WriteEndElement();
+    }
+
+    private static void WriteFirstLogonBootstrap(XmlWriter writer, FirstLogonBootstrapPlan bootstrap)
+    {
+        writer.WriteStartElement("FirstLogonCommands", UnattendNamespace);
+        writer.WriteStartElement("SynchronousCommand", UnattendNamespace);
+        writer.WriteAttributeString("wcm", "action", WcmNamespace, "add");
+        WriteElement(writer, "CommandLine", bootstrap.CommandLine);
+        WriteElement(writer, "Description", "Verify the Easyaller payload and launch the fixed bootstrapper.");
+        WriteElement(writer, "Order", "1");
+        WriteElement(writer, "RequiresUserInput", "false");
         writer.WriteEndElement();
         writer.WriteEndElement();
     }

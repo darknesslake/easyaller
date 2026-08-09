@@ -67,7 +67,8 @@ public sealed record DeploymentValidationError(string Code, string FieldPath, st
 public sealed record DeploymentPreparationRequest(
     ProvisioningProfile Profile,
     WindowsDeploymentTarget Target,
-    EphemeralLocalAccountCredential? TemporaryLocalAccount = null);
+    EphemeralLocalAccountCredential? TemporaryLocalAccount = null,
+    bool EnableFirstLogonBootstrap = false);
 
 public sealed record DeploymentPreview(
     Guid ProfileId,
@@ -95,7 +96,8 @@ public sealed record DeploymentDryRun(
     OobeSettings Oobe,
     PrivacySettings Privacy,
     ReadOnlyMemory<byte> AnswerFile,
-    IReadOnlyList<DeploymentSensitiveMaterialWarning> SensitiveMaterialWarnings)
+    IReadOnlyList<DeploymentSensitiveMaterialWarning> SensitiveMaterialWarnings,
+    FirstLogonBootstrapPlan? FirstLogonBootstrap)
 {
     public bool IsFileOnly => true;
 }

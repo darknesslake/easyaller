@@ -13,6 +13,14 @@ public sealed partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.MainWindow = new MainWindow();
+            try
+            {
+                _ = new FirstLogonResumeCompletionService().TryComplete(Environment.GetCommandLineArgs());
+            }
+            catch
+            {
+                // Completion failure must not prevent Easyaller from opening.
+            }
         }
 
         base.OnFrameworkInitializationCompleted();
