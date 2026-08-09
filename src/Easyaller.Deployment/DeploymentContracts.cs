@@ -114,6 +114,42 @@ public sealed record DeploymentPackagePlan(
 
 public sealed record DeploymentPackageFile(string RelativePath, string Purpose);
 
+public enum DeploymentPackageAssetKind
+{
+    LocalPayload,
+    Script,
+    Installer,
+}
+
+public sealed record DeploymentPackageAsset(
+    DeploymentPackageAssetKind Kind,
+    string SourceFilePath,
+    string RelativePath);
+
+public sealed record DeploymentPackageExportRequest(
+    DeploymentDryRun DryRun,
+    string DestinationDirectory,
+    IReadOnlyList<DeploymentPackageAsset> Assets);
+
+public sealed record DeploymentPackageManifest(
+    int FormatVersion,
+    Guid ProfileId,
+    int ProfileRevision,
+    WindowsDeploymentTarget Target,
+    DeploymentCompatibilityState CompatibilityState,
+    IReadOnlyList<DeploymentPackageManifestEntry> Files);
+
+public sealed record DeploymentPackageManifestEntry(
+    string RelativePath,
+    long Length,
+    string Sha256);
+
+public sealed record DeploymentPackageExportResult(
+    bool IsSuccess,
+    string? DestinationDirectory,
+    DeploymentPackageManifest? Manifest,
+    IReadOnlyList<DeploymentValidationError> Errors);
+
 public interface IDeploymentCompatibilityValidator
 {
     DeploymentCompatibilityResult Validate(WindowsDeploymentTarget target, ProvisioningProfile profile);
@@ -161,7 +197,9 @@ public interface IDeploymentPackagePlanner
 
 public interface IDeploymentPackageExporter
 {
-    Task ExportAsync(DeploymentPackagePlan plan, string destinationDirectory, CancellationToken cancellationToken = default);
+    Task<DeploymentPackageExportResult> ExportAsync(
+        DeploymentPackageExportRequest request,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed class BasicDeploymentCompatibilityValidator : IDeploymentCompatibilityValidator
@@ -349,6 +387,7 @@ public sealed class DeploymentPackagePlanner : IDeploymentPackagePlanner
             preview,
             [
                 new DeploymentPackageFile("autounattend.xml", "Windows Setup answer file"),
+                new DeploymentPackageFile("selected-profile.wpprofile.json", "Selected provisioning profile"),
                 new DeploymentPackageFile("deployment-manifest.json", "Package integrity manifest"),
                 new DeploymentPackageFile("README.txt", "Deployment instructions"),
             ]);

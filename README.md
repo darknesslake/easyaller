@@ -2,7 +2,7 @@
 
 Easyaller is an open-source Windows workstation provisioning tool. It separates reusable, versioned configuration profiles from sensitive per-machine deployment packages, so teams can share setup standards without committing credentials or local configuration to Git.
 
-> Status: pre-alpha. The profile contract, validation foundation, local profile storage, import/export service, first functional desktop screen, and deterministic answer-file generator are implemented. Deployment-package export, Windows SIM validation, first-boot orchestration, and USB creation are not implemented yet.
+> Status: pre-alpha. The profile contract, validation foundation, local profile storage, import/export service, deterministic answer-file generation, in-memory dry run, and safe file-only deployment-package export are implemented. The desktop deployment workflow, completed Windows SIM validation, first-boot orchestration, and USB creation are not implemented yet.
 
 ## Interface previews
 
@@ -39,9 +39,10 @@ These are static pre-alpha interface previews, created before the current Russia
 - Provisioning-plan contract that maps a validated profile to future setup steps and explicit runtime prompts without executing Windows changes.
 - Avalonia desktop screen for listing, creating, cloning, editing all current profile sections, refreshing, importing, exporting, and explicitly deleting local profiles.
 - Set up this PC screen that previews the selected profile plan and validates runtime-only computer, network, proxy, and domain input without applying it yet.
-- Deployment module contracts for compatibility validation, answer-file generation, in-memory dry run, package planning, and future file-only export.
+- Deployment module contracts for compatibility validation, answer-file generation, in-memory dry run, package planning, and safe file-only export.
 - In-memory deployment dry run exposes the effective profile, OOBE and privacy choices, compatibility status, and the exact generated XML without writing files or changing Windows. It warns that profile data and any obfuscated temporary-account password must be treated as sensitive.
-- Deterministic, XML-writer-based `autounattend.xml` generation for validated locale, time-zone, explicitly configured OOBE values, and an optional ephemeral local account. The desktop UI and package export do not expose it yet.
+- Deterministic, XML-writer-based `autounattend.xml` generation for validated locale, time-zone, explicitly configured OOBE values, and an optional ephemeral local account. The desktop UI does not expose it yet.
+- Safe deployment-package exporter: writes to a sibling staging directory, verifies SHA-256 hashes, then atomically finalizes a new destination. Packages contain the answer file, selected profile, README, manifest, and explicitly allowed local payload, scripts, and installers. See [`docs/DEPLOYMENT_PACKAGE.md`](docs/DEPLOYMENT_PACKAGE.md).
 - Cryptographically generated 24-character temporary local-account password with one-time reveal and memory cleanup. It is never profile or manifest data, and AutoLogon remains excluded.
 - Windows-host validation harness that records ISO, image, and answer-file hashes plus explicit Windows SIM evidence without mounting images or touching disks. See [`docs/WINDOWS_SIM_VALIDATION.md`](docs/WINDOWS_SIM_VALIDATION.md).
 - Initial Windows 11 compatibility catalog for documented Pro and Enterprise amd64 24H2 and 25H2 targets. See [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md).
@@ -87,6 +88,8 @@ Read [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md) for a practical guide 
 Русская инструкция: [`docs/GETTING_STARTED_RU.md`](docs/GETTING_STARTED_RU.md).
 
 Windows-host validation instructions: [`docs/WINDOWS_SIM_VALIDATION.md`](docs/WINDOWS_SIM_VALIDATION.md) and [`docs/WINDOWS_SIM_VALIDATION_RU.md`](docs/WINDOWS_SIM_VALIDATION_RU.md).
+
+Deployment package format and safety instructions: [`docs/DEPLOYMENT_PACKAGE.md`](docs/DEPLOYMENT_PACKAGE.md) and [`docs/DEPLOYMENT_PACKAGE_RU.md`](docs/DEPLOYMENT_PACKAGE_RU.md).
 
 ## License
 

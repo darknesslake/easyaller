@@ -161,9 +161,13 @@ Implemented `DeploymentDryRunService`. It first creates the file-only deployment
 
 Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 61 passing tests.
 
-### [ ] WP-027: Safe deployment-package export
+### [x] WP-027: Safe deployment-package export
 
 Use staging plus atomic finalize to export `autounattend.xml`, manifest, local payload, scripts, selected profile, and allowed installers. Verify hashes. Do not call format, mount, diskpart, or boot-record operations.
+
+Implemented `DeploymentPackageExporter`. It accepts a validated `DeploymentDryRun`, writes an answer file, selected profile, README, and SHA-256 manifest to a unique sibling staging directory, rereads every manifest entry for integrity verification, then atomically renames the directory to a previously nonexistent destination. Explicit payload, scripts, and installer assets must stay in their dedicated package directories; installer paths must match a `packageRelative` application declared by the selected profile. Absolute paths, traversal, duplicate targets, symbolic-link sources, and existing destinations are blocked. The manifest does not contain the temporary local-account password. The exporter performs ordinary file operations only and contains no disk, image, boot-record, or USB logic. English and Russian package-safety instructions are in `docs/DEPLOYMENT_PACKAGE.md` and `docs/DEPLOYMENT_PACKAGE_RU.md`.
+
+Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 64 passing tests.
 
 ### [ ] WP-028: Functional Prepare Windows 11 screen
 

@@ -39,17 +39,19 @@ Domain credentials are intentionally collected only at runtime. They are not pro
 
 ## Deployment status
 
-The repository includes a documented Windows 11 compatibility catalog, a deployment-profile validator, and a deterministic `autounattend.xml` generator. An in-memory dry run uses that same generator to show the effective profile, OOBE and privacy choices, compatibility status, and the exact answer-file bytes without writing files or changing Windows. It warns that organization-specific profile data and any obfuscated temporary-account password are sensitive and must be reviewed before sharing. These are preparation work for a future file-only deployment package. The generator allows only validated locale, time-zone, explicitly configured OOBE values, and an optional ephemeral local account. Its 24-character password is generated cryptographically, can be revealed once, and its internal character buffers are cleared after reveal or disposal. It does not generate disk configuration, product keys, domain joins, or AutoLogon.
+The repository includes a documented Windows 11 compatibility catalog, a deployment-profile validator, and a deterministic `autounattend.xml` generator. An in-memory dry run uses that same generator to show the effective profile, OOBE and privacy choices, compatibility status, and the exact answer-file bytes without writing files or changing Windows. A code-level file-only exporter writes a package through a staging directory, verifies SHA-256 hashes, and atomically creates a new destination. It warns that organization-specific profile data and any obfuscated temporary-account password are sensitive and must be reviewed before sharing. The generator allows only validated locale, time-zone, explicitly configured OOBE values, and an optional ephemeral local account. Its 24-character password is generated cryptographically, can be revealed once, and its internal character buffers are cleared after reveal or disposal. It does not generate disk configuration, product keys, domain joins, or AutoLogon.
 
 The following are not implemented yet:
 
 - Generating `autounattend.xml` from the desktop UI
-- Exporting deployment files or a complete package
+- Generating or exporting a deployment package from the desktop UI
 - Downloading or modifying ISO images
 - Formatting disks or creating USB installers
 - Joining a domain during Windows Setup
 
 See [COMPATIBILITY.md](COMPATIBILITY.md) for the currently documented Windows targets and [PRODUCT_SPEC.md](../PRODUCT_SPEC.md) for product boundaries.
+
+See [DEPLOYMENT_PACKAGE.md](DEPLOYMENT_PACKAGE.md) for package contents, asset rules, and verification boundaries.
 
 ## Build and test
 
