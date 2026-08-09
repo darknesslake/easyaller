@@ -2,7 +2,7 @@
 
 Easyaller is an open-source Windows workstation provisioning tool. It separates reusable, versioned configuration profiles from sensitive per-machine deployment packages, so teams can share setup standards without committing credentials or local configuration to Git.
 
-> Status: pre-alpha. The profile contract, validation foundation, local profile storage, import/export service, deterministic answer-file generation, in-memory dry run, safe file-only deployment-package export, its desktop workflow, configuration-set payload delivery, fixed first-logon bootstrapper, temporary-account cleanup state machine, explicit privacy-policy service, runtime Windows version gate, read-only removable-disk safety model, read-only ISO inspection, and one-time USB confirmation state machine are implemented. Completed Windows SIM and VM validation, real account cleanup, desktop policy application, first-boot execution, and USB writing are not implemented yet.
+> Status: pre-alpha. The profile contract, validation foundation, local profile storage, import/export service, deterministic answer-file generation, in-memory dry run, safe file-only deployment-package export, its desktop workflow, configuration-set payload delivery, fixed first-logon bootstrapper, temporary-account cleanup state machine, explicit privacy-policy service, runtime Windows version gate, read-only removable-disk safety model, read-only ISO inspection, one-time USB confirmation state machine, and target-agnostic USB write engine are implemented. Completed Windows SIM and VM validation, real account cleanup, desktop policy application, first-boot execution, Windows USB-volume binding, and physical USB writing are not implemented yet.
 
 ## Interface previews
 
@@ -51,6 +51,7 @@ These are static pre-alpha interface previews, created before the current Russia
 - Read-only removable-disk inventory and hot-swap safety model. It never selects a default target and blocks system, boot, fixed, offline, read-only, or identity-less disks. See [`docs/DISK_SAFETY.md`](docs/DISK_SAFETY.md).
 - Read-only Windows ISO inspection calculates SHA-256, validates media structure, editions, architecture, and a configurable size cap. It mounts only with read-only access and always attempts to dismount in `finally`; the desktop UI does not call it yet. See [`docs/ISO_INSPECTION.md`](docs/ISO_INSPECTION.md).
 - One-time, five-minute destructive USB confirmation state machine. It displays the device identity, requires the exact phrase `ERASE`, and rechecks the selected disk immediately before a future first write. See [`docs/USB_CONFIRMATION.md`](docs/USB_CONFIRMATION.md).
+- Target-agnostic USB write engine builds an immutable hash-verified plan from Windows Setup media and a deployment package, requires the one-time authorization, and never marks a partial target ready. A Windows volume-binding adapter and UI are not implemented. See [`docs/USB_WRITE_ENGINE.md`](docs/USB_WRITE_ENGINE.md).
 - Cryptographically generated 24-character temporary local-account password with one-time reveal and memory cleanup. It is never profile or manifest data, and AutoLogon remains excluded.
 - Windows-host validation harness that records ISO, image, and answer-file hashes plus explicit Windows SIM evidence without mounting images or touching disks. See [`docs/WINDOWS_SIM_VALIDATION.md`](docs/WINDOWS_SIM_VALIDATION.md).
 - Initial Windows 11 compatibility catalog for documented Pro and Enterprise amd64 24H2 and 25H2 targets. See [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md).
@@ -104,6 +105,8 @@ Removable-disk safety instructions: [`docs/DISK_SAFETY.md`](docs/DISK_SAFETY.md)
 ISO inspection instructions: [`docs/ISO_INSPECTION.md`](docs/ISO_INSPECTION.md) and [`docs/ISO_INSPECTION_RU.md`](docs/ISO_INSPECTION_RU.md).
 
 USB confirmation instructions: [`docs/USB_CONFIRMATION.md`](docs/USB_CONFIRMATION.md) and [`docs/USB_CONFIRMATION_RU.md`](docs/USB_CONFIRMATION_RU.md).
+
+USB write-engine instructions: [`docs/USB_WRITE_ENGINE.md`](docs/USB_WRITE_ENGINE.md) and [`docs/USB_WRITE_ENGINE_RU.md`](docs/USB_WRITE_ENGINE_RU.md).
 
 Deployment package format and safety instructions: [`docs/DEPLOYMENT_PACKAGE.md`](docs/DEPLOYMENT_PACKAGE.md) and [`docs/DEPLOYMENT_PACKAGE_RU.md`](docs/DEPLOYMENT_PACKAGE_RU.md).
 

@@ -261,9 +261,13 @@ Implemented `UsbDestructiveConfirmationStateMachine`. It creates an in-memory fi
 
 Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 103 passing tests. The state machine uses mock inventory only; no disk action exists or was invoked.
 
-### [ ] WP-053: USB write engine
+### [x] WP-053: USB write engine
 
 Separate planning from execution. Copy Setup files and deployment additions only after safety checks. Verify output hashes and never report a partially written USB as ready.
+
+Implemented `UsbMediaWriteEngine`. It builds an immutable plan with source paths, destination paths, byte lengths, and SHA-256 values from a setup-media directory and verified deployment package, then rejects unsafe sources, missing answer files, changed package files, and destination collisions. Execution requires the consumed one-time authorization, checks every source again before opening the target, writes only through an explicit `IUsbMediaWriteTarget`, commits only after all writes, and verifies every final hash before returning ready. A changed source stops before copying begins; a failed or partial target is never reported as ready. There is intentionally no built-in Windows volume adapter yet, so the app cannot write a physical USB or arbitrary filesystem path. English and Russian notes are in `docs/USB_WRITE_ENGINE.md` and `docs/USB_WRITE_ENGINE_RU.md`.
+
+Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 107 passing tests. Only an in-memory target was invoked; no disk or filesystem target was written.
 
 ### [ ] WP-054: Create installation USB screen
 
