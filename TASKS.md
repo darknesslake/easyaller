@@ -307,6 +307,8 @@ Verified: Debug and Release `dotnet build Easyaller.slnx` completed with zero wa
 
 Use only a dedicated test PC and recoverable USB. Record firmware mode, hardware, ISO hash, edition/build, and actual results. Do not use corporate credentials until explicitly authorized.
 
+Skipped for now by the user. Resume only with a dedicated non-production PC, a recoverable test USB, and recorded evidence outside Git.
+
 ## Blocked inputs
 
 ### [ ] WP-070: Apply approved organization instructions
