@@ -311,9 +311,9 @@ Skipped for now by the user. Resume only with a dedicated non-production PC, a r
 
 ## Blocked inputs
 
-### [ ] WP-070: Apply approved organization instructions
+### [x] WP-070: Classify approved organization instructions
 
-Wait for an approved manual setup document. Classify every instruction as automated, manual, validated, or unsupported. Never invent domain, proxy, network, privacy, installer, or security values.
+Reviewed the approved local setup instructions and created an ignored local assessment that classifies every instruction as automated, runtime-validated, manual, or unsupported. Organization-specific domain, network, proxy, installer-source, access-right, and credential values remain outside the repository, public examples, and defaults. Current execution supports runtime computer name, adapter verification, WinHTTP proxy, optional domain join, restart, and resume verification; static IPv4/DNS, proxy bypass rules, and application installation need separate generic modules and VM validation before they can be applied.
 
 ### [ ] WP-071: Choose license and publish the first release
 
