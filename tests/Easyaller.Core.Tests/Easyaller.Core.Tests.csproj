@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Easyaller.App\Easyaller.App.csproj" />
     <ProjectReference Include="..\..\src\Easyaller.Core\Easyaller.Core.csproj" />
+    <ProjectReference Include="..\..\src\Easyaller.Deployment\Easyaller.Deployment.csproj" />
   </ItemGroup>
 
   <ItemGroup>

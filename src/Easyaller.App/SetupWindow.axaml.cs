@@ -15,6 +15,11 @@ public sealed partial class SetupWindow : Window
     private readonly ObservableCollection<RuntimePromptListItem> _prompts = [];
     private ProvisioningPlan? _plan;
 
+    public SetupWindow()
+        : this(new FileProfileRepository())
+    {
+    }
+
     public SetupWindow(IProfileRepository repository)
     {
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));

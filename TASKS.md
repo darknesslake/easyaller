@@ -94,9 +94,13 @@ Verified: `dotnet test Easyaller.slnx` with 38 passing tests.
 
 ## Phase 2: Windows deployment package
 
-### [ ] WP-020: Deployment module contracts
+### [x] WP-020: Deployment module contracts
 
 Define models and interfaces for compatibility, validation, XML generation, preview, dry run, and package export. Keep the deployment module independent from desktop UI.
+
+Implemented `Easyaller.Deployment` contracts and a file-only preview path. `DeploymentPreviewService` composes the shared provisioning plan with target edition, architecture, version, and build validation. The package planner contains only answer file, manifest, payload, and installer-copy operations. It cannot include disk formatting, mount, boot-record, or USB-write operations. Tests cover compatible preview, incompatible edition block, and unknown-version warning.
+
+Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 41 passing tests.
 
 ### [ ] WP-021: Windows compatibility catalog
 
