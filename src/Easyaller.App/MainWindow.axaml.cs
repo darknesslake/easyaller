@@ -127,6 +127,18 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         SetStatus("Изменения профиля сохранены.");
     }
 
+    private void ResetProfile_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_selectedProfile is null)
+        {
+            return;
+        }
+
+        ConfirmDeleteCheckBox.IsChecked = false;
+        UpdateSelectionDetails();
+        SetStatus("Несохранённые изменения сброшены. Показана сохранённая версия профиля.");
+    }
+
     private async void ImportProfile_Click(object? sender, RoutedEventArgs e)
     {
         if (!StorageProvider.CanOpen)
@@ -275,6 +287,8 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         SetStatus($"Профиль «{selectedProfile.Metadata.Name}» удалён. Локальная резервная копия сохранена.");
     }
 
+    private void ConfirmDeleteCheckBox_IsCheckedChanged(object? sender, RoutedEventArgs e) => UpdateDeleteButtonState();
+
     private void AddApplication_Click(object? sender, RoutedEventArgs e)
     {
         var application = new ApplicationProfile(
@@ -382,9 +396,14 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         ProfileNameTextBox.Text = _selectedProfile?.Profile.Metadata.Name ?? string.Empty;
         ProfileDescriptionTextBox.Text = _selectedProfile?.Profile.Metadata.Description ?? string.Empty;
         PopulateSettingsControls(_selectedProfile?.Profile);
+        ConfirmDeleteCheckBox.IsChecked = false;
+        UpdateDeleteButtonState();
 
         OnPropertyChanged(nameof(HasSelectedProfile));
     }
+
+    private void UpdateDeleteButtonState() => DeleteProfileButton.IsEnabled =
+        _selectedProfile is not null && ConfirmDeleteCheckBox.IsChecked == true;
 
     private string GetNextProfileName() => _profiles.Count == 0
         ? "Новый профиль компьютера"

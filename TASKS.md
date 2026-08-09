@@ -330,3 +330,7 @@ Added the optional `machine.proxy.bypassList` profile field for up to 256 valida
 ### [x] WP-074: Task-oriented Russian interface
 
 Reorganized the profile editor from a single technical field list into four ordered stages: Windows and first launch, network and access, domain and setup launch, then applications and manual instructions. Every high-impact selection now explains its practical result, scope, and what is intentionally not stored. The apply screen now separates three actions: safe plan review, file-only Windows 11 package preparation, and confirmed changes to the current PC. Its labels clarify which values are runtime-only and that validation does not modify Windows. This is a content and layout improvement only: profile data, validation, and operation boundaries remain unchanged.
+
+### [x] WP-075: Visible profile actions and contextual help
+
+Moved the profile actions out of the scrollable form into a persistent rounded panel: save, reset unsaved changes, clone, and a deliberately confirmed local-profile deletion. Reset restores the currently saved profile without changing disk state. Deletion remains blocked until the operator marks the confirmation checkbox, then uses the existing recoverable repository delete flow. Added hoverable circular `!` help badges for the main configuration sections and high-impact options, plus a shared rounded style for buttons, text fields, selectors, and nested cards. This changes only desktop usability and does not weaken profile validation or deletion safeguards.
