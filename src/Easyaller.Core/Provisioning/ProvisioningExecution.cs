@@ -14,6 +14,7 @@ public enum ProvisioningExecutionStatus
 public enum ProvisioningExecutionOperationKind
 {
     VerifyNetworkAdapter,
+    ConfigureStaticIpv4,
     SetWinHttpProxy,
     RenameComputer,
     JoinDomain,
@@ -54,6 +55,8 @@ public sealed record ProvisioningSystemOperationResult(bool IsSuccess, bool Requ
 public interface IProvisioningSystemAdapter
 {
     ProvisioningSystemOperationResult VerifyNetworkAdapter(string adapterId);
+
+    ProvisioningSystemOperationResult ConfigureStaticIpv4(string adapterId, StaticIpv4Configuration configuration);
 
     ProvisioningSystemOperationResult SetWinHttpProxy(string proxyAddress);
 
@@ -129,6 +132,21 @@ public sealed class ProvisioningExecutionService(
             }
 
             operations.Add(new ProvisioningExecutionOperation(ProvisioningExecutionOperationKind.VerifyNetworkAdapter, false, false));
+        }
+
+        if (plan.StaticIpv4 is not null)
+        {
+            var networkResult = _systemAdapter.ConfigureStaticIpv4(inputs.NetworkAdapterId!, plan.StaticIpv4);
+            if (!networkResult.IsSuccess)
+            {
+                return Failed(operations, networkResult, "execution.network.staticIpv4.failed");
+            }
+
+            operations.Add(new ProvisioningExecutionOperation(
+                ProvisioningExecutionOperationKind.ConfigureStaticIpv4,
+                true,
+                networkResult.RequiresRestart));
+            requiresRestart |= networkResult.RequiresRestart;
         }
 
         if (HasPrompt(plan, RuntimePromptKind.ProxyConfiguration))

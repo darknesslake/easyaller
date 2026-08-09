@@ -4,6 +4,7 @@ using System.Runtime.Versioning;
 using System.Security.Principal;
 using System.Text;
 using System.Text.Json;
+using Easyaller.Core.Profiles;
 using Easyaller.Core.Provisioning;
 using Microsoft.Win32;
 
@@ -101,6 +102,68 @@ public sealed class WindowsProvisioningSystemAdapter : IProvisioningSystemAdapte
         """;
 
     private const string SetProxyScript = "Set-WinHttpProxy -ProxyServer $env:EASYALLER_PROXY_ADDRESS -ErrorAction Stop";
+    private const string ConfigureStaticIpv4Script = """
+        $matches = @(Get-NetAdapter -IncludeHidden -ErrorAction Stop | Where-Object {
+            $_.InterfaceGuid.Guid -eq $env:EASYALLER_NETWORK_ADAPTER_ID -or $_.Name -eq $env:EASYALLER_NETWORK_ADAPTER_ID
+        })
+        if ($matches.Count -ne 1 -or $matches[0].Status -eq 'Disabled') { exit 2 }
+
+        $interfaceIndex = $matches[0].ifIndex
+        $previousDhcp = (Get-NetIPInterface -InterfaceIndex $interfaceIndex -AddressFamily IPv4 -ErrorAction Stop).Dhcp
+        $previousAddresses = @(Get-NetIPAddress -InterfaceIndex $interfaceIndex -AddressFamily IPv4 -ErrorAction Stop | Where-Object {
+            $_.PrefixOrigin -ne 'WellKnown'
+        } | ForEach-Object {
+            [PSCustomObject]@{ Address = $_.IPAddress; PrefixLength = $_.PrefixLength }
+        })
+        $previousGateway = (Get-NetRoute -InterfaceIndex $interfaceIndex -AddressFamily IPv4 -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue |
+            Sort-Object RouteMetric | Select-Object -First 1).NextHop
+        $previousDns = @((Get-DnsClientServerAddress -InterfaceIndex $interfaceIndex -AddressFamily IPv4 -ErrorAction Stop).ServerAddresses)
+
+        try {
+            Set-NetIPInterface -InterfaceIndex $interfaceIndex -AddressFamily IPv4 -Dhcp Disabled -ErrorAction Stop
+            Get-NetIPAddress -InterfaceIndex $interfaceIndex -AddressFamily IPv4 -ErrorAction Stop |
+                Where-Object { $_.PrefixOrigin -ne 'WellKnown' } |
+                Remove-NetIPAddress -Confirm:$false -ErrorAction Stop
+            New-NetIPAddress -InterfaceIndex $interfaceIndex -IPAddress $env:EASYALLER_STATIC_IPV4_ADDRESS -PrefixLength ([int]$env:EASYALLER_STATIC_IPV4_PREFIX_LENGTH) -DefaultGateway $env:EASYALLER_STATIC_IPV4_GATEWAY -ErrorAction Stop | Out-Null
+            Set-DnsClientServerAddress -InterfaceIndex $interfaceIndex -ServerAddresses ($env:EASYALLER_STATIC_IPV4_DNS -split ';') -ErrorAction Stop
+
+            $configuredAddress = @(Get-NetIPAddress -InterfaceIndex $interfaceIndex -AddressFamily IPv4 -ErrorAction Stop | Where-Object {
+                $_.IPAddress -eq $env:EASYALLER_STATIC_IPV4_ADDRESS -and $_.PrefixLength -eq ([int]$env:EASYALLER_STATIC_IPV4_PREFIX_LENGTH)
+            })
+            $configuredDns = @((Get-DnsClientServerAddress -InterfaceIndex $interfaceIndex -AddressFamily IPv4 -ErrorAction Stop).ServerAddresses)
+            $expectedDns = @($env:EASYALLER_STATIC_IPV4_DNS -split ';')
+            if ($configuredAddress.Count -ne 1 -or @($configuredDns | Where-Object { $_ -in $expectedDns }).Count -ne $expectedDns.Count) {
+                throw 'Static IPv4 verification failed.'
+            }
+        }
+        catch {
+            try {
+                Get-NetIPAddress -InterfaceIndex $interfaceIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+                    Where-Object { $_.PrefixOrigin -ne 'WellKnown' } |
+                    Remove-NetIPAddress -Confirm:$false -ErrorAction SilentlyContinue
+                if ($previousDns.Count -gt 0) {
+                    Set-DnsClientServerAddress -InterfaceIndex $interfaceIndex -ServerAddresses $previousDns -ErrorAction Stop
+                }
+                else {
+                    Set-DnsClientServerAddress -InterfaceIndex $interfaceIndex -ResetServerAddresses -ErrorAction Stop
+                }
+                if ($previousDhcp -eq 'Enabled') {
+                    Set-NetIPInterface -InterfaceIndex $interfaceIndex -AddressFamily IPv4 -Dhcp Enabled -ErrorAction Stop
+                }
+                else {
+                    foreach ($previousAddress in $previousAddresses) {
+                        $restoreParameters = @{ InterfaceIndex = $interfaceIndex; IPAddress = $previousAddress.Address; PrefixLength = $previousAddress.PrefixLength; ErrorAction = 'Stop' }
+                        if ($previousGateway) { $restoreParameters.DefaultGateway = $previousGateway }
+                        New-NetIPAddress @restoreParameters | Out-Null
+                        $previousGateway = $null
+                    }
+                    Set-NetIPInterface -InterfaceIndex $interfaceIndex -AddressFamily IPv4 -Dhcp Disabled -ErrorAction Stop
+                }
+            }
+            catch { }
+            exit 1
+        }
+        """;
     private const string RenameComputerScript = "Rename-Computer -NewName $env:EASYALLER_COMPUTER_NAME -Force -ErrorAction Stop";
     private const string JoinDomainScript = """
         $password = [Console]::In.ReadToEnd()
@@ -133,6 +196,26 @@ public sealed class WindowsProvisioningSystemAdapter : IProvisioningSystemAdapte
         return result.IsSuccess
             ? ProvisioningSystemOperationResult.Success()
             : result;
+    }
+
+    public ProvisioningSystemOperationResult ConfigureStaticIpv4(string adapterId, StaticIpv4Configuration configuration)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(adapterId);
+        ArgumentNullException.ThrowIfNull(configuration);
+        var prefixLength = ProvisioningProfileValidator.GetPrefixLength(configuration.SubnetMask);
+        if (prefixLength is null)
+        {
+            return ProvisioningSystemOperationResult.Failure("execution.network.staticIpv4.invalid");
+        }
+
+        return RunPowerShell(ConfigureStaticIpv4Script, startInfo =>
+        {
+            startInfo.Environment["EASYALLER_NETWORK_ADAPTER_ID"] = adapterId;
+            startInfo.Environment["EASYALLER_STATIC_IPV4_ADDRESS"] = configuration.Address;
+            startInfo.Environment["EASYALLER_STATIC_IPV4_PREFIX_LENGTH"] = prefixLength.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            startInfo.Environment["EASYALLER_STATIC_IPV4_GATEWAY"] = configuration.DefaultGateway;
+            startInfo.Environment["EASYALLER_STATIC_IPV4_DNS"] = string.Join(';', configuration.DnsServers);
+        });
     }
 
     public ProvisioningSystemOperationResult RenameComputer(string computerName)

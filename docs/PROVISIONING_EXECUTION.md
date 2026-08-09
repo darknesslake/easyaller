@@ -10,7 +10,7 @@ The screen first validates runtime values without changing Windows. Applying the
 
 The executor accepts only these fixed operations, in this order:
 
-1. Verify that exactly one enabled network adapter matches the entered adapter name or interface GUID. It does not assign IP addresses, DNS servers, Wi-Fi credentials, or routes.
+1. Verify that exactly one enabled network adapter matches the entered adapter name or interface GUID. For an explicit `staticIpv4` profile only, apply the validated IPv4 address, subnet mask, gateway, and DNS server list to that adapter, then reread the result. It does not set Wi-Fi credentials or invent routes.
 2. When the profile requests a proxy, set the Windows WinHTTP proxy from the runtime value.
 3. Rename the local computer.
 4. When the operator enters both a domain name and short-lived credential, join that domain.
@@ -30,7 +30,7 @@ Windows only processes machine-wide `RunOnce` entries when an administrator sign
 
 ## Documented Windows mechanisms
 
-The Windows adapter runs fixed `Rename-Computer`, `Add-Computer`, and `Set-WinhttpProxy` commands with user values supplied outside the command text. It never passes credentials in a command line or records standard output or error text. Microsoft documents [Rename-Computer](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/rename-computer?view=powershell-7.6), [Add-Computer](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/add-computer?view=powershell-5.1), and [Set-WinhttpProxy](https://learn.microsoft.com/en-us/powershell/module/winhttpproxy/set-winhttpproxy?view=windowsserver2025-ps).
+The Windows adapter runs fixed `Rename-Computer`, `Add-Computer`, `Set-WinhttpProxy`, `Set-NetIPInterface`, `New-NetIPAddress`, and `Set-DnsClientServerAddress` commands with profile or runtime values supplied outside the command text. It never passes credentials in a command line or records standard output or error text. See [`docs/STATIC_IPV4_DNS.md`](STATIC_IPV4_DNS.md) for the static-network boundary and Microsoft references.
 
 ## Stop conditions
 

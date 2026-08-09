@@ -144,11 +144,44 @@
                       <TextBox x:Name="ComputerNamePrefixTextBox" PlaceholderText="Необязательно, например OFFICE" />
                     </StackPanel>
                     <StackPanel Grid.Column="1" Spacing="6">
+                      <TextBlock Text="Настройка сети" FontSize="12" Foreground="#A9B7CD" />
+                      <ComboBox x:Name="NetworkModeComboBox">
+                        <ComboBoxItem Tag="PromptAtRuntime">Выбрать адаптер при настройке</ComboBoxItem>
+                        <ComboBoxItem Tag="StaticIpv4">Статический IPv4 и DNS</ComboBoxItem>
+                      </ComboBox>
+                    </StackPanel>
+                  </Grid>
+                  <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                    <StackPanel Spacing="6">
+                      <TextBlock Text="Статический IPv4" FontSize="12" Foreground="#A9B7CD" />
+                      <TextBox x:Name="StaticIpv4AddressTextBox" PlaceholderText="Только для статической сети" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="6">
+                      <TextBlock Text="Маска подсети" FontSize="12" Foreground="#A9B7CD" />
+                      <TextBox x:Name="StaticIpv4SubnetMaskTextBox" PlaceholderText="Например, 255.255.255.0" />
+                    </StackPanel>
+                  </Grid>
+                  <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                    <StackPanel Spacing="6">
+                      <TextBlock Text="Шлюз по умолчанию" FontSize="12" Foreground="#A9B7CD" />
+                      <TextBox x:Name="StaticIpv4DefaultGatewayTextBox" PlaceholderText="Только для статической сети" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="6">
+                      <TextBlock Text="DNS-серверы" FontSize="12" Foreground="#A9B7CD" />
+                      <TextBox x:Name="StaticIpv4DnsServersTextBox" PlaceholderText="До трёх адресов через запятую" />
+                    </StackPanel>
+                  </Grid>
+                  <TextBlock Text="Статическая сеть применяется только к явно выбранному адаптеру после APPLY. Профиль не хранит пароли." TextWrapping="Wrap" FontSize="12" Foreground="#93C5FD" />
+                  <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                    <StackPanel Spacing="6">
                       <TextBlock Text="Настройка прокси" FontSize="12" Foreground="#A9B7CD" />
                       <ComboBox x:Name="ProxyModeComboBox">
                         <ComboBoxItem Tag="NotConfigured">Не настраивать</ComboBoxItem>
                         <ComboBoxItem Tag="PromptAtRuntime">Запросить при настройке</ComboBoxItem>
                       </ComboBox>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="6">
+                      <TextBlock Text="Параметры статической сети не экспортируйте в публичный репозиторий." TextWrapping="Wrap" FontSize="12" Foreground="#A9B7CD" />
                     </StackPanel>
                   </Grid>
                   <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">

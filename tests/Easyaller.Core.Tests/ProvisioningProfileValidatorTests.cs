@@ -96,4 +96,70 @@ public sealed class ProvisioningProfileValidatorTests
         Assert.Contains(result.Errors, error => error.Code == "profile.revision.invalid");
         Assert.Contains(result.Errors, error => error.Code == "profile.name.required");
     }
+
+    [Fact]
+    public void Validate_StaticIpv4WithDns_IsValid()
+    {
+        var profile = ProvisioningProfileFactory.CreateDefault() with
+        {
+            Machine = ProvisioningProfileFactory.CreateDefault().Machine with
+            {
+                Network = StaticNetwork(),
+            },
+        };
+
+        var result = _validator.Validate(profile);
+
+        Assert.True(result.IsValid);
+        Assert.Equal(24, ProvisioningProfileValidator.GetPrefixLength(profile.Machine.Network.StaticIpv4!.SubnetMask));
+    }
+
+    [Fact]
+    public void Validate_StaticIpv4WithInvalidGatewayAndDns_ReturnsFieldErrors()
+    {
+        var profile = ProvisioningProfileFactory.CreateDefault() with
+        {
+            Machine = ProvisioningProfileFactory.CreateDefault().Machine with
+            {
+                Network = new NetworkSettings(
+                    NetworkConfigurationMode.StaticIpv4,
+                    new StaticIpv4Configuration(
+                        "192.0.2.77",
+                        "255.0.255.0",
+                        "192.0.3.254",
+                        ["192.0.2.53", "192.0.2.53"])),
+            },
+        };
+
+        var result = _validator.Validate(profile);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, error => error.Code == "machine.network.staticIpv4.subnetMask.invalid");
+        Assert.Contains(result.Errors, error => error.Code == "machine.network.staticIpv4.dnsServers.duplicate");
+    }
+
+    [Fact]
+    public void Validate_PromptNetworkWithStaticValues_IsRejected()
+    {
+        var profile = ProvisioningProfileFactory.CreateDefault() with
+        {
+            Machine = ProvisioningProfileFactory.CreateDefault().Machine with
+            {
+                Network = new NetworkSettings(NetworkConfigurationMode.PromptAtRuntime, StaticNetwork().StaticIpv4),
+            },
+        };
+
+        var result = _validator.Validate(profile);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, error => error.Code == "machine.network.staticIpv4.unexpected");
+    }
+
+    private static NetworkSettings StaticNetwork() => new(
+        NetworkConfigurationMode.StaticIpv4,
+        new StaticIpv4Configuration(
+            "192.0.2.77",
+            "255.255.255.0",
+            "192.0.2.254",
+            ["192.0.2.53", "198.51.100.53", "203.0.113.53"]));
 }

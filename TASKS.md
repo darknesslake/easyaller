@@ -313,7 +313,11 @@ Skipped for now by the user. Resume only with a dedicated non-production PC, a r
 
 ### [x] WP-070: Classify approved organization instructions
 
-Reviewed the approved local setup instructions and created an ignored local assessment that classifies every instruction as automated, runtime-validated, manual, or unsupported. Organization-specific domain, network, proxy, installer-source, access-right, and credential values remain outside the repository, public examples, and defaults. Current execution supports runtime computer name, adapter verification, WinHTTP proxy, optional domain join, restart, and resume verification; static IPv4/DNS, proxy bypass rules, and application installation need separate generic modules and VM validation before they can be applied.
+Reviewed the approved local setup instructions and created an ignored local assessment that classifies every instruction as automated, runtime-validated, manual, or unsupported. Organization-specific domain, network, proxy, installer-source, access-right, and credential values remain outside the repository, public examples, and defaults. The initial assessment identified static IPv4/DNS, proxy bypass rules, and application installation as separate generic modules; the IPv4/DNS module is now recorded in WP-072, while proxy bypass rules and application installation remain separate work.
+
+### [x] WP-072: Generic static IPv4 and DNS profiles
+
+Added the optional `staticIpv4` profile block for a validated IPv4 address, subnet mask, default gateway, and one to three DNS servers. The profile editor can create and edit it, and export preview marks it confidential. Existing runtime profiles remain compatible. Applying the plan still requires an explicit enabled adapter name or interface GUID and exact `APPLY`; the Windows adapter changes only that adapter, verifies the resulting address and DNS, and attempts a same-adapter rollback on failure. No profile stores credentials, Wi-Fi, VPN, or arbitrary commands. Mock tests cover validation, serialization, planning, editor persistence, operation order, and adapter binding. Real Windows VM validation remains mandatory before workstation use.
 
 ### [ ] WP-071: Choose license and publish the first release
 

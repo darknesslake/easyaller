@@ -29,6 +29,27 @@ public sealed class ProfileImportExportServiceTests
     }
 
     [Fact]
+    public void PreviewExport_StaticIpv4MarksNetworkSettingsAsConfidential()
+    {
+        using var directory = new TemporaryDirectory();
+        var service = CreateService(directory.Path);
+        var defaultProfile = ProvisioningProfileFactory.CreateDefault();
+        var profile = defaultProfile with
+        {
+            Machine = defaultProfile.Machine with
+            {
+                Network = new NetworkSettings(
+                    NetworkConfigurationMode.StaticIpv4,
+                    new StaticIpv4Configuration("192.0.2.77", "255.255.255.0", "192.0.2.254", ["192.0.2.53"])),
+            },
+        };
+
+        var preview = service.PreviewExport(profile);
+
+        Assert.Contains(preview.ConfidentialFields, field => field.FieldPath == "machine.network.staticIpv4");
+    }
+
+    [Fact]
     public void PreviewImport_MalformedUtf8_IsRejectedBeforeDeserialization()
     {
         using var directory = new TemporaryDirectory();

@@ -103,12 +103,21 @@ public enum ComputerNameMode
     RequiredAtRuntime,
 }
 
-public sealed record NetworkSettings([property: JsonRequired] NetworkConfigurationMode Mode);
+public sealed record NetworkSettings(
+    [property: JsonRequired] NetworkConfigurationMode Mode,
+    StaticIpv4Configuration? StaticIpv4 = null);
 
 public enum NetworkConfigurationMode
 {
     PromptAtRuntime,
+    StaticIpv4,
 }
+
+public sealed record StaticIpv4Configuration(
+    [property: JsonRequired] string Address,
+    [property: JsonRequired] string SubnetMask,
+    [property: JsonRequired] string DefaultGateway,
+    [property: JsonRequired] IReadOnlyList<string> DnsServers);
 
 public sealed record ProxySettings([property: JsonRequired] ProxyConfigurationMode Mode);
 

@@ -35,7 +35,7 @@ The public, Git-friendly format is `*.wpprofile.json`.
 - `schemaVersion`, stable `profileId`, and `revision` identify and evolve a profile.
 - The profile is declarative. It must not contain raw shell commands or credentials.
 - Domain credentials are represented only by `promptAtRuntime`.
-- A profile may contain confidential but non-secret information such as an internal domain name or proxy address. Export must show those fields for review.
+- A profile may contain confidential but non-secret information such as an internal domain name, proxy address, or a static IPv4, gateway, and DNS configuration. Export must show those fields for review.
 - Imported profiles are untrusted until schema validation, semantic validation, and user review have completed.
 - The profile contract is [`schemas/provisioning-profile.schema.json`](schemas/provisioning-profile.schema.json).
 
@@ -107,6 +107,8 @@ Each supported target records edition, display version, build range, ISO hash, A
 Hiding privacy screens is separate from applying real privacy policies. `PrivacyConfigurationService` must use documented policy-backed mechanisms and preserve `notConfigured` as a no-op.
 
 Application profiles are declarative: ID, display name, source, package-relative path, hash, arguments array, exit codes, and detection rule. Imported profiles cannot contain raw shell strings, absolute paths, or traversal paths. Proprietary installers do not belong in the public repository.
+
+Static network profiles are also declarative: the selected adapter remains a runtime choice, while the profile may contain a validated IPv4 address, contiguous subnet mask, default gateway in the same subnet, and one to three DNS servers. Applying it requires an explicit confirmation and administrator rights. The app must never choose the adapter itself or store Wi-Fi, VPN, or credential material in the profile.
 
 Instructions are data, not code. Render Markdown or text safely without executing HTML or scripts.
 

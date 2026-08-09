@@ -8,6 +8,7 @@ public enum ProvisioningStepKind
 {
     RequestComputerName,
     RequestNetworkConfiguration,
+    ConfigureStaticIpv4,
     RequestProxyConfiguration,
     RequestDomainJoin,
     ApplyPrivacyPreferences,
@@ -39,7 +40,8 @@ public sealed record ProvisioningPlan(
     Guid ProfileId,
     int ProfileRevision,
     IReadOnlyList<ProvisioningStep> Steps,
-    IReadOnlyList<RuntimePrompt> RuntimePrompts);
+    IReadOnlyList<RuntimePrompt> RuntimePrompts,
+    StaticIpv4Configuration? StaticIpv4 = null);
 
 public sealed record ProvisioningPlanResult(
     ProvisioningPlan? Plan,
@@ -78,7 +80,7 @@ public sealed class ProvisioningPlanBuilder(ProvisioningProfileValidator? valida
             "computer-name",
             "Choose the final computer name at runtime.");
 
-        if (profile.Machine.Network.Mode == NetworkConfigurationMode.PromptAtRuntime)
+        if (profile.Machine.Network.Mode is NetworkConfigurationMode.PromptAtRuntime or NetworkConfigurationMode.StaticIpv4)
         {
             AddPrompt(
                 steps,
@@ -86,7 +88,17 @@ public sealed class ProvisioningPlanBuilder(ProvisioningProfileValidator? valida
                 RuntimePromptKind.NetworkConfiguration,
                 isRequired: true,
                 "network",
-                "Choose the network adapter and network configuration at runtime.");
+                profile.Machine.Network.Mode == NetworkConfigurationMode.StaticIpv4
+                    ? "Choose the network adapter for the saved static IPv4 and DNS configuration."
+                    : "Choose the network adapter and network configuration at runtime.");
+
+            if (profile.Machine.Network.Mode == NetworkConfigurationMode.StaticIpv4)
+            {
+                steps.Add(new ProvisioningStep(
+                    ProvisioningStepKind.ConfigureStaticIpv4,
+                    "static-ipv4",
+                    "Apply the saved static IPv4 address, gateway, and DNS servers to the selected network adapter."));
+            }
         }
 
         if (profile.Machine.Proxy.Mode == ProxyConfigurationMode.PromptAtRuntime)
@@ -149,7 +161,7 @@ public sealed class ProvisioningPlanBuilder(ProvisioningProfileValidator? valida
             "Keep temporary-account cleanup gated on post-provisioning validation."));
 
         return new ProvisioningPlanResult(
-            new ProvisioningPlan(profile.ProfileId, profile.Revision, steps, prompts),
+            new ProvisioningPlan(profile.ProfileId, profile.Revision, steps, prompts, profile.Machine.Network.StaticIpv4),
             []);
     }
 

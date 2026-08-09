@@ -87,4 +87,26 @@ public sealed class ProvisioningPlanBuilderTests
         Assert.Contains(result.Errors, error => error.Code == "runtime.network.adapter.required");
         Assert.DoesNotContain(result.Errors, error => error.Code == "runtime.domain.required");
     }
+
+    [Fact]
+    public void Create_StaticIpv4Profile_KeepsAddressValuesInPlanAndRequiresAdapterChoice()
+    {
+        var defaultProfile = ProvisioningProfileFactory.CreateDefault();
+        var profile = defaultProfile with
+        {
+            Machine = defaultProfile.Machine with
+            {
+                Network = new NetworkSettings(
+                    NetworkConfigurationMode.StaticIpv4,
+                    new StaticIpv4Configuration("192.0.2.77", "255.255.255.0", "192.0.2.254", ["192.0.2.53"])),
+            },
+        };
+
+        var result = new ProvisioningPlanBuilder().Create(profile);
+
+        Assert.True(result.IsValid);
+        Assert.Equal("192.0.2.77", result.Plan!.StaticIpv4!.Address);
+        Assert.Contains(result.Plan.RuntimePrompts, prompt => prompt.Kind == RuntimePromptKind.NetworkConfiguration && prompt.IsRequired);
+        Assert.Contains(result.Plan.Steps, step => step.Kind == ProvisioningStepKind.ConfigureStaticIpv4);
+    }
 }

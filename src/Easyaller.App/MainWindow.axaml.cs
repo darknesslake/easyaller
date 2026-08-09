@@ -419,7 +419,12 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         GetSelectedEnum(ProxyModeComboBox, original.Machine.Proxy.Mode),
         GetSelectedEnum(DomainModeComboBox, original.Domain.Mode),
         GetSelectedEnum(LaunchModeComboBox, original.Deployment.LaunchMode),
-        GetSelectedEnum(CleanupModeComboBox, original.Cleanup.ProvisioningAccount));
+        GetSelectedEnum(CleanupModeComboBox, original.Cleanup.ProvisioningAccount),
+        GetSelectedEnum(NetworkModeComboBox, original.Machine.Network.Mode),
+        StaticIpv4AddressTextBox.Text,
+        StaticIpv4SubnetMaskTextBox.Text,
+        StaticIpv4DefaultGatewayTextBox.Text,
+        StaticIpv4DnsServersTextBox.Text);
 
     private IReadOnlyList<WindowsEdition> GetSelectedEditions()
     {
@@ -452,6 +457,13 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         SetOptionalBoolean(HideOnlineAccountComboBox, windows?.Oobe.HideOnlineAccountScreens);
         SetPrivacyPreference(windows?.Privacy);
         ComputerNamePrefixTextBox.Text = profile?.Machine.ComputerName.Prefix ?? string.Empty;
+        SetSelectedEnum(NetworkModeComboBox, profile?.Machine.Network.Mode);
+        StaticIpv4AddressTextBox.Text = profile?.Machine.Network.StaticIpv4?.Address ?? string.Empty;
+        StaticIpv4SubnetMaskTextBox.Text = profile?.Machine.Network.StaticIpv4?.SubnetMask ?? string.Empty;
+        StaticIpv4DefaultGatewayTextBox.Text = profile?.Machine.Network.StaticIpv4?.DefaultGateway ?? string.Empty;
+        StaticIpv4DnsServersTextBox.Text = profile?.Machine.Network.StaticIpv4 is { } staticIpv4
+            ? string.Join(", ", staticIpv4.DnsServers)
+            : string.Empty;
         SetSelectedEnum(ProxyModeComboBox, profile?.Machine.Proxy.Mode);
         SetSelectedEnum(DomainModeComboBox, profile?.Domain.Mode);
         SetSelectedEnum(LaunchModeComboBox, profile?.Deployment.LaunchMode);

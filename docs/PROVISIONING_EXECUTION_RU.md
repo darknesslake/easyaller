@@ -10,10 +10,11 @@ English version: [PROVISIONING_EXECUTION.md](PROVISIONING_EXECUTION.md).
 
 Executor принимает только фиксированные операции в этом порядке:
 
-1. Проверить, что введённому имени адаптера или interface GUID соответствует ровно один включённый сетевой адаптер. IP-адреса, DNS, Wi-Fi-данные и маршруты не назначаются.
-2. Если профиль запросил прокси, установить WinHTTP proxy Windows из runtime-значения.
-3. Переименовать локальный компьютер.
-4. Если оператор ввёл имя домена и краткоживущие учётные данные, присоединить компьютер к этому домену.
+1. Проверить, что введённому имени адаптера или interface GUID соответствует ровно один включённый сетевой адаптер.
+2. Для явного профиля `staticIpv4` применить проверенные IPv4, маску, шлюз и список DNS только к явно выбранному адаптеру, затем повторно прочитать результат. Wi-Fi-пароли и маршруты не создаются.
+3. Если профиль запросил прокси, установить WinHTTP proxy Windows из runtime-значения.
+4. Переименовать локальный компьютер.
+5. Если оператор ввёл имя домена и краткоживущие учётные данные, присоединить компьютер к этому домену.
 
 Executor не форматирует диски, не изменяет ISO, не выбирает внутренний диск, не добавляет установщики, не исполняет команды из профиля, не применяет неуказанные настройки конфиденциальности и не придумывает сетевые настройки. Он не использует обходы OOBE.
 
@@ -30,7 +31,7 @@ Windows обрабатывает системный `RunOnce` только ко�
 
 ## Документированные механизмы Windows
 
-Windows-адаптер запускает только фиксированные команды `Rename-Computer`, `Add-Computer` и `Set-WinhttpProxy`. Значения пользователя передаются вне текста команд. Пароли не попадают в командную строку, а стандартный вывод и ошибки PowerShell не записываются. Microsoft документирует [Rename-Computer](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/rename-computer?view=powershell-7.6), [Add-Computer](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/add-computer?view=powershell-5.1) и [Set-WinhttpProxy](https://learn.microsoft.com/en-us/powershell/module/winhttpproxy/set-winhttpproxy?view=windowsserver2025-ps).
+Windows-адаптер запускает только фиксированные команды `Rename-Computer`, `Add-Computer`, `Set-WinhttpProxy`, `Set-NetIPInterface`, `New-NetIPAddress` и `Set-DnsClientServerAddress`. Значения пользователя передаются вне текста команд. Пароли не попадают в командную строку, а стандартный вывод и ошибки PowerShell не записываются. Граница статической сети и ссылки на Microsoft описаны в [`docs/STATIC_IPV4_DNS_RU.md`](STATIC_IPV4_DNS_RU.md).
 
 ## Условия остановки
 

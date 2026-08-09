@@ -65,6 +65,7 @@ public sealed class ProfileEditorController(IProfileRepository repository)
                 {
                     Prefix = string.IsNullOrWhiteSpace(settings.ComputerNamePrefix) ? null : settings.ComputerNamePrefix.Trim(),
                 },
+                Network = CreateNetworkSettings(settings),
                 Proxy = new ProxySettings(settings.ProxyMode),
             },
             Domain = original.Domain with { Mode = settings.DomainMode },
@@ -75,6 +76,20 @@ public sealed class ProfileEditorController(IProfileRepository repository)
         };
         return _repository.Update(updated, original.Revision);
     }
+
+    private static NetworkSettings CreateNetworkSettings(ProfileSettingsEdit settings) => settings.NetworkMode switch
+    {
+        NetworkConfigurationMode.PromptAtRuntime => new NetworkSettings(NetworkConfigurationMode.PromptAtRuntime),
+        NetworkConfigurationMode.StaticIpv4 => new NetworkSettings(
+            NetworkConfigurationMode.StaticIpv4,
+            new StaticIpv4Configuration(
+                settings.StaticIpv4Address?.Trim() ?? string.Empty,
+                settings.StaticIpv4SubnetMask?.Trim() ?? string.Empty,
+                settings.StaticIpv4DefaultGateway?.Trim() ?? string.Empty,
+                (settings.StaticIpv4DnsServers ?? string.Empty)
+                    .Split([',', ';', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))),
+        _ => new NetworkSettings(settings.NetworkMode),
+    };
 }
 
 public sealed record ProfileSettingsEdit(
@@ -94,4 +109,9 @@ public sealed record ProfileSettingsEdit(
     ProxyConfigurationMode ProxyMode,
     DomainMode DomainMode,
     ProvisionerLaunchMode LaunchMode,
-    ProvisioningAccountCleanupMode CleanupMode);
+    ProvisioningAccountCleanupMode CleanupMode,
+    NetworkConfigurationMode NetworkMode = NetworkConfigurationMode.PromptAtRuntime,
+    string? StaticIpv4Address = null,
+    string? StaticIpv4SubnetMask = null,
+    string? StaticIpv4DefaultGateway = null,
+    string? StaticIpv4DnsServers = null);

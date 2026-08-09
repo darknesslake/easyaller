@@ -115,6 +115,37 @@ public sealed class ProvisioningExecutionServiceTests
         Assert.Contains(result.Warnings, warning => warning.Code == "execution.restart.required.afterPartialFailure");
     }
 
+    [Fact]
+    public void Execute_StaticIpv4Profile_ConfiguresOnlyTheVerifiedAdapter()
+    {
+        var defaultProfile = ProvisioningProfileFactory.CreateDefault();
+        var profile = defaultProfile with
+        {
+            Domain = defaultProfile.Domain with { Mode = DomainMode.NotConfigured },
+            Machine = defaultProfile.Machine with
+            {
+                Network = new NetworkSettings(
+                    NetworkConfigurationMode.StaticIpv4,
+                    new StaticIpv4Configuration("192.0.2.77", "255.255.255.0", "192.0.2.254", ["192.0.2.53"])),
+                Proxy = new ProxySettings(ProxyConfigurationMode.NotConfigured),
+            },
+        };
+        var adapter = new FakeSystemAdapter();
+        var service = CreateService(adapter, out _, out _);
+        using var inputs = new RuntimeProvisioningInputs
+        {
+            ComputerName = "LAB-WS-01",
+            NetworkAdapterId = "adapter-1",
+        };
+
+        var result = service.Execute(CreatePlan(profile), inputs, ProvisioningExecutionService.ConfirmationPhrase);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(["VerifyNetworkAdapter", "ConfigureStaticIpv4", "RenameComputer"], adapter.Calls);
+        Assert.Contains(result.Operations, operation => operation.Kind == ProvisioningExecutionOperationKind.ConfigureStaticIpv4 && operation.WasApplied);
+        Assert.Equal("adapter-1", adapter.StaticIpv4AdapterId);
+    }
+
     private static ProvisioningExecutionService CreateService(
         FakeSystemAdapter adapter,
         out InMemoryStateStore stateStore,
@@ -153,6 +184,16 @@ public sealed class ProvisioningExecutionServiceTests
         public ProvisioningSystemOperationResult VerifyNetworkAdapter(string adapterId)
         {
             Calls.Add(nameof(VerifyNetworkAdapter));
+            return ProvisioningSystemOperationResult.Success();
+        }
+
+        public string? StaticIpv4AdapterId { get; private set; }
+
+        public ProvisioningSystemOperationResult ConfigureStaticIpv4(string adapterId, StaticIpv4Configuration configuration)
+        {
+            Calls.Add(nameof(ConfigureStaticIpv4));
+            StaticIpv4AdapterId = adapterId;
+            Assert.Equal("192.0.2.77", configuration.Address);
             return ProvisioningSystemOperationResult.Success();
         }
 

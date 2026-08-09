@@ -333,6 +333,13 @@ public sealed class ProfileImportExportService
                 "May describe internal workstation standards."));
         }
 
+        if (profile.Machine.Network.StaticIpv4 is not null)
+        {
+            fields.Add(new ProfileConfidentialField(
+                "machine.network.staticIpv4",
+                "Contains organization-specific network settings."));
+        }
+
         for (var index = 0; index < profile.Applications.Count; index++)
         {
             if (!string.IsNullOrWhiteSpace(profile.Applications[index].PackageRelativePath))
