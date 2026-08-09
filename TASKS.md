@@ -78,7 +78,7 @@ Implemented the first functional cross-platform Avalonia profile manager. It lis
 
 Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 34 passing tests.
 
-### [ ] WP-015: Connect a selected profile to the provisioning pipeline
+### [x] WP-015: Connect a selected profile to the provisioning pipeline
 
 Map a selected profile into the existing setup pipeline without creating a second engine. Collect final computer name, adapter choice, network values, and credentials only at runtime.
 
@@ -88,7 +88,11 @@ Acceptance criteria:
 - Credentials are short-lived in memory and redacted in logs.
 - Reboot and resume behavior has integration coverage.
 
-Implemented the shared `ProvisioningPlan` contract and builder, plus the Set up this PC desktop screen. A valid profile maps to declarative steps and explicit runtime prompts for computer name, adapter and network choice, proxy, and domain join. The screen previews the same plan and validates runtime input without changing Windows. `notConfigured` preferences produce no system-change step. Runtime domain credentials are an in-memory disposable object with redacted string output and the password field is cleared after validation. The task remains open until an executor applies the plan with reboot and resume coverage.
+Implemented the shared `ProvisioningPlan` contract and builder, plus the Set up this PC desktop screen. A valid profile maps to declarative steps and explicit runtime prompts for computer name, adapter and network choice, proxy, and domain join. The screen previews the same plan and validates runtime input without changing Windows. `notConfigured` preferences produce no system-change step. Runtime domain credentials are an in-memory disposable object with redacted string output and the password field is cleared after validation.
+
+Added `ProvisioningExecutionService` with an immutable operation order, exact `APPLY` confirmation, runtime revalidation, generic failure messages, and a pending-resume state that excludes passwords, proxies, and domain names. The Windows adapter verifies one enabled adapter, sets WinHTTP proxy only when requested, renames the computer, and optionally invokes documented domain join with the credential written only to the fixed child process standard input. It requests no automatic reboot; successful rename or domain join registers one constrained `RunOnce` resume where possible and the resumed app verifies the computer name and domain membership before clearing state. The Russian UI exposes this path separately from dry run and package export. It is untested on real Windows, so VM evidence remains mandatory before workstation use. English and Russian safety notes are in `docs/PROVISIONING_EXECUTION.md` and `docs/PROVISIONING_EXECUTION_RU.md`.
+
+Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 122 passing tests. Execution order, no-op behavior for `notConfigured`, one-time confirmation, secret-free resume state, failed verification retention, partial-failure resume, and resume verification are covered with mock adapters and state stores.
 
 Verified: `dotnet test Easyaller.slnx` with 38 passing tests.
 

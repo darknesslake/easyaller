@@ -38,7 +38,7 @@ These are static pre-alpha interface previews, created before the current Russia
 - Import/export service with UTF-8 and size limits, secret-field scanning, strict loading, conflict resolution, export previews, and atomic file output.
 - Provisioning-plan contract that maps a validated profile to future setup steps and explicit runtime prompts without executing Windows changes.
 - Avalonia desktop screen for listing, creating, cloning, editing all current profile sections, refreshing, importing, exporting, and explicitly deleting local profiles.
-- Set up this PC screen that previews the selected profile plan, validates runtime-only computer, network, proxy, and domain input without applying it, and prepares a basic file-only Windows 11 package through preview, dry run, and explicit folder selection.
+- Set up this PC screen that previews a selected profile plan, validates runtime-only computer, network, proxy, and domain input, and can apply only fixed confirmed Windows operations with administrator rights, restart, and resume verification. It also prepares a basic file-only Windows 11 package through preview, dry run, and explicit folder selection. The runtime executor still needs Windows VM validation.
 - Deployment module contracts for compatibility validation, answer-file generation, in-memory dry run, package planning, and safe file-only export.
 - In-memory deployment dry run exposes the effective profile, OOBE and privacy choices, compatibility status, and the exact generated XML without writing files or changing Windows. It warns that profile data and any obfuscated temporary-account password must be treated as sensitive.
 - Deterministic, XML-writer-based `autounattend.xml` generation for validated locale, time-zone, explicitly configured OOBE values, and an optional ephemeral local account. The desktop UI does not expose it yet.
@@ -118,6 +118,8 @@ Windows USB-volume binding instructions: [`docs/USB_VOLUME_BINDING.md`](docs/USB
 USB creation instructions: [`docs/USB_CREATOR.md`](docs/USB_CREATOR.md) and [`docs/USB_CREATOR_RU.md`](docs/USB_CREATOR_RU.md).
 
 Deployment package format and safety instructions: [`docs/DEPLOYMENT_PACKAGE.md`](docs/DEPLOYMENT_PACKAGE.md) and [`docs/DEPLOYMENT_PACKAGE_RU.md`](docs/DEPLOYMENT_PACKAGE_RU.md).
+
+Runtime execution instructions: [`docs/PROVISIONING_EXECUTION.md`](docs/PROVISIONING_EXECUTION.md) and [`docs/PROVISIONING_EXECUTION_RU.md`](docs/PROVISIONING_EXECUTION_RU.md).
 
 ## Contributing and security
 

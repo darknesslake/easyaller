@@ -11,7 +11,7 @@
   <Grid RowDefinitions="Auto,*,Auto" Margin="30">
     <StackPanel Spacing="6" Margin="0,0,0,24">
       <TextBlock Text="Настройка этого ПК" FontSize="29" FontWeight="SemiBold" Foreground="#F7F9FE" />
-      <TextBlock Text="Просмотрите выбранный профиль, создайте файловый пакет или введите значения только для текущего запуска. Этот экран не меняет Windows." Foreground="#A9B7CD" />
+      <TextBlock Text="Просмотрите профиль, создайте файловый пакет или примените подтверждённые значения для текущего запуска. Изменения Windows требуют явного APPLY и прав администратора." Foreground="#A9B7CD" />
     </StackPanel>
     <Grid Grid.Row="1" ColumnDefinitions="300,*" ColumnSpacing="20">
       <Border Background="#172233" BorderBrush="#2A3B55" BorderThickness="1" CornerRadius="12" Padding="12">
@@ -109,8 +109,12 @@
                 <TextBox x:Name="DomainPasswordTextBox" PasswordChar="•" />
               </StackPanel>
             </Grid>
-            <TextBlock Text="Учётные данные хранятся в памяти только на время текущей проверки или будущего запуска. Они никогда не сохраняются в переиспользуемом профиле." TextWrapping="Wrap" FontSize="12" Foreground="#93C5FD" />
-            <Button Content="Проверить введённые значения" Click="ValidateRuntimeInputs_Click" HorizontalAlignment="Left" Background="#2D6CDF" Foreground="White" />
+            <TextBlock Text="Учётные данные хранятся в памяти только на время текущей проверки или применения. Они никогда не сохраняются в переиспользуемом профиле, состоянии resume или журнале." TextWrapping="Wrap" FontSize="12" Foreground="#93C5FD" />
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <Button Content="Проверить введённые значения" Click="ValidateRuntimeInputs_Click" Background="#2D6CDF" Foreground="White" />
+              <TextBox x:Name="ApplyConfirmationTextBox" Width="150" PlaceholderText="Введите APPLY" />
+              <Button x:Name="ApplyRuntimeInputsButton" Content="Применить к Windows" Click="ApplyRuntimeInputs_Click" Background="#B45309" Foreground="White" />
+            </StackPanel>
           </StackPanel>
         </ScrollViewer>
       </Border>

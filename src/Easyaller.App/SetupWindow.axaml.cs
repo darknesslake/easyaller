@@ -14,6 +14,10 @@ public sealed partial class SetupWindow : Window
     private readonly ProvisioningPlanBuilder _planBuilder = new();
     private readonly RuntimeProvisioningInputValidator _inputValidator = new();
     private readonly DeploymentPreparationController _deploymentController = new();
+    private readonly ProvisioningExecutionService _executionService = new(
+        new WindowsProvisioningSystemAdapter(),
+        new FileProvisioningExecutionStateStore(),
+        new WindowsProvisioningResumeLauncher());
     private readonly ObservableCollection<ProfileListItem> _profiles = [];
     private readonly ObservableCollection<RuntimePromptListItem> _prompts = [];
     private ProvisioningPlan? _plan;
@@ -160,19 +164,64 @@ public sealed partial class SetupWindow : Window
             return;
         }
 
+        if (!TryCreateRuntimeInputs(out var inputs))
+        {
+            return;
+        }
+
+        using (inputs)
+        {
+            var validation = _inputValidator.Validate(_plan, inputs);
+            SetStatus(validation.IsValid
+                ? "Введённые значения корректны. Для применения требуется отдельное подтверждение APPLY."
+                : validation.Errors.First().Message);
+        }
+    }
+
+    private async void ApplyRuntimeInputs_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_plan is null)
+        {
+            SetStatus("Сначала выберите корректный профиль.");
+            return;
+        }
+
+        if (!TryCreateRuntimeInputs(out var inputs))
+        {
+            return;
+        }
+
+        ApplyRuntimeInputsButton.IsEnabled = false;
+        try
+        {
+            SetStatus("Применяется подтверждённый план. Не закрывайте программу.");
+            var result = await Task.Run(() => _executionService.Execute(_plan, inputs, ApplyConfirmationTextBox.Text));
+            SetStatus(DescribeExecution(result));
+            ApplyConfirmationTextBox.Text = string.Empty;
+        }
+        finally
+        {
+            inputs.Dispose();
+            ApplyRuntimeInputsButton.IsEnabled = true;
+        }
+    }
+
+    private bool TryCreateRuntimeInputs(out RuntimeProvisioningInputs inputs)
+    {
         RuntimeDomainCredential? credential = null;
         if (!string.IsNullOrWhiteSpace(DomainUserNameTextBox.Text) || !string.IsNullOrWhiteSpace(DomainPasswordTextBox.Text))
         {
             if (string.IsNullOrWhiteSpace(DomainUserNameTextBox.Text) || string.IsNullOrWhiteSpace(DomainPasswordTextBox.Text))
             {
                 SetStatus("Введите имя и пароль доменного пользователя либо оставьте оба поля пустыми.");
-                return;
+                inputs = null!;
+                return false;
             }
 
             credential = new RuntimeDomainCredential(DomainUserNameTextBox.Text.Trim(), DomainPasswordTextBox.Text.AsSpan());
         }
 
-        using var inputs = new RuntimeProvisioningInputs
+        inputs = new RuntimeProvisioningInputs
         {
             ComputerName = ComputerNameTextBox.Text?.Trim(),
             NetworkAdapterId = NetworkAdapterTextBox.Text?.Trim(),
@@ -181,10 +230,7 @@ public sealed partial class SetupWindow : Window
             DomainCredential = credential,
         };
         DomainPasswordTextBox.Text = string.Empty;
-        var validation = _inputValidator.Validate(_plan, inputs);
-        SetStatus(validation.IsValid
-            ? "Введённые значения корректны. Выполнение пока не реализовано."
-            : validation.Errors.First().Message);
+        return true;
     }
 
     private void LoadProfiles()
@@ -302,6 +348,28 @@ public sealed partial class SetupWindow : Window
 
     private static string GetMessage(IReadOnlyList<DeploymentValidationError> errors) =>
         errors.FirstOrDefault()?.Message ?? "Повторите попытку.";
+
+    private static string DescribeExecution(ProvisioningExecutionResult result)
+    {
+        var error = result.Errors.FirstOrDefault()?.Message;
+        if (!string.IsNullOrWhiteSpace(error))
+        {
+            var restartWarning = result.Warnings.FirstOrDefault()?.Message;
+            return "Применение остановлено: " + error +
+                (string.IsNullOrWhiteSpace(restartWarning) ? string.Empty : " " + restartWarning);
+        }
+
+        var warning = result.Warnings.FirstOrDefault()?.Message;
+        return result.Status switch
+        {
+            ProvisioningExecutionStatus.Completed => "Подтверждённые параметры применены. Перезагрузка не требуется.",
+            ProvisioningExecutionStatus.RestartRequired => string.IsNullOrWhiteSpace(warning)
+                ? "Подтверждённые параметры применены. Перезагрузите Windows для завершения и не удаляйте созданное состояние resume."
+                : "Подтверждённые параметры применены. " + warning,
+            ProvisioningExecutionStatus.Resumed => "Возобновление после перезагрузки проверено.",
+            _ => "Применение не завершено.",
+        };
+    }
 
     private static string ToPackageDirectoryName(string name)
     {

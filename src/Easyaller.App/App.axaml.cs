@@ -16,6 +16,7 @@ public sealed partial class App : Application
             try
             {
                 _ = new FirstLogonResumeCompletionService().TryComplete(Environment.GetCommandLineArgs());
+                _ = new ProvisioningResumeCompletionService().TryComplete(Environment.GetCommandLineArgs());
             }
             catch
             {

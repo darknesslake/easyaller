@@ -33,9 +33,11 @@ Profiles are stored outside the repository: `%ProgramData%\Easyaller\Profiles` o
 
 ## Preview the future setup flow
 
-Open **Set up this PC** to inspect the selected profile's provisioning plan. This screen can validate runtime-only values such as the computer name, network choice, proxy, and domain join data. It does not apply those values to Windows yet.
+Open **Set up this PC** to inspect the selected profile's provisioning plan. This screen validates runtime-only values such as the computer name, network choice, proxy, and domain join data. On Windows, an administrator can apply only the fixed confirmed runtime operations through the exact `APPLY` phrase. The current executor has not been validated in a Windows VM, so use it only in the documented disposable test path.
 
 Domain credentials are intentionally collected only at runtime. They are not profile fields and must never be placed in an exported profile.
+
+Read [PROVISIONING_EXECUTION.md](PROVISIONING_EXECUTION.md) before applying runtime values. It documents the supported operations, resume state, stop conditions, and current validation limit.
 
 ## Deployment status
 

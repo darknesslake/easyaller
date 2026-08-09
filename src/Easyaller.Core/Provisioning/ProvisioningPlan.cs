@@ -322,7 +322,7 @@ public sealed class RuntimeDomainCredential : IDisposable
 
     public bool IsDisposed => _password is null;
 
-    internal ReadOnlySpan<char> GetPasswordForExecution()
+    public ReadOnlySpan<char> GetPasswordForExecution()
     {
         ObjectDisposedException.ThrowIf(_password is null, this);
         return _password;
