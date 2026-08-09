@@ -145,9 +145,13 @@ Implemented the Windows-host-only `scripts/Validate-AnswerFile.ps1` harness and 
 
 Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 54 passing tests. The PowerShell harness is not executable in this macOS environment because PowerShell, DISM, Windows ADK, Windows SIM, and a supplied Windows image are unavailable.
 
-### [ ] WP-025: Temporary per-package local-account credential
+### [x] WP-025: Temporary per-package local-account credential
 
 Generate a cryptographically strong unique password only while producing a package. Show it once, never place it in profile storage, manifests, logs, exceptions, or test snapshots. AutoLogon remains out of the MVP.
+
+Implemented `TemporaryLocalAccountCredentialFactory`. It uses `RandomNumberGenerator` to create a 24-character password with uppercase, lowercase, digit, and symbol categories, then returns `GeneratedTemporaryLocalAccount`. The generated object carries an ephemeral credential for XML generation and can reveal the password exactly once for a future package UI; both in-memory character arrays are zeroized when revealed or disposed, and both object string representations are redacted. The password never becomes a profile, manifest, log, exception, or test fixture value. AutoLogon remains absent from generated XML.
+
+Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 57 passing tests.
 
 ### [ ] WP-026: Preview and dry run
 

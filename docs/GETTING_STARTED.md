@@ -39,7 +39,7 @@ Domain credentials are intentionally collected only at runtime. They are not pro
 
 ## Deployment status
 
-The repository includes a documented Windows 11 compatibility catalog, a deployment-profile validator, and a deterministic `autounattend.xml` generator. They are preparation work for a future file-only deployment package. The generator allows only validated locale, time-zone, explicitly configured OOBE values, and an optional ephemeral local account. It does not generate disk configuration, product keys, domain joins, or AutoLogon.
+The repository includes a documented Windows 11 compatibility catalog, a deployment-profile validator, and a deterministic `autounattend.xml` generator. They are preparation work for a future file-only deployment package. The generator allows only validated locale, time-zone, explicitly configured OOBE values, and an optional ephemeral local account. Its 24-character password is generated cryptographically, can be revealed once, and its internal character buffers are cleared after reveal or disposal. It does not generate disk configuration, product keys, domain joins, or AutoLogon.
 
 The following are not implemented yet:
 
