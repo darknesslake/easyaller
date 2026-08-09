@@ -237,7 +237,7 @@ Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easy
 
 Run the complete flow for Windows 11 24H2 and 25H2, Pro and Enterprise: offline OOBE behavior, locale, temporary sign-in, local payload, name input, mock network/domain/reboot/resume, cleanup, corrupted payload, and unknown-build warning.
 
-Deferred by the user until an approved Windows 11 Pro or Enterprise amd64 VM, official ISO, and checkpoint-capable hypervisor are available. Do not mark any catalog entry `VmValidated` without the exact evidence described in `docs/VM_TESTING.md`.
+Skipped for now by the user. Resume only when an approved Windows 11 Pro or Enterprise amd64 VM, official ISO, and checkpoint-capable hypervisor are available. Do not mark any catalog entry `VmValidated` without the exact evidence described in `docs/VM_TESTING.md`.
 
 ## Phase 5: protected USB creation
 
