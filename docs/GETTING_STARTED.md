@@ -2,6 +2,8 @@
 
 Easyaller is pre-alpha software. It can safely create, edit, validate, import, and export reusable workstation profiles. It does not yet change Windows settings, generate an answer file, export a deployment package, or create a USB installer.
 
+Русская версия: [GETTING_STARTED_RU.md](GETTING_STARTED_RU.md).
+
 ## Run the desktop application
 
 Install the .NET 10 SDK, then clone the repository and start the Avalonia desktop application:

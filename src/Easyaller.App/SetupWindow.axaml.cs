@@ -41,28 +41,28 @@ public sealed partial class SetupWindow : Window
         {
             _plan = null;
             SelectedProfileText.Text = selected.Name;
-            PlanSummaryText.Text = "The selected profile is invalid.";
-            SetStatus(result.Errors.FirstOrDefault()?.Message ?? "Could not create provisioning plan.");
+            PlanSummaryText.Text = "Выбранный профиль содержит ошибки.";
+            SetStatus(result.Errors.FirstOrDefault()?.Message ?? "Не удалось создать план настройки.");
             return;
         }
 
         _plan = result.Plan;
         SelectedProfileText.Text = selected.Name;
-        PlanSummaryText.Text = $"{_plan!.Steps.Count} planned step(s), {_plan.RuntimePrompts.Count} runtime prompt(s).";
+        PlanSummaryText.Text = $"Запланировано шагов: {_plan!.Steps.Count}. Запросов при настройке: {_plan.RuntimePrompts.Count}.";
         _prompts.Clear();
         foreach (var prompt in _plan.RuntimePrompts)
         {
             _prompts.Add(new RuntimePromptListItem(prompt));
         }
 
-        SetStatus("Plan preview is ready. No Windows changes have been made.");
+        SetStatus("Предпросмотр плана готов. Изменения Windows не вносились.");
     }
 
     private void ValidateRuntimeInputs_Click(object? sender, RoutedEventArgs e)
     {
         if (_plan is null)
         {
-            SetStatus("Select a valid profile first.");
+            SetStatus("Сначала выберите корректный профиль.");
             return;
         }
 
@@ -71,7 +71,7 @@ public sealed partial class SetupWindow : Window
         {
             if (string.IsNullOrWhiteSpace(DomainUserNameTextBox.Text) || string.IsNullOrWhiteSpace(DomainPasswordTextBox.Text))
             {
-                SetStatus("Enter both domain user name and password, or leave both empty.");
+                SetStatus("Введите имя и пароль доменного пользователя либо оставьте оба поля пустыми.");
                 return;
             }
 
@@ -89,7 +89,7 @@ public sealed partial class SetupWindow : Window
         DomainPasswordTextBox.Text = string.Empty;
         var validation = _inputValidator.Validate(_plan, inputs);
         SetStatus(validation.IsValid
-            ? "Runtime inputs are valid. Execution is not implemented yet."
+            ? "Введённые значения корректны. Выполнение пока не реализовано."
             : validation.Errors.First().Message);
     }
 
@@ -104,7 +104,7 @@ public sealed partial class SetupWindow : Window
         SetupProfilesList.SelectedItem = _profiles.FirstOrDefault();
         if (list.Issues.Count > 0)
         {
-            SetStatus($"{list.Issues.Count} invalid local profile file(s) were isolated.");
+            SetStatus($"Повреждённых локальных файлов профиля изолировано: {list.Issues.Count}.");
         }
     }
 
@@ -113,7 +113,21 @@ public sealed partial class SetupWindow : Window
 
 public sealed record RuntimePromptListItem(RuntimePrompt Prompt)
 {
-    public string Title => Prompt.IsRequired ? $"{Prompt.Kind} required" : $"{Prompt.Kind} optional";
+    public string Title => Prompt.Kind switch
+    {
+        RuntimePromptKind.ComputerName => Prompt.IsRequired ? "Имя компьютера обязательно" : "Имя компьютера необязательно",
+        RuntimePromptKind.NetworkConfiguration => Prompt.IsRequired ? "Настройка сети обязательна" : "Настройка сети необязательна",
+        RuntimePromptKind.ProxyConfiguration => Prompt.IsRequired ? "Настройка прокси обязательна" : "Настройка прокси необязательна",
+        RuntimePromptKind.DomainJoin => Prompt.IsRequired ? "Присоединение к домену обязательно" : "Присоединение к домену необязательно",
+        _ => "Параметр настройки",
+    };
 
-    public string Description => Prompt.Description;
+    public string Description => Prompt.Kind switch
+    {
+        RuntimePromptKind.ComputerName => "Выберите окончательное имя компьютера при настройке.",
+        RuntimePromptKind.NetworkConfiguration => "Выберите сетевой адаптер и параметры сети при настройке.",
+        RuntimePromptKind.ProxyConfiguration => "Введите параметры прокси при настройке.",
+        RuntimePromptKind.DomainJoin => "Введите параметры присоединения к домену и краткоживущие учётные данные при настройке.",
+        _ => Prompt.Description,
+    };
 }

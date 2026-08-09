@@ -14,22 +14,22 @@
       <Grid RowDefinitions="Auto,Auto,*,Auto">
         <StackPanel Spacing="6">
           <TextBlock Text="easyaller" FontSize="25" FontWeight="SemiBold" Foreground="#F6F8FC" />
-          <TextBlock Text="Windows provisioning" FontSize="12" Foreground="#8EA1C2" />
+          <TextBlock Text="Подготовка Windows" FontSize="12" Foreground="#8EA1C2" />
         </StackPanel>
 
         <StackPanel Grid.Row="1" Margin="0,42,0,0" Spacing="8">
           <Border Background="#263A5A" CornerRadius="8" Padding="12,10">
-            <TextBlock Text="Profiles" FontWeight="SemiBold" Foreground="#F6F8FC" />
+            <TextBlock Text="Профили" FontWeight="SemiBold" Foreground="#F6F8FC" />
           </Border>
-          <Button Content="Set up this PC" Click="OpenSetup_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="12,7" Background="Transparent" Foreground="#9BAAC3" BorderThickness="0" />
-          <TextBlock Text="Prepare Windows 11" Margin="12,7" Foreground="#9BAAC3" />
-          <TextBlock Text="Create installation USB" Margin="12,7" Foreground="#9BAAC3" />
+          <Button Content="Настроить этот ПК" Click="OpenSetup_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="12,7" Background="Transparent" Foreground="#9BAAC3" BorderThickness="0" />
+          <TextBlock Text="Подготовить Windows 11" Margin="12,7" Foreground="#9BAAC3" />
+          <TextBlock Text="Создать установочный USB" Margin="12,7" Foreground="#9BAAC3" />
         </StackPanel>
 
         <Border Grid.Row="3" Background="#1D2A3E" CornerRadius="8" Padding="12">
           <StackPanel Spacing="4">
-            <TextBlock Text="Pre-alpha" FontWeight="SemiBold" Foreground="#93C5FD" />
-            <TextBlock Text="Profiles are stored locally." TextWrapping="Wrap" FontSize="12" Foreground="#A8B6CC" />
+            <TextBlock Text="Пре-альфа" FontWeight="SemiBold" Foreground="#93C5FD" />
+            <TextBlock Text="Профили хранятся локально." TextWrapping="Wrap" FontSize="12" Foreground="#A8B6CC" />
           </StackPanel>
         </Border>
       </Grid>
@@ -38,20 +38,20 @@
     <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto" Margin="34,28,34,28">
       <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,24">
         <StackPanel Spacing="6">
-          <TextBlock Text="Profiles" FontSize="30" FontWeight="SemiBold" Foreground="#F7F9FE" />
-          <TextBlock Text="Reusable settings with no stored credentials." Foreground="#A9B7CD" />
+          <TextBlock Text="Профили" FontSize="30" FontWeight="SemiBold" Foreground="#F7F9FE" />
+          <TextBlock Text="Переиспользуемые настройки без сохранённых учётных данных." Foreground="#A9B7CD" />
         </StackPanel>
         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-          <Button Content="Import" Click="ImportProfile_Click" />
-          <Button Content="Export" Click="ExportProfile_Click" IsEnabled="{Binding HasSelectedProfile}" />
-          <Button Content="New profile" Click="CreateProfile_Click" Background="#2D6CDF" Foreground="White" Padding="18,10" />
+          <Button Content="Импорт" Click="ImportProfile_Click" />
+          <Button Content="Экспорт" Click="ExportProfile_Click" IsEnabled="{Binding HasSelectedProfile}" />
+          <Button Content="Новый профиль" Click="CreateProfile_Click" Background="#2D6CDF" Foreground="White" Padding="18,10" />
         </StackPanel>
       </Grid>
 
       <Grid Grid.Row="1" ColumnDefinitions="1.1*,1.35*" ColumnSpacing="20">
         <Border Background="#172233" BorderBrush="#2A3B55" BorderThickness="1" CornerRadius="12" Padding="12">
           <Grid RowDefinitions="Auto,*,Auto">
-            <TextBlock Text="Saved profiles" FontSize="15" FontWeight="SemiBold" Foreground="#EAF0FA" Margin="8,6,8,12" />
+            <TextBlock Text="Сохранённые профили" FontSize="15" FontWeight="SemiBold" Foreground="#EAF0FA" Margin="8,6,8,12" />
             <ListBox x:Name="ProfilesList" Grid.Row="1" SelectionChanged="ProfilesList_SelectionChanged" Background="Transparent" BorderThickness="0">
               <ListBox.ItemTemplate>
                 <DataTemplate DataType="{x:Type local:ProfileListItem}">
@@ -64,7 +64,7 @@
                 </DataTemplate>
               </ListBox.ItemTemplate>
             </ListBox>
-            <Button Grid.Row="2" Content="Refresh list" Click="Refresh_Click" HorizontalAlignment="Left" Margin="8,12,8,4" />
+            <Button Grid.Row="2" Content="Обновить список" Click="Refresh_Click" HorizontalAlignment="Left" Margin="8,12,8,4" />
           </Grid>
         </Border>
 
@@ -74,122 +74,122 @@
             <TextBlock Grid.Row="1" Text="{Binding SelectedProfileDescription}" TextWrapping="Wrap" Foreground="#A9B7CD" />
             <Grid Grid.Row="2" ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="8">
               <Border Background="#203653" CornerRadius="999" Padding="10,5"><TextBlock Text="{Binding SelectedProfileRevision}" Foreground="#A9CCFF" FontSize="12" /></Border>
-              <Border Grid.Column="1" Background="#203653" CornerRadius="999" Padding="10,5"><TextBlock Text="No credentials" Foreground="#A9CCFF" FontSize="12" /></Border>
-              <Border Grid.Column="2" Background="#203653" CornerRadius="999" Padding="10,5"><TextBlock Text="Validated format" Foreground="#A9CCFF" FontSize="12" /></Border>
+              <Border Grid.Column="1" Background="#203653" CornerRadius="999" Padding="10,5"><TextBlock Text="Без учётных данных" Foreground="#A9CCFF" FontSize="12" /></Border>
+              <Border Grid.Column="2" Background="#203653" CornerRadius="999" Padding="10,5"><TextBlock Text="Проверенный формат" Foreground="#A9CCFF" FontSize="12" /></Border>
             </Grid>
             <ScrollViewer Grid.Row="3" HorizontalScrollBarVisibility="Disabled">
               <StackPanel Spacing="12" Margin="0,10,0,0">
-              <TextBlock Text="Edit profile" FontWeight="SemiBold" Foreground="#EAF0FA" />
+              <TextBlock Text="Редактирование профиля" FontWeight="SemiBold" Foreground="#EAF0FA" />
               <StackPanel Spacing="6">
-                <TextBlock Text="Name" FontSize="12" Foreground="#A9B7CD" />
+                <TextBlock Text="Название" FontSize="12" Foreground="#A9B7CD" />
                 <TextBox x:Name="ProfileNameTextBox" />
               </StackPanel>
               <StackPanel Spacing="6">
-                <TextBlock Text="Description" FontSize="12" Foreground="#A9B7CD" />
+                <TextBlock Text="Описание" FontSize="12" Foreground="#A9B7CD" />
                 <TextBox x:Name="ProfileDescriptionTextBox" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="54" />
               </StackPanel>
-              <Expander Header="Windows and machine settings">
+              <Expander Header="Параметры Windows и компьютера">
                 <StackPanel Margin="0,12,0,0" Spacing="12">
-                  <TextBlock Text="Windows editions" FontSize="12" Foreground="#A9B7CD" />
+                  <TextBlock Text="Редакции Windows" FontSize="12" Foreground="#A9B7CD" />
                   <StackPanel Orientation="Horizontal" Spacing="18">
                     <CheckBox x:Name="ProfessionalEditionCheckBox" Content="Windows 11 Pro" />
                     <CheckBox x:Name="EnterpriseEditionCheckBox" Content="Windows 11 Enterprise" />
                   </StackPanel>
                   <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
                     <StackPanel Spacing="6">
-                      <TextBlock Text="UI language" FontSize="12" Foreground="#A9B7CD" />
+                      <TextBlock Text="Язык интерфейса" FontSize="12" Foreground="#A9B7CD" />
                       <TextBox x:Name="UiLanguageTextBox" PlaceholderText="en-US" />
                     </StackPanel>
                     <StackPanel Grid.Column="1" Spacing="6">
-                      <TextBlock Text="Time zone" FontSize="12" Foreground="#A9B7CD" />
+                      <TextBlock Text="Часовой пояс" FontSize="12" Foreground="#A9B7CD" />
                       <TextBox x:Name="TimeZoneTextBox" PlaceholderText="UTC" />
                     </StackPanel>
                   </Grid>
                   <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
                     <StackPanel Spacing="6">
-                      <TextBlock Text="Input locale" FontSize="12" Foreground="#A9B7CD" />
+                      <TextBlock Text="Язык ввода" FontSize="12" Foreground="#A9B7CD" />
                       <TextBox x:Name="InputLocaleTextBox" PlaceholderText="en-US" />
                     </StackPanel>
                     <StackPanel Grid.Column="1" Spacing="6">
-                      <TextBlock Text="System locale" FontSize="12" Foreground="#A9B7CD" />
+                      <TextBlock Text="Системный язык" FontSize="12" Foreground="#A9B7CD" />
                       <TextBox x:Name="SystemLocaleTextBox" PlaceholderText="en-US" />
                     </StackPanel>
                     <StackPanel Grid.Column="2" Spacing="6">
-                      <TextBlock Text="User locale" FontSize="12" Foreground="#A9B7CD" />
+                      <TextBlock Text="Язык пользователя" FontSize="12" Foreground="#A9B7CD" />
                       <TextBox x:Name="UserLocaleTextBox" PlaceholderText="en-US" />
                     </StackPanel>
                   </Grid>
-                  <CheckBox x:Name="OfflineInitialSetupCheckBox" Content="Request offline initial setup" />
+                  <CheckBox x:Name="OfflineInitialSetupCheckBox" Content="Запрашивать автономную первоначальную настройку" />
                   <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
                     <StackPanel Spacing="6">
-                      <TextBlock Text="Wireless setup in OOBE" FontSize="12" Foreground="#A9B7CD" />
+                      <TextBlock Text="Настройка сети в OOBE" FontSize="12" Foreground="#A9B7CD" />
                       <ComboBox x:Name="HideWirelessSetupComboBox">
-                        <ComboBoxItem Tag="unset">Not configured</ComboBoxItem>
-                        <ComboBoxItem Tag="true">Hide</ComboBoxItem>
-                        <ComboBoxItem Tag="false">Show</ComboBoxItem>
+                        <ComboBoxItem Tag="unset">Не настроено</ComboBoxItem>
+                        <ComboBoxItem Tag="true">Скрыть</ComboBoxItem>
+                        <ComboBoxItem Tag="false">Показать</ComboBoxItem>
                       </ComboBox>
                     </StackPanel>
                     <StackPanel Grid.Column="1" Spacing="6">
-                      <TextBlock Text="Online account screens" FontSize="12" Foreground="#A9B7CD" />
+                      <TextBlock Text="Экраны онлайн-учётной записи" FontSize="12" Foreground="#A9B7CD" />
                       <ComboBox x:Name="HideOnlineAccountComboBox">
-                        <ComboBoxItem Tag="unset">Not configured</ComboBoxItem>
-                        <ComboBoxItem Tag="true">Hide</ComboBoxItem>
-                        <ComboBoxItem Tag="false">Show</ComboBoxItem>
+                        <ComboBoxItem Tag="unset">Не настроено</ComboBoxItem>
+                        <ComboBoxItem Tag="true">Скрыть</ComboBoxItem>
+                        <ComboBoxItem Tag="false">Показать</ComboBoxItem>
                       </ComboBox>
                     </StackPanel>
                   </Grid>
                   <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
                     <StackPanel Spacing="6">
-                      <TextBlock Text="Computer name prefix" FontSize="12" Foreground="#A9B7CD" />
-                      <TextBox x:Name="ComputerNamePrefixTextBox" PlaceholderText="Optional, for example OFFICE" />
+                      <TextBlock Text="Префикс имени компьютера" FontSize="12" Foreground="#A9B7CD" />
+                      <TextBox x:Name="ComputerNamePrefixTextBox" PlaceholderText="Необязательно, например OFFICE" />
                     </StackPanel>
                     <StackPanel Grid.Column="1" Spacing="6">
-                      <TextBlock Text="Proxy configuration" FontSize="12" Foreground="#A9B7CD" />
+                      <TextBlock Text="Настройка прокси" FontSize="12" Foreground="#A9B7CD" />
                       <ComboBox x:Name="ProxyModeComboBox">
-                        <ComboBoxItem>NotConfigured</ComboBoxItem>
-                        <ComboBoxItem>PromptAtRuntime</ComboBoxItem>
+                        <ComboBoxItem Tag="NotConfigured">Не настраивать</ComboBoxItem>
+                        <ComboBoxItem Tag="PromptAtRuntime">Запросить при настройке</ComboBoxItem>
                       </ComboBox>
                     </StackPanel>
                   </Grid>
                   <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
                     <StackPanel Spacing="6">
-                      <TextBlock Text="Domain mode" FontSize="12" Foreground="#A9B7CD" />
+                      <TextBlock Text="Режим домена" FontSize="12" Foreground="#A9B7CD" />
                       <ComboBox x:Name="DomainModeComboBox">
-                        <ComboBoxItem>NotConfigured</ComboBoxItem>
-                        <ComboBoxItem>Optional</ComboBoxItem>
-                        <ComboBoxItem>Required</ComboBoxItem>
+                        <ComboBoxItem Tag="NotConfigured">Не настраивать</ComboBoxItem>
+                        <ComboBoxItem Tag="Optional">Необязательно</ComboBoxItem>
+                        <ComboBoxItem Tag="Required">Обязательно</ComboBoxItem>
                       </ComboBox>
                     </StackPanel>
                     <StackPanel Grid.Column="1" Spacing="6">
-                      <TextBlock Text="Provisioner launch" FontSize="12" Foreground="#A9B7CD" />
+                      <TextBlock Text="Запуск программы настройки" FontSize="12" Foreground="#A9B7CD" />
                       <ComboBox x:Name="LaunchModeComboBox">
-                        <ComboBoxItem>Manual</ComboBoxItem>
-                        <ComboBoxItem>FirstLogon</ComboBoxItem>
+                        <ComboBoxItem Tag="Manual">Вручную</ComboBoxItem>
+                        <ComboBoxItem Tag="FirstLogon">При первом входе</ComboBoxItem>
                       </ComboBox>
                     </StackPanel>
                     <StackPanel Grid.Column="2" Spacing="6">
-                      <TextBlock Text="Temporary account cleanup" FontSize="12" Foreground="#A9B7CD" />
+                      <TextBlock Text="Очистка временной учётной записи" FontSize="12" Foreground="#A9B7CD" />
                       <ComboBox x:Name="CleanupModeComboBox">
-                        <ComboBoxItem>DisableAfterValidation</ComboBoxItem>
-                        <ComboBoxItem>DeleteAfterValidation</ComboBoxItem>
+                        <ComboBoxItem Tag="DisableAfterValidation">Отключить после проверки</ComboBoxItem>
+                        <ComboBoxItem Tag="DeleteAfterValidation">Удалить после проверки</ComboBoxItem>
                       </ComboBox>
                     </StackPanel>
                   </Grid>
                   <StackPanel Spacing="6">
-                    <TextBlock Text="Privacy preference" FontSize="12" Foreground="#A9B7CD" />
+                    <TextBlock Text="Параметры конфиденциальности" FontSize="12" Foreground="#A9B7CD" />
                     <ComboBox x:Name="PrivacyPreferenceComboBox">
-                      <ComboBoxItem Tag="retain">Retain individual preferences</ComboBoxItem>
-                      <ComboBoxItem Tag="NotConfigured">Not configured for all privacy controls</ComboBoxItem>
-                      <ComboBoxItem Tag="UserChoice">User choice for all privacy controls</ComboBoxItem>
-                      <ComboBoxItem Tag="Enabled">Enable all privacy controls</ComboBoxItem>
-                      <ComboBoxItem Tag="Disabled">Disable all privacy controls</ComboBoxItem>
+                      <ComboBoxItem Tag="retain">Сохранить отдельные параметры</ComboBoxItem>
+                      <ComboBoxItem Tag="NotConfigured">Не настраивать все параметры</ComboBoxItem>
+                      <ComboBoxItem Tag="UserChoice">Оставить выбор пользователю</ComboBoxItem>
+                      <ComboBoxItem Tag="Enabled">Включить все параметры</ComboBoxItem>
+                      <ComboBoxItem Tag="Disabled">Отключить все параметры</ComboBoxItem>
                     </ComboBox>
                   </StackPanel>
                 </StackPanel>
               </Expander>
-              <Expander Header="Applications and instructions">
+              <Expander Header="Приложения и инструкции">
                 <StackPanel Margin="0,12,0,0" Spacing="12">
-                  <TextBlock Text="Applications" FontWeight="SemiBold" Foreground="#EAF0FA" />
+                  <TextBlock Text="Приложения" FontWeight="SemiBold" Foreground="#EAF0FA" />
                   <ListBox x:Name="ApplicationsList" Height="96" Background="#1D2A3E" BorderThickness="0">
                     <ListBox.ItemTemplate>
                       <DataTemplate DataType="{x:Type local:ApplicationListItem}">
@@ -202,36 +202,36 @@
                   </ListBox>
                   <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
                     <StackPanel Spacing="6">
-                      <TextBlock Text="Application ID" FontSize="12" Foreground="#A9B7CD" />
+                      <TextBlock Text="ID приложения" FontSize="12" Foreground="#A9B7CD" />
                       <TextBox x:Name="ApplicationIdTextBox" PlaceholderText="example-app" />
                     </StackPanel>
                     <StackPanel Grid.Column="1" Spacing="6">
-                      <TextBlock Text="Display name" FontSize="12" Foreground="#A9B7CD" />
-                      <TextBox x:Name="ApplicationDisplayNameTextBox" PlaceholderText="Example application" />
+                      <TextBlock Text="Отображаемое название" FontSize="12" Foreground="#A9B7CD" />
+                      <TextBox x:Name="ApplicationDisplayNameTextBox" PlaceholderText="Пример приложения" />
                     </StackPanel>
                   </Grid>
                   <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
                     <StackPanel Spacing="6">
-                      <TextBlock Text="Source" FontSize="12" Foreground="#A9B7CD" />
+                      <TextBlock Text="Источник" FontSize="12" Foreground="#A9B7CD" />
                       <ComboBox x:Name="ApplicationSourceComboBox">
-                        <ComboBoxItem>PackageRelative</ComboBoxItem>
-                        <ComboBoxItem>ExternalManual</ComboBoxItem>
+                        <ComboBoxItem Tag="PackageRelative">Из пакета</ComboBoxItem>
+                        <ComboBoxItem Tag="ExternalManual">Внешняя ручная установка</ComboBoxItem>
                       </ComboBox>
                     </StackPanel>
                     <StackPanel Grid.Column="1" Spacing="6">
-                      <TextBlock Text="Package-relative path" FontSize="12" Foreground="#A9B7CD" />
+                      <TextBlock Text="Путь внутри пакета" FontSize="12" Foreground="#A9B7CD" />
                       <TextBox x:Name="ApplicationPathTextBox" PlaceholderText="installers/example.msi" />
                     </StackPanel>
                   </Grid>
                   <StackPanel Spacing="6">
-                    <TextBlock Text="Arguments, one per line" FontSize="12" Foreground="#A9B7CD" />
+                    <TextBlock Text="Аргументы, по одному в строке" FontSize="12" Foreground="#A9B7CD" />
                     <TextBox x:Name="ApplicationArgumentsTextBox" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="44" />
                   </StackPanel>
                   <StackPanel Orientation="Horizontal" Spacing="10">
-                    <Button Content="Add application" Click="AddApplication_Click" />
-                    <Button Content="Remove selected application" Click="RemoveApplication_Click" />
+                    <Button Content="Добавить приложение" Click="AddApplication_Click" />
+                    <Button Content="Удалить выбранное приложение" Click="RemoveApplication_Click" />
                   </StackPanel>
-                  <TextBlock Text="Instructions" FontWeight="SemiBold" Foreground="#EAF0FA" Margin="0,8,0,0" />
+                  <TextBlock Text="Инструкции" FontWeight="SemiBold" Foreground="#EAF0FA" Margin="0,8,0,0" />
                   <ListBox x:Name="InstructionsList" Height="96" Background="#1D2A3E" BorderThickness="0">
                     <ListBox.ItemTemplate>
                       <DataTemplate DataType="{x:Type local:InstructionListItem}">
@@ -244,37 +244,37 @@
                   </ListBox>
                   <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
                     <StackPanel Spacing="6">
-                      <TextBlock Text="Instruction ID" FontSize="12" Foreground="#A9B7CD" />
+                      <TextBlock Text="ID инструкции" FontSize="12" Foreground="#A9B7CD" />
                       <TextBox x:Name="InstructionIdTextBox" PlaceholderText="post-install" />
                     </StackPanel>
                     <StackPanel Grid.Column="1" Spacing="6">
-                      <TextBlock Text="Title" FontSize="12" Foreground="#A9B7CD" />
-                      <TextBox x:Name="InstructionTitleTextBox" PlaceholderText="After setup" />
+                      <TextBlock Text="Заголовок" FontSize="12" Foreground="#A9B7CD" />
+                      <TextBox x:Name="InstructionTitleTextBox" PlaceholderText="После настройки" />
                     </StackPanel>
                   </Grid>
                   <StackPanel Spacing="6">
-                    <TextBlock Text="Instruction text" FontSize="12" Foreground="#A9B7CD" />
+                    <TextBlock Text="Текст инструкции" FontSize="12" Foreground="#A9B7CD" />
                     <TextBox x:Name="InstructionContentTextBox" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="54" />
                   </StackPanel>
                   <StackPanel Orientation="Horizontal" Spacing="10">
-                    <Button Content="Add instruction" Click="AddInstruction_Click" />
-                    <Button Content="Remove selected instruction" Click="RemoveInstruction_Click" />
+                    <Button Content="Добавить инструкцию" Click="AddInstruction_Click" />
+                    <Button Content="Удалить выбранную инструкцию" Click="RemoveInstruction_Click" />
                   </StackPanel>
                 </StackPanel>
               </Expander>
-              <Button Content="Save changes" Click="SaveProfile_Click" IsEnabled="{Binding HasSelectedProfile}" HorizontalAlignment="Left" />
+              <Button Content="Сохранить изменения" Click="SaveProfile_Click" IsEnabled="{Binding HasSelectedProfile}" HorizontalAlignment="Left" />
               <Border Background="#1D2A3E" CornerRadius="8" Padding="14">
                 <StackPanel Spacing="4">
-                  <TextBlock Text="Storage" FontWeight="SemiBold" Foreground="#EAF0FA" />
+                  <TextBlock Text="Хранилище" FontWeight="SemiBold" Foreground="#EAF0FA" />
                   <TextBlock x:Name="StoragePathText" TextWrapping="Wrap" FontSize="12" Foreground="#9EB0CC" />
                 </StackPanel>
               </Border>
               </StackPanel>
             </ScrollViewer>
             <Grid Grid.Row="4" ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="10">
-              <Button Content="Clone" Click="CloneProfile_Click" IsEnabled="{Binding HasSelectedProfile}" />
-              <CheckBox x:Name="ConfirmDeleteCheckBox" Grid.Column="2" Content="I understand this removes the local profile" VerticalAlignment="Center" Foreground="#A9B7CD" />
-              <Button Grid.Column="3" Content="Delete" Click="DeleteProfile_Click" IsEnabled="{Binding HasSelectedProfile}" Background="#5F2631" Foreground="White" />
+              <Button Content="Клонировать" Click="CloneProfile_Click" IsEnabled="{Binding HasSelectedProfile}" />
+              <CheckBox x:Name="ConfirmDeleteCheckBox" Grid.Column="2" Content="Я понимаю, что локальный профиль будет удалён" VerticalAlignment="Center" Foreground="#A9B7CD" />
+              <Button Grid.Column="3" Content="Удалить" Click="DeleteProfile_Click" IsEnabled="{Binding HasSelectedProfile}" Background="#5F2631" Foreground="White" />
             </Grid>
           </Grid>
         </Border>
@@ -282,21 +282,21 @@
 
       <StackPanel Grid.Row="2" Spacing="10" Margin="0,20,0,0">
         <Border Background="#182537" CornerRadius="8" Padding="14">
-          <TextBlock x:Name="StatusText" Text="Ready. Create a profile to get started." Foreground="#B7C7E1" />
+          <TextBlock x:Name="StatusText" Text="Готово. Создайте профиль, чтобы начать." Foreground="#B7C7E1" />
         </Border>
         <Border x:Name="ImportConflictPanel" IsVisible="False" Background="#3A2D16" BorderBrush="#896A25" BorderThickness="1" CornerRadius="8" Padding="14">
           <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="10">
-            <TextBlock Text="This profile ID already exists. Choose how to continue." VerticalAlignment="Center" Foreground="#F5DFA0" />
-            <Button Grid.Column="1" Content="Create copy" Click="ImportCreateCopy_Click" />
-            <Button Grid.Column="2" Content="Replace" Click="ImportReplace_Click" Background="#725C22" Foreground="White" />
-            <Button Grid.Column="3" Content="Cancel" Click="ImportCancel_Click" />
+            <TextBlock Text="Профиль с таким ID уже существует. Выберите действие." VerticalAlignment="Center" Foreground="#F5DFA0" />
+            <Button Grid.Column="1" Content="Создать копию" Click="ImportCreateCopy_Click" />
+            <Button Grid.Column="2" Content="Заменить" Click="ImportReplace_Click" Background="#725C22" Foreground="White" />
+            <Button Grid.Column="3" Content="Отмена" Click="ImportCancel_Click" />
           </Grid>
         </Border>
         <Border x:Name="ExportConfirmationPanel" IsVisible="False" Background="#1B3140" BorderBrush="#35667E" BorderThickness="1" CornerRadius="8" Padding="14">
           <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
             <TextBlock x:Name="ExportWarningText" VerticalAlignment="Center" Foreground="#B9E3F5" />
-            <Button Grid.Column="1" Content="Confirm export" Click="ConfirmExport_Click" Background="#2D6CDF" Foreground="White" />
-            <Button Grid.Column="2" Content="Cancel" Click="CancelExport_Click" />
+            <Button Grid.Column="1" Content="Подтвердить экспорт" Click="ConfirmExport_Click" Background="#2D6CDF" Foreground="White" />
+            <Button Grid.Column="2" Content="Отмена" Click="CancelExport_Click" />
           </Grid>
         </Border>
       </StackPanel>

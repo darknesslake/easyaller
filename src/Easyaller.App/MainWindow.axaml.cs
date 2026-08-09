@@ -19,9 +19,9 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     private ProfileListItem? _selectedProfile;
     private byte[]? _pendingImportSource;
     private ProvisioningProfile? _pendingExportProfile;
-    private string _selectedProfileName = "Select a profile";
-    private string _selectedProfileDescription = "Choose a saved profile to inspect its local state.";
-    private string _selectedProfileRevision = "No profile selected";
+    private string _selectedProfileName = "Выберите профиль";
+    private string _selectedProfileDescription = "Выберите сохранённый профиль, чтобы посмотреть его локальное состояние.";
+    private string _selectedProfileRevision = "Профиль не выбран";
     private event PropertyChangedEventHandler? ViewModelPropertyChanged;
 
     public MainWindow()
@@ -66,16 +66,20 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
     private void CreateProfile_Click(object? sender, RoutedEventArgs e)
     {
-        var profile = ProvisioningProfileFactory.CreateDefault(GetNextProfileName());
+        var defaultProfile = ProvisioningProfileFactory.CreateDefault(GetNextProfileName());
+        var profile = defaultProfile with
+        {
+            Metadata = defaultProfile.Metadata with { Description = "Нейтральный профиль Easyaller" },
+        };
         var result = _repository.Create(profile);
         if (result.Status != ProfileRepositoryStatus.Success)
         {
-            SetStatus($"Could not create profile: {GetMessage(result.Errors)}");
+            SetStatus($"Не удалось создать профиль: {GetMessage(result.Errors)}");
             return;
         }
 
         RefreshProfiles(profile.ProfileId);
-        SetStatus($"Created {profile.Metadata.Name}.");
+        SetStatus($"Профиль «{profile.Metadata.Name}» создан.");
     }
 
     private void OpenSetup_Click(object? sender, RoutedEventArgs e) => new SetupWindow(_repository).Show(this);
@@ -91,12 +95,12 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         var result = _repository.Clone(_selectedProfile.Profile.ProfileId);
         if (result.Status != ProfileRepositoryStatus.Success)
         {
-            SetStatus($"Could not clone profile: {GetMessage(result.Errors)}");
+            SetStatus($"Не удалось клонировать профиль: {GetMessage(result.Errors)}");
             return;
         }
 
         RefreshProfiles(result.Profile!.ProfileId);
-        SetStatus($"Created a copy of {sourceName}.");
+        SetStatus($"Создана копия профиля «{sourceName}».");
     }
 
     private void SaveProfile_Click(object? sender, RoutedEventArgs e)
@@ -113,53 +117,53 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             _instructions.Select(static item => item.Instruction).ToArray());
         if (result.Status != ProfileRepositoryStatus.Success)
         {
-            SetStatus($"Could not save profile: {GetMessage(result.Errors)}");
+            SetStatus($"Не удалось сохранить профиль: {GetMessage(result.Errors)}");
             return;
         }
 
         RefreshProfiles(result.Profile!.ProfileId);
-        SetStatus("Profile changes saved.");
+        SetStatus("Изменения профиля сохранены.");
     }
 
     private async void ImportProfile_Click(object? sender, RoutedEventArgs e)
     {
         if (!StorageProvider.CanOpen)
         {
-            SetStatus("File import is not available on this platform.");
+            SetStatus("Импорт файлов недоступен на этой платформе.");
             return;
         }
 
         HideImportConflict();
         var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = "Import Easyaller profile",
+            Title = "Импорт профиля Easyaller",
             AllowMultiple = false,
             FileTypeFilter = [ProfileFileType],
         });
         var file = files.FirstOrDefault();
         if (file is null)
         {
-            SetStatus("Profile import cancelled.");
+            SetStatus("Импорт профиля отменён.");
             return;
         }
 
         var source = await ReadFileWithinLimitAsync(file, ProfileImportExportService.DefaultMaximumImportBytes);
         if (source is null)
         {
-            SetStatus("Profile import exceeds the 1 MiB limit.");
+            SetStatus("Размер импортируемого профиля превышает лимит 1 МиБ.");
             return;
         }
 
         var preview = _profileImportExportService.PreviewImport(source);
         if (preview.Status == ProfileImportPreviewStatus.Invalid)
         {
-            SetStatus($"Import rejected: {GetMessage(preview.Errors)}");
+            SetStatus($"Импорт отклонён: {GetMessage(preview.Errors)}");
             return;
         }
 
         if (preview.Status == ProfileImportPreviewStatus.IoFailure)
         {
-            SetStatus($"Could not inspect import: {GetMessage(preview.Errors)}");
+            SetStatus($"Не удалось проверить импорт: {GetMessage(preview.Errors)}");
             return;
         }
 
@@ -167,7 +171,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         if (preview.Status == ProfileImportPreviewStatus.Conflict)
         {
             ImportConflictPanel.IsVisible = true;
-            SetStatus($"Import preview: {preview.Profile!.Metadata.Name}. Review the conflict choice below.");
+            SetStatus($"Предпросмотр импорта: «{preview.Profile!.Metadata.Name}». Выберите действие для конфликта ниже.");
             return;
         }
 
@@ -183,7 +187,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     private void ImportCancel_Click(object? sender, RoutedEventArgs e)
     {
         HideImportConflict();
-        SetStatus("Profile import cancelled. No local files changed.");
+        SetStatus("Импорт профиля отменён. Локальные файлы не изменены.");
     }
 
     private void ExportProfile_Click(object? sender, RoutedEventArgs e)
@@ -198,13 +202,13 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             var preview = _profileImportExportService.PreviewExport(_selectedProfile.Profile);
             _pendingExportProfile = preview.Profile;
             ExportWarningText.Text = preview.ConfidentialFields.Count == 0
-                ? "Export contains no fields marked as confidential."
-                : $"Export review: {preview.ConfidentialFields.Count} field(s) may contain organization-specific information.";
+                ? "Экспорт не содержит полей, помеченных как конфиденциальные."
+                : $"Проверьте экспорт: {preview.ConfidentialFields.Count} полей могут содержать данные организации.";
             ExportConfirmationPanel.IsVisible = true;
         }
         catch (ProfileJsonException exception)
         {
-            SetStatus($"Export rejected: {exception.Message}");
+            SetStatus($"Экспорт отклонён: {exception.Message}");
         }
     }
 
@@ -212,13 +216,13 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     {
         if (_pendingExportProfile is null || !StorageProvider.CanSave)
         {
-            SetStatus("File export is not available on this platform.");
+            SetStatus("Экспорт файлов недоступен на этой платформе.");
             return;
         }
 
         var destination = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
-            Title = "Export Easyaller profile",
+            Title = "Экспорт профиля Easyaller",
             SuggestedFileName = ToExportFileName(_pendingExportProfile.Metadata.Name),
             DefaultExtension = "wpprofile.json",
             FileTypeChoices = [ProfileFileType],
@@ -226,21 +230,21 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         });
         if (destination is null)
         {
-            SetStatus("Profile export cancelled.");
+            SetStatus("Экспорт профиля отменён.");
             return;
         }
 
         var result = _profileImportExportService.ExportToFile(_pendingExportProfile, destination.Path.LocalPath);
         HideExportConfirmation();
         SetStatus(result.IsSuccess
-            ? "Profile exported successfully."
-            : $"Could not export profile: {GetMessage(result.Errors)}");
+            ? "Профиль успешно экспортирован."
+            : $"Не удалось экспортировать профиль: {GetMessage(result.Errors)}");
     }
 
     private void CancelExport_Click(object? sender, RoutedEventArgs e)
     {
         HideExportConfirmation();
-        SetStatus("Profile export cancelled.");
+        SetStatus("Экспорт профиля отменён.");
     }
 
     private void DeleteProfile_Click(object? sender, RoutedEventArgs e)
@@ -252,7 +256,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
         if (ConfirmDeleteCheckBox.IsChecked != true)
         {
-            SetStatus("Confirm local profile removal before deleting it.");
+            SetStatus("Подтвердите удаление локального профиля.");
             return;
         }
 
@@ -261,12 +265,12 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         ConfirmDeleteCheckBox.IsChecked = false;
         if (result.Status != ProfileRepositoryStatus.Success)
         {
-            SetStatus($"Could not delete profile: {GetMessage(result.Errors)}");
+            SetStatus($"Не удалось удалить профиль: {GetMessage(result.Errors)}");
             return;
         }
 
         RefreshProfiles();
-        SetStatus($"Deleted {selectedProfile.Metadata.Name}. A local backup remains available.");
+        SetStatus($"Профиль «{selectedProfile.Metadata.Name}» удалён. Локальная резервная копия сохранена.");
     }
 
     private void AddApplication_Click(object? sender, RoutedEventArgs e)
@@ -284,19 +288,19 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         ApplicationDisplayNameTextBox.Text = string.Empty;
         ApplicationPathTextBox.Text = string.Empty;
         ApplicationArgumentsTextBox.Text = string.Empty;
-        SetStatus("Application added. Save profile changes to persist it.");
+        SetStatus("Приложение добавлено. Сохраните изменения профиля.");
     }
 
     private void RemoveApplication_Click(object? sender, RoutedEventArgs e)
     {
         if (ApplicationsList.SelectedItem is not ApplicationListItem selected)
         {
-            SetStatus("Select an application to remove it.");
+            SetStatus("Выберите приложение для удаления.");
             return;
         }
 
         _applications.Remove(selected);
-        SetStatus("Application removed. Save profile changes to persist it.");
+        SetStatus("Приложение удалено. Сохраните изменения профиля.");
     }
 
     private void AddInstruction_Click(object? sender, RoutedEventArgs e)
@@ -310,25 +314,25 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         InstructionIdTextBox.Text = string.Empty;
         InstructionTitleTextBox.Text = string.Empty;
         InstructionContentTextBox.Text = string.Empty;
-        SetStatus("Instruction added. Save profile changes to persist it.");
+        SetStatus("Инструкция добавлена. Сохраните изменения профиля.");
     }
 
     private void RemoveInstruction_Click(object? sender, RoutedEventArgs e)
     {
         if (InstructionsList.SelectedItem is not InstructionListItem selected)
         {
-            SetStatus("Select an instruction to remove it.");
+            SetStatus("Выберите инструкцию для удаления.");
             return;
         }
 
         _instructions.Remove(selected);
-        SetStatus("Instruction removed. Save profile changes to persist it.");
+        SetStatus("Инструкция удалена. Сохраните изменения профиля.");
     }
 
     private void Refresh_Click(object? sender, RoutedEventArgs e)
     {
         RefreshProfiles(_selectedProfile?.Profile.ProfileId);
-        SetStatus("Profile list refreshed.");
+        SetStatus("Список профилей обновлён.");
     }
 
     private void ProfilesList_SelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -354,7 +358,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
         if (list.Issues.Count > 0)
         {
-            SetStatus($"{list.Issues.Count} invalid local profile file(s) moved to Corrupted.");
+            SetStatus($"Повреждённых локальных файлов профиля: {list.Issues.Count}. Они перемещены в Corrupted.");
         }
     }
 
@@ -362,15 +366,15 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     {
         if (_selectedProfile is null)
         {
-            SelectedProfileName = "Select a profile";
-            SelectedProfileDescription = "Choose a saved profile to inspect its local state.";
-            SelectedProfileRevision = "No profile selected";
+            SelectedProfileName = "Выберите профиль";
+            SelectedProfileDescription = "Выберите сохранённый профиль, чтобы посмотреть его локальное состояние.";
+            SelectedProfileRevision = "Профиль не выбран";
         }
         else
         {
             SelectedProfileName = _selectedProfile.Name;
-            SelectedProfileDescription = _selectedProfile.Profile.Metadata.Description ?? "No description provided.";
-            SelectedProfileRevision = $"Revision {_selectedProfile.Profile.Revision}";
+            SelectedProfileDescription = _selectedProfile.Profile.Metadata.Description ?? "Описание не указано.";
+            SelectedProfileRevision = $"Версия {_selectedProfile.Profile.Revision}";
         }
 
         ProfileNameTextBox.Text = _selectedProfile?.Profile.Metadata.Name ?? string.Empty;
@@ -381,8 +385,8 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     }
 
     private string GetNextProfileName() => _profiles.Count == 0
-        ? "New workstation profile"
-        : $"New workstation profile {_profiles.Count + 1}";
+        ? "Новый профиль компьютера"
+        : $"Новый профиль компьютера {_profiles.Count + 1}";
 
     private static string GetLocalProfileDirectory() => OperatingSystem.IsWindows()
         ? FileProfileRepository.GetDefaultRootDirectory()
@@ -392,7 +396,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             "Profiles");
 
     private static string GetMessage(IReadOnlyList<ProfileValidationError> errors) =>
-        errors.FirstOrDefault()?.Message ?? "Please try again.";
+        errors.FirstOrDefault()?.Message ?? "Повторите попытку.";
 
     private void SetStatus(string message) => StatusText.Text = message;
 
@@ -515,7 +519,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
     private static T GetSelectedEnum<T>(ComboBox comboBox, T fallback)
         where T : struct, Enum =>
-        Enum.TryParse<T>((comboBox.SelectedItem as ComboBoxItem)?.Content?.ToString(), out var selected)
+        Enum.TryParse<T>((comboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString(), out var selected)
             ? selected
             : fallback;
 
@@ -524,7 +528,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     {
         comboBox.SelectedItem = comboBox.Items
             .OfType<ComboBoxItem>()
-            .FirstOrDefault(item => string.Equals(item.Content?.ToString(), value?.ToString(), StringComparison.Ordinal));
+            .FirstOrDefault(item => string.Equals(item.Tag?.ToString(), value?.ToString(), StringComparison.Ordinal));
     }
 
     private void SaveImportedProfile(ProfileImportConflictResolution resolution)
@@ -538,12 +542,12 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         HideImportConflict();
         if (result.Status != ProfileImportStatus.Saved)
         {
-            SetStatus($"Could not import profile: {GetMessage(result.Errors)}");
+            SetStatus($"Не удалось импортировать профиль: {GetMessage(result.Errors)}");
             return;
         }
 
         RefreshProfiles(result.Profile!.ProfileId);
-        SetStatus("Profile imported successfully.");
+        SetStatus("Профиль успешно импортирован.");
     }
 
     private void HideImportConflict()
@@ -590,7 +594,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         return string.IsNullOrEmpty(normalizedName) ? "easyaller-profile" : normalizedName;
     }
 
-    private static readonly FilePickerFileType ProfileFileType = new("Easyaller profile")
+    private static readonly FilePickerFileType ProfileFileType = new("Профиль Easyaller")
     {
         Patterns = ["*.wpprofile.json"],
         MimeTypes = ["application/json"],
@@ -616,14 +620,16 @@ public sealed record ProfileListItem(ProvisioningProfile Profile)
 {
     public string Name => Profile.Metadata.Name;
 
-    public string Detail => $"Revision {Profile.Revision}  ·  {Profile.Windows.Architecture}  ·  {Profile.Windows.TimeZone}";
+    public string Detail => $"Версия {Profile.Revision}  ·  {Profile.Windows.Architecture}  ·  {Profile.Windows.TimeZone}";
 }
 
 public sealed record ApplicationListItem(ApplicationProfile Application)
 {
     public string DisplayName => Application.DisplayName;
 
-    public string Detail => Application.SourceKind.ToString();
+    public string Detail => Application.SourceKind == ApplicationSourceKind.PackageRelative
+        ? "Из пакета"
+        : "Внешняя ручная установка";
 }
 
 public sealed record InstructionListItem(InstructionProfile Instruction)

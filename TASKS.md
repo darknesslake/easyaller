@@ -69,12 +69,12 @@ Add the first functional desktop UI for profile list, editor, validation, clonin
 
 Acceptance criteria:
 
-- All visible strings are English.
+- All visible desktop-interface strings are Russian.
 - Credentials cannot be entered in a reusable profile.
 - The functional UI matches the documented safety model, not only the static preview.
 - Core user states have UI or view-model tests.
 
-Implemented the first functional cross-platform Avalonia profile manager. It lists, creates, clones, edits, refreshes, imports, exports, and explicitly deletes local profiles. The editor covers metadata, Windows target, locale, OOBE, privacy preference, machine prefix, proxy mode, domain mode, launch mode, temporary-account cleanup, applications, and instructions. Import uses preview and explicit conflict choice; export shows a confidential-field count and needs confirmation. Credentials have no profile input field. `ProfileEditorController` tests cover metadata validation, Windows and machine settings, privacy preferences, applications, and instructions.
+Implemented the first functional cross-platform Avalonia profile manager. It lists, creates, clones, edits, refreshes, imports, exports, and explicitly deletes local profiles. The editor covers metadata, Windows target, locale, OOBE, privacy preference, machine prefix, proxy mode, domain mode, launch mode, temporary-account cleanup, applications, and instructions. Import uses preview and explicit conflict choice; export shows a confidential-field count and needs confirmation. Credentials have no profile input field. The current desktop interface is Russian. `ProfileEditorController` tests cover metadata validation, Windows and machine settings, privacy preferences, applications, and instructions.
 
 Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 34 passing tests.
 
