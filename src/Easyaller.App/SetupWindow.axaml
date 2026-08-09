@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:Easyaller.App"
         x:Class="Easyaller.App.SetupWindow"
-        Title="Easyaller - Настройка этого ПК"
+        Title="Easyaller - Применить профиль на этом ПК"
         Width="1080"
         Height="720"
         MinWidth="860"
@@ -10,8 +10,8 @@
         Background="#101826">
   <Grid RowDefinitions="Auto,*,Auto" Margin="30">
     <StackPanel Spacing="6" Margin="0,0,0,24">
-      <TextBlock Text="Настройка этого ПК" FontSize="29" FontWeight="SemiBold" Foreground="#F7F9FE" />
-      <TextBlock Text="Просмотрите профиль, создайте файловый пакет или примените подтверждённые значения для текущего запуска. Изменения Windows требуют явного APPLY и прав администратора." Foreground="#A9B7CD" />
+      <TextBlock Text="Применить профиль на этом ПК" FontSize="29" FontWeight="SemiBold" Foreground="#F7F9FE" />
+      <TextBlock Text="Здесь можно безопасно просмотреть план, подготовить только файлы Windows 11 или применить подтверждённые настройки к текущему компьютеру. Изменения Windows требуют ввода APPLY и прав администратора." Foreground="#A9B7CD" />
     </StackPanel>
     <Grid Grid.Row="1" ColumnDefinitions="300,*" ColumnSpacing="20">
       <Border Background="#172233" BorderBrush="#2A3B55" BorderThickness="1" CornerRadius="12" Padding="12">
@@ -35,14 +35,14 @@
             <TextBlock x:Name="SelectedProfileText" Text="Выберите профиль" FontSize="22" FontWeight="SemiBold" Foreground="#F7F9FE" />
             <Border Background="#1D2A3E" CornerRadius="8" Padding="14">
               <StackPanel Spacing="5">
-                <TextBlock Text="Предпросмотр плана" FontWeight="SemiBold" Foreground="#EAF0FA" />
+                <TextBlock Text="Что сделает выбранный профиль" FontWeight="SemiBold" Foreground="#EAF0FA" />
                 <TextBlock x:Name="PlanSummaryText" Text="План не выбран." TextWrapping="Wrap" Foreground="#A9B7CD" />
               </StackPanel>
             </Border>
             <Border Background="#1D2A3E" BorderBrush="#35667E" BorderThickness="1" CornerRadius="8" Padding="14">
               <StackPanel Spacing="12">
-                <TextBlock Text="Подготовить Windows 11" FontWeight="SemiBold" Foreground="#EAF0FA" />
-                <TextBlock Text="Только файловый пакет. ISO, USB-накопители, диски и параметры Windows не изменяются." TextWrapping="Wrap" FontSize="12" Foreground="#93C5FD" />
+                <TextBlock Text="Подготовить файлы для установки Windows 11" FontWeight="SemiBold" Foreground="#EAF0FA" />
+                <TextBlock Text="Это отдельный безопасный шаг: создаётся только папка с файлами. ISO, USB-накопители, диски и настройки текущей Windows не изменяются." TextWrapping="Wrap" FontSize="12" Foreground="#93C5FD" />
                 <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
                   <StackPanel Spacing="6">
                     <TextBlock Text="Редакция" FontSize="12" Foreground="#A9B7CD" />
@@ -64,14 +64,15 @@
                   </StackPanel>
                 </Grid>
                 <StackPanel Orientation="Horizontal" Spacing="10">
-                  <Button Content="Проверить совместимость" Click="PreviewDeployment_Click" />
-                  <Button Content="Создать dry run" Click="CreateDryRun_Click" Background="#2D6CDF" Foreground="White" />
-                  <Button x:Name="ExportDeploymentButton" Content="Экспортировать пакет" Click="ExportDeploymentPackage_Click" IsEnabled="False" />
+                  <Button Content="1. Проверить совместимость" Click="PreviewDeployment_Click" />
+                  <Button Content="2. Создать безопасный предпросмотр" Click="CreateDryRun_Click" Background="#2D6CDF" Foreground="White" />
+                  <Button x:Name="ExportDeploymentButton" Content="3. Сохранить пакет в папку" Click="ExportDeploymentPackage_Click" IsEnabled="False" />
                 </StackPanel>
                 <TextBox x:Name="DeploymentPreviewTextBox" Text="Выберите профиль и целевую версию Windows, затем проверьте совместимость." IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="108" Background="#101826" Foreground="#C7D7EE" BorderThickness="0" />
               </StackPanel>
             </Border>
-            <TextBlock Text="Запросы при настройке" FontWeight="SemiBold" Foreground="#EAF0FA" />
+            <TextBlock Text="Данные только для этого компьютера" FontWeight="SemiBold" Foreground="#EAF0FA" />
+            <TextBlock Text="Заполните только те поля, которые запросит план выше. Значения не добавляются в профиль." TextWrapping="Wrap" FontSize="12" Foreground="#93C5FD" />
             <ListBox x:Name="RuntimePromptsList" Height="116" Background="#1D2A3E" BorderThickness="0">
               <ListBox.ItemTemplate>
                 <DataTemplate DataType="{x:Type local:RuntimePromptListItem}">
@@ -89,8 +90,8 @@
                 <TextBox x:Name="ComputerNameTextBox" PlaceholderText="Например, LAB-WS-01" />
               </StackPanel>
               <StackPanel Grid.Column="1" Spacing="6">
-                <TextBlock Text="ID сетевого адаптера" FontSize="12" Foreground="#A9B7CD" />
-                <TextBox x:Name="NetworkAdapterTextBox" PlaceholderText="Выберите позже из локальных адаптеров" />
+                <TextBlock Text="Имя или GUID сетевого адаптера" FontSize="12" Foreground="#A9B7CD" />
+                <TextBox x:Name="NetworkAdapterTextBox" PlaceholderText="Точное имя адаптера из Windows" />
               </StackPanel>
               <StackPanel Grid.Row="1" Spacing="6">
                 <TextBlock Text="Адрес прокси" FontSize="12" Foreground="#A9B7CD" />
@@ -109,11 +110,11 @@
                 <TextBox x:Name="DomainPasswordTextBox" PasswordChar="•" />
               </StackPanel>
             </Grid>
-            <TextBlock Text="Учётные данные хранятся в памяти только на время текущей проверки или применения. Они никогда не сохраняются в переиспользуемом профиле, состоянии resume или журнале." TextWrapping="Wrap" FontSize="12" Foreground="#93C5FD" />
+            <TextBlock Text="Пароль и адрес прокси хранятся в памяти только на время проверки или применения. Они никогда не сохраняются в профиле, состоянии resume или журнале." TextWrapping="Wrap" FontSize="12" Foreground="#93C5FD" />
             <StackPanel Orientation="Horizontal" Spacing="10">
-              <Button Content="Проверить введённые значения" Click="ValidateRuntimeInputs_Click" Background="#2D6CDF" Foreground="White" />
-              <TextBox x:Name="ApplyConfirmationTextBox" Width="150" PlaceholderText="Введите APPLY" />
-              <Button x:Name="ApplyRuntimeInputsButton" Content="Применить к Windows" Click="ApplyRuntimeInputs_Click" Background="#B45309" Foreground="White" />
+              <Button Content="Проверить значения без изменений" Click="ValidateRuntimeInputs_Click" Background="#2D6CDF" Foreground="White" />
+              <TextBox x:Name="ApplyConfirmationTextBox" Width="180" PlaceholderText="После проверки введите APPLY" />
+              <Button x:Name="ApplyRuntimeInputsButton" Content="Применить к этому ПК" Click="ApplyRuntimeInputs_Click" Background="#B45309" Foreground="White" />
             </StackPanel>
           </StackPanel>
         </ScrollViewer>

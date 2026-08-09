@@ -21,8 +21,8 @@
           <Border Background="#263A5A" CornerRadius="8" Padding="12,10">
             <TextBlock Text="Профили" FontWeight="SemiBold" Foreground="#F6F8FC" />
           </Border>
-          <Button Content="Настроить этот ПК" Click="OpenSetup_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="12,7" Background="Transparent" Foreground="#9BAAC3" BorderThickness="0" />
-          <TextBlock Text="Подготовить Windows 11" Margin="12,7" Foreground="#9BAAC3" />
+          <Button Content="Проверить и применить профиль" Click="OpenSetup_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="12,7" Background="Transparent" Foreground="#9BAAC3" BorderThickness="0" />
+          <TextBlock Text="Там же: подготовка файлов Windows 11" Margin="12,2,12,7" TextWrapping="Wrap" FontSize="12" Foreground="#71839F" />
           <Button Content="Создать установочный USB" Click="OpenUsbCreator_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="12,7" Background="Transparent" Foreground="#9BAAC3" BorderThickness="0" />
         </StackPanel>
 
@@ -39,7 +39,7 @@
       <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,24">
         <StackPanel Spacing="6">
           <TextBlock Text="Профили" FontSize="30" FontWeight="SemiBold" Foreground="#F7F9FE" />
-          <TextBlock Text="Переиспользуемые настройки без сохранённых учётных данных." Foreground="#A9B7CD" />
+          <TextBlock Text="Создайте понятный стандарт подготовки компьютера. Пароли и учётные данные не сохраняются." Foreground="#A9B7CD" />
         </StackPanel>
         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
           <Button Content="Импорт" Click="ImportProfile_Click" />
@@ -79,7 +79,7 @@
             </Grid>
             <ScrollViewer Grid.Row="3" HorizontalScrollBarVisibility="Disabled">
               <StackPanel Spacing="12" Margin="0,10,0,0">
-              <TextBlock Text="Редактирование профиля" FontWeight="SemiBold" Foreground="#EAF0FA" />
+              <TextBlock Text="Карточка профиля" FontWeight="SemiBold" Foreground="#EAF0FA" />
               <StackPanel Spacing="6">
                 <TextBlock Text="Название" FontSize="12" Foreground="#A9B7CD" />
                 <TextBox x:Name="ProfileNameTextBox" />
@@ -88,9 +88,19 @@
                 <TextBlock Text="Описание" FontSize="12" Foreground="#A9B7CD" />
                 <TextBox x:Name="ProfileDescriptionTextBox" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="54" />
               </StackPanel>
-              <Expander Header="Параметры Windows и компьютера">
+              <Border Background="#1D2A3E" CornerRadius="8" Padding="14">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Как устроена настройка" FontWeight="SemiBold" Foreground="#EAF0FA" />
+                  <TextBlock Text="Сначала задайте стандарт Windows, затем сеть и доступ, после этого правила первого запуска. Адреса, домен и пароли не нужно хранить в каждом профиле: необходимые значения программа запросит перед применением." TextWrapping="Wrap" FontSize="12" Foreground="#A9B7CD" />
+                </StackPanel>
+              </Border>
+              <Expander Header="1. Windows и первый запуск" IsExpanded="True">
                 <StackPanel Margin="0,12,0,0" Spacing="12">
-                  <TextBlock Text="Редакции Windows" FontSize="12" Foreground="#A9B7CD" />
+                  <TextBlock Text="Это стандарт для устанавливаемой Windows. Он не меняет уже работающий компьютер." TextWrapping="Wrap" FontSize="12" Foreground="#93C5FD" />
+                  <StackPanel Spacing="6">
+                    <TextBlock Text="Поддерживаемые редакции" FontSize="12" Foreground="#A9B7CD" />
+                    <TextBlock Text="Профиль можно применить только к отмеченным редакциям Windows 11." TextWrapping="Wrap" FontSize="12" Foreground="#7F93B4" />
+                  </StackPanel>
                   <StackPanel Orientation="Horizontal" Spacing="18">
                     <CheckBox x:Name="ProfessionalEditionCheckBox" Content="Windows 11 Pro" />
                     <CheckBox x:Name="EnterpriseEditionCheckBox" Content="Windows 11 Enterprise" />
@@ -99,17 +109,14 @@
                     <StackPanel Spacing="6">
                       <TextBlock Text="Язык интерфейса" FontSize="12" Foreground="#A9B7CD" />
                       <TextBox x:Name="UiLanguageTextBox" PlaceholderText="en-US" />
+                      <TextBlock Text="Язык меню и системных диалогов Windows." TextWrapping="Wrap" FontSize="12" Foreground="#7F93B4" />
                     </StackPanel>
                     <StackPanel Grid.Column="1" Spacing="6">
                       <TextBlock Text="Часовой пояс" FontSize="12" Foreground="#A9B7CD" />
                       <TextBox x:Name="TimeZoneTextBox" PlaceholderText="UTC" />
+                      <TextBlock Text="Системный часовой пояс, например UTC." TextWrapping="Wrap" FontSize="12" Foreground="#7F93B4" />
                     </StackPanel>
                   </Grid>
-                  <StackPanel Spacing="6">
-                    <TextBlock Text="Исключения WinHTTP-прокси" FontSize="12" Foreground="#A9B7CD" />
-                    <TextBox x:Name="ProxyBypassListTextBox" PlaceholderText="Необязательно: *.example.test, &lt;local&gt;, 192.0.2.53" />
-                    <TextBlock Text="До 256 адресов или шаблонов через запятую. Список работает для WinHTTP, а не автоматически для каждого браузера." TextWrapping="Wrap" FontSize="12" Foreground="#93C5FD" />
-                  </StackPanel>
                   <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
                     <StackPanel Spacing="6">
                       <TextBlock Text="Язык ввода" FontSize="12" Foreground="#A9B7CD" />
@@ -124,10 +131,13 @@
                       <TextBox x:Name="UserLocaleTextBox" PlaceholderText="en-US" />
                     </StackPanel>
                   </Grid>
-                  <CheckBox x:Name="OfflineInitialSetupCheckBox" Content="Запрашивать автономную первоначальную настройку" />
+                  <StackPanel Spacing="6">
+                    <CheckBox x:Name="OfflineInitialSetupCheckBox" Content="Подготовить автономный первый запуск" />
+                    <TextBlock Text="Скрывает часть экранов, которые требуют интернет или учётную запись. Используйте только для подходящего сценария установки." TextWrapping="Wrap" FontSize="12" Foreground="#7F93B4" />
+                  </StackPanel>
                   <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
                     <StackPanel Spacing="6">
-                      <TextBlock Text="Настройка сети в OOBE" FontSize="12" Foreground="#A9B7CD" />
+                      <TextBlock Text="Экран подключения к сети" FontSize="12" Foreground="#A9B7CD" />
                       <ComboBox x:Name="HideWirelessSetupComboBox">
                         <ComboBoxItem Tag="unset">Не настроено</ComboBoxItem>
                         <ComboBoxItem Tag="true">Скрыть</ComboBoxItem>
@@ -135,7 +145,7 @@
                       </ComboBox>
                     </StackPanel>
                     <StackPanel Grid.Column="1" Spacing="6">
-                      <TextBlock Text="Экраны онлайн-учётной записи" FontSize="12" Foreground="#A9B7CD" />
+                      <TextBlock Text="Экран онлайн-учётной записи" FontSize="12" Foreground="#A9B7CD" />
                       <ComboBox x:Name="HideOnlineAccountComboBox">
                         <ComboBoxItem Tag="unset">Не настроено</ComboBoxItem>
                         <ComboBoxItem Tag="true">Скрыть</ComboBoxItem>
@@ -214,7 +224,7 @@
                     </StackPanel>
                   </Grid>
                   <StackPanel Spacing="6">
-                    <TextBlock Text="Параметры конфиденциальности" FontSize="12" Foreground="#A9B7CD" />
+                    <TextBlock Text="Общие параметры конфиденциальности" FontSize="12" Foreground="#A9B7CD" />
                     <ComboBox x:Name="PrivacyPreferenceComboBox">
                       <ComboBoxItem Tag="retain">Сохранить отдельные параметры</ComboBoxItem>
                       <ComboBoxItem Tag="NotConfigured">Не настраивать все параметры</ComboBoxItem>
@@ -222,11 +232,105 @@
                       <ComboBoxItem Tag="Enabled">Включить все параметры</ComboBoxItem>
                       <ComboBoxItem Tag="Disabled">Отключить все параметры</ComboBoxItem>
                     </ComboBox>
+                    <TextBlock Text="Выберите единый режим для служб геолокации, рекламы и персонализации. «Не настраивать» ничего не меняет." TextWrapping="Wrap" FontSize="12" Foreground="#7F93B4" />
                   </StackPanel>
                 </StackPanel>
               </Expander>
-              <Expander Header="Приложения и инструкции">
+              <Expander Header="2. Сеть и доступ">
                 <StackPanel Margin="0,12,0,0" Spacing="12">
+                  <TextBlock Text="Выберите, что профиль должен помнить о сети. Сам сетевой адаптер всегда выбирается перед применением." TextWrapping="Wrap" FontSize="12" Foreground="#93C5FD" />
+                  <StackPanel Spacing="6">
+                    <TextBlock Text="Префикс имени компьютера" FontSize="12" Foreground="#A9B7CD" />
+                    <TextBox x:Name="ComputerNamePrefixTextBox" PlaceholderText="Необязательно, например OFFICE" />
+                    <TextBlock Text="Подсказка для имени. Окончательное имя каждого компьютера вводится перед применением." TextWrapping="Wrap" FontSize="12" Foreground="#7F93B4" />
+                  </StackPanel>
+                  <Border Background="#1D2A3E" CornerRadius="8" Padding="12">
+                    <StackPanel Spacing="10">
+                      <TextBlock Text="Сеть" FontWeight="SemiBold" Foreground="#EAF0FA" />
+                      <StackPanel Spacing="6">
+                        <TextBlock Text="Режим сети" FontSize="12" Foreground="#A9B7CD" />
+                        <ComboBox x:Name="NetworkModeComboBox">
+                          <ComboBoxItem Tag="PromptAtRuntime">Выбрать параметры вручную перед применением</ComboBoxItem>
+                          <ComboBoxItem Tag="StaticIpv4">Сохранить статический IPv4, шлюз и DNS</ComboBoxItem>
+                        </ComboBox>
+                        <TextBlock Text="Статический режим сохраняет адреса в профиле. Используйте его только для известных рабочих мест и не публикуйте такой профиль." TextWrapping="Wrap" FontSize="12" Foreground="#7F93B4" />
+                      </StackPanel>
+                      <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                        <StackPanel Spacing="6">
+                          <TextBlock Text="IPv4-адрес" FontSize="12" Foreground="#A9B7CD" />
+                          <TextBox x:Name="StaticIpv4AddressTextBox" PlaceholderText="Заполняется только для статической сети" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Spacing="6">
+                          <TextBlock Text="Маска подсети" FontSize="12" Foreground="#A9B7CD" />
+                          <TextBox x:Name="StaticIpv4SubnetMaskTextBox" PlaceholderText="Например, 255.255.255.0" />
+                        </StackPanel>
+                      </Grid>
+                      <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                        <StackPanel Spacing="6">
+                          <TextBlock Text="Шлюз по умолчанию" FontSize="12" Foreground="#A9B7CD" />
+                          <TextBox x:Name="StaticIpv4DefaultGatewayTextBox" PlaceholderText="Заполняется только для статической сети" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Spacing="6">
+                          <TextBlock Text="DNS-серверы" FontSize="12" Foreground="#A9B7CD" />
+                          <TextBox x:Name="StaticIpv4DnsServersTextBox" PlaceholderText="От одного до трёх адресов через запятую" />
+                        </StackPanel>
+                      </Grid>
+                      <TextBlock Text="Адрес, маска, шлюз и DNS применяются только к выбранному адаптеру после ввода APPLY. Wi-Fi-пароли и VPN-параметры не сохраняются." TextWrapping="Wrap" FontSize="12" Foreground="#93C5FD" />
+                    </StackPanel>
+                  </Border>
+                  <Border Background="#1D2A3E" CornerRadius="8" Padding="12">
+                    <StackPanel Spacing="10">
+                      <TextBlock Text="Прокси для системных служб Windows" FontWeight="SemiBold" Foreground="#EAF0FA" />
+                      <StackPanel Spacing="6">
+                        <TextBlock Text="Нужно настраивать прокси?" FontSize="12" Foreground="#A9B7CD" />
+                        <ComboBox x:Name="ProxyModeComboBox">
+                          <ComboBoxItem Tag="NotConfigured">Нет, не менять настройки прокси</ComboBoxItem>
+                          <ComboBoxItem Tag="PromptAtRuntime">Да, запросить адрес прокси перед применением</ComboBoxItem>
+                        </ComboBox>
+                        <TextBlock Text="Адрес прокси не сохраняется в профиле. Он запрашивается только для конкретного компьютера." TextWrapping="Wrap" FontSize="12" Foreground="#7F93B4" />
+                      </StackPanel>
+                      <StackPanel Spacing="6">
+                        <TextBlock Text="Исключения для WinHTTP-прокси" FontSize="12" Foreground="#A9B7CD" />
+                        <TextBox x:Name="ProxyBypassListTextBox" PlaceholderText="Необязательно: *.example.test, &lt;local&gt;, 192.0.2.53" />
+                        <TextBlock Text="Адреса и шаблоны, которые должны подключаться без прокси. Введите через запятую. Это работает для WinHTTP, а не автоматически для всех браузеров." TextWrapping="Wrap" FontSize="12" Foreground="#7F93B4" />
+                      </StackPanel>
+                    </StackPanel>
+                  </Border>
+                </StackPanel>
+              </Expander>
+              <Expander Header="3. Домен и запуск настройки">
+                <StackPanel Margin="0,12,0,0" Spacing="12">
+                  <TextBlock Text="Эти правила определяют, когда Easyaller запускается и требуется ли присоединение к домену. Учётные данные всегда вводятся позднее и не сохраняются." TextWrapping="Wrap" FontSize="12" Foreground="#93C5FD" />
+                  <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                    <StackPanel Spacing="6">
+                      <TextBlock Text="Присоединение к домену" FontSize="12" Foreground="#A9B7CD" />
+                      <ComboBox x:Name="DomainModeComboBox">
+                        <ComboBoxItem Tag="NotConfigured">Не присоединять к домену</ComboBoxItem>
+                        <ComboBoxItem Tag="Optional">Предложить присоединение при настройке</ComboBoxItem>
+                        <ComboBoxItem Tag="Required">Запросить домен перед применением</ComboBoxItem>
+                      </ComboBox>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="6">
+                      <TextBlock Text="Когда запускать Easyaller" FontSize="12" Foreground="#A9B7CD" />
+                      <ComboBox x:Name="LaunchModeComboBox">
+                        <ComboBoxItem Tag="Manual">Запускать вручную</ComboBoxItem>
+                        <ComboBoxItem Tag="FirstLogon">Открыть при первом входе</ComboBoxItem>
+                      </ComboBox>
+                    </StackPanel>
+                  </Grid>
+                  <StackPanel Spacing="6">
+                    <TextBlock Text="Временная учётная запись подготовки" FontSize="12" Foreground="#A9B7CD" />
+                    <ComboBox x:Name="CleanupModeComboBox">
+                      <ComboBoxItem Tag="DisableAfterValidation">Отключить после успешной проверки</ComboBoxItem>
+                      <ComboBoxItem Tag="DeleteAfterValidation">Удалить после успешной проверки</ComboBoxItem>
+                    </ComboBox>
+                    <TextBlock Text="Это правило сработает только после подтверждённой проверки. Оно не удаляет обычные учётные записи пользователя." TextWrapping="Wrap" FontSize="12" Foreground="#7F93B4" />
+                  </StackPanel>
+                </StackPanel>
+              </Expander>
+              <Expander Header="4. Приложения и ручные инструкции">
+                <StackPanel Margin="0,12,0,0" Spacing="12">
+                  <TextBlock Text="Добавляйте только то, что нужно повторять для каждого компьютера. Инструкция описывает ручной шаг и не исполняется как команда." TextWrapping="Wrap" FontSize="12" Foreground="#93C5FD" />
                   <TextBlock Text="Приложения" FontWeight="SemiBold" Foreground="#EAF0FA" />
                   <ListBox x:Name="ApplicationsList" Height="96" Background="#1D2A3E" BorderThickness="0">
                     <ListBox.ItemTemplate>
