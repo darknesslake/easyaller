@@ -50,6 +50,8 @@ dotnet run --project src/Easyaller.App/Easyaller.App.csproj
 
 Состав пакета, правила для файлов и границы проверки описаны в [DEPLOYMENT_PACKAGE_RU.md](DEPLOYMENT_PACKAGE_RU.md).
 
+Полная безопасная последовательность теста, включая подготовку USB, поиск файла ответов, ограничения OOBE, журналы и устранение проблем, описана в [DEPLOYMENT_OPERATIONS_RU.md](DEPLOYMENT_OPERATIONS_RU.md).
+
 ## Сборка и тесты
 
 ```sh

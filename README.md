@@ -97,6 +97,8 @@ Read [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md) for a practical guide 
 
 Русская инструкция: [`docs/GETTING_STARTED_RU.md`](docs/GETTING_STARTED_RU.md).
 
+End-to-end deployment operator guide: [`docs/DEPLOYMENT_OPERATIONS.md`](docs/DEPLOYMENT_OPERATIONS.md) and [`docs/DEPLOYMENT_OPERATIONS_RU.md`](docs/DEPLOYMENT_OPERATIONS_RU.md).
+
 Windows-host validation instructions: [`docs/WINDOWS_SIM_VALIDATION.md`](docs/WINDOWS_SIM_VALIDATION.md) and [`docs/WINDOWS_SIM_VALIDATION_RU.md`](docs/WINDOWS_SIM_VALIDATION_RU.md).
 
 VM validation instructions: [`docs/VM_TESTING.md`](docs/VM_TESTING.md) and [`docs/VM_TESTING_RU.md`](docs/VM_TESTING_RU.md).

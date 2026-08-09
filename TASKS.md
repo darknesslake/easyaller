@@ -283,9 +283,13 @@ Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easy
 
 ## Phase 6: public release and pilot
 
-### [ ] WP-060: Deployment documentation
+### [x] WP-060: Deployment documentation
 
 Document answer-file discovery, OOBE limits, manual disk choice, temporary account, first boot, cleanup, logs, compatibility matrix, security warnings, and troubleshooting.
+
+Added one English and Russian operator guide that connects the existing package, USB, Windows SIM, VM, compatibility, first-logon, and cleanup documents into a single controlled test path. It records the implemented USB-copy workflow and every pre-alpha limitation: preformatted empty test media only, manual internal-disk selection, no ISO mutation, no domain join, no documented OOBE workaround bypasses, no UI temporary account or bootstrapper, and no physical-media success claim. The guide specifies root-level `autounattend.xml` discovery, Panther log collection and redaction, required evidence, current documented-only compatibility status, stop conditions, and conservative troubleshooting. `PRODUCT_SPEC.md`, the README, and both getting-started guides now link the runbook and state that USB copying is implemented but physical validation remains pending.
+
+Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 115 passing tests.
 
 ### [ ] WP-061: Public repository readiness
 

@@ -11,7 +11,7 @@ The product has four major modes:
 1. **Set up this PC** - computer name, network, proxy, domain join, reboot, applications, instructions, and final validation.
 2. **Profiles** - create, edit, clone, validate, import, and export workstation profiles.
 3. **Prepare Windows 11** - create and review `autounattend.xml`, run a dry run, and export a deployment package.
-4. **Create installation USB** - a later, separately protected feature.
+4. **Create installation USB** - a separately protected copy workflow for an already empty, preformatted removable volume. Physical-media validation remains pending.
 
 The initial target is Windows 11 Pro and Enterprise on amd64. Windows Home, Windows in S mode, ISO downloading, automatic internal-disk partitioning, and fleet management are not part of the first release.
 
@@ -119,7 +119,7 @@ Instructions are data, not code. Render Markdown or text safely without executin
 - First boot starts Easyaller after one manual temporary-account sign-in.
 - Cleanup happens only after final validation.
 - Supported Pro and Enterprise VM scenarios pass for every claimed Windows build.
-- USB creation remains disabled until removable-drive protections pass their own test suite.
+- USB creation uses an explicit protected workflow, but no physical-media result is claimed until removable-drive protections and the exact media flow pass their own test suite.
 
 ## Primary Microsoft references
 

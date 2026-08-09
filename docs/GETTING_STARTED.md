@@ -52,6 +52,8 @@ See [COMPATIBILITY.md](COMPATIBILITY.md) for the currently documented Windows ta
 
 See [DEPLOYMENT_PACKAGE.md](DEPLOYMENT_PACKAGE.md) for package contents, asset rules, and verification boundaries.
 
+For the complete safe test sequence, including USB preparation, answer-file discovery, OOBE limits, logs, and troubleshooting, read [DEPLOYMENT_OPERATIONS.md](DEPLOYMENT_OPERATIONS.md).
+
 ## Build and test
 
 ```sh
