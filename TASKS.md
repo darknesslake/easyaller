@@ -253,9 +253,13 @@ Implemented `WindowsIsoInspectionService` with a 12 GiB default limit, absolute-
 
 Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 98 passing tests. A real ISO was not mounted in this macOS environment; the fixed Windows probe is covered by contract tests and must still be exercised on a disposable Windows host before it is treated as an operational USB workflow.
 
-### [ ] WP-052: Destructive confirmation state machine
+### [x] WP-052: Destructive confirmation state machine
 
 Show vendor, serial or device ID, disk number, and size. Require `ERASE`. Bind the short-lived confirmation to immutable device identity and recheck before the first write.
+
+Implemented `UsbDestructiveConfirmationStateMachine`. It creates an in-memory five-minute prompt only for an explicitly selected eligible removable disk, showing vendor, serial or immutable device ID, disk number, and byte size. It accepts only the exact uppercase `ERASE` phrase. Immediately before a future first write, `AuthorizeFirstWrite` rechecks immutable ID, optional serial number, and current disk safety, then consumes the authorization once. Expired, replayed, unconfirmed, hot-swapped, duplicated, missing, or newly unsafe selections remain blocked. There is still no desktop UI or disk-writing engine. English and Russian notes are in `docs/USB_CONFIRMATION.md` and `docs/USB_CONFIRMATION_RU.md`.
+
+Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 103 passing tests. The state machine uses mock inventory only; no disk action exists or was invoked.
 
 ### [ ] WP-053: USB write engine
 
