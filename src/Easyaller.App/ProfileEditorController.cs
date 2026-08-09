@@ -20,10 +20,23 @@ public sealed class ProfileEditorController(IProfileRepository repository)
     }
 
     public ProfileRepositoryWriteResult SaveSettings(ProvisioningProfile original, ProfileSettingsEdit settings)
+        => SaveComplete(original, settings, original.Applications, original.Instructions);
+
+    public ProfileRepositoryWriteResult SaveComplete(
+        ProvisioningProfile original,
+        ProfileSettingsEdit settings,
+        IReadOnlyList<ApplicationProfile> applications,
+        IReadOnlyList<InstructionProfile> instructions)
     {
         ArgumentNullException.ThrowIfNull(original);
         ArgumentNullException.ThrowIfNull(settings);
 
+        ArgumentNullException.ThrowIfNull(applications);
+        ArgumentNullException.ThrowIfNull(instructions);
+
+        var privacy = settings.PrivacyPreference is { } preference
+            ? new PrivacySettings(preference, preference, preference, preference, preference, preference, preference)
+            : original.Windows.Privacy;
         var updated = original with
         {
             Metadata = new ProfileMetadata(
@@ -44,6 +57,7 @@ public sealed class ProfileEditorController(IProfileRepository repository)
                     HideOnlineAccountScreens = settings.HideOnlineAccountScreens,
                     OfflineInitialSetup = settings.OfflineInitialSetup,
                 },
+                Privacy = privacy,
             },
             Machine = original.Machine with
             {
@@ -56,6 +70,8 @@ public sealed class ProfileEditorController(IProfileRepository repository)
             Domain = original.Domain with { Mode = settings.DomainMode },
             Deployment = new DeploymentSettings(settings.LaunchMode),
             Cleanup = new CleanupSettings(settings.CleanupMode),
+            Applications = applications.ToArray(),
+            Instructions = instructions.ToArray(),
         };
         return _repository.Update(updated, original.Revision);
     }
@@ -73,6 +89,7 @@ public sealed record ProfileSettingsEdit(
     bool OfflineInitialSetup,
     bool? HideWirelessSetup,
     bool? HideOnlineAccountScreens,
+    PrivacyPreference? PrivacyPreference,
     string? ComputerNamePrefix,
     ProxyConfigurationMode ProxyMode,
     DomainMode DomainMode,

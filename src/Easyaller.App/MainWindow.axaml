@@ -175,6 +175,91 @@
                       </ComboBox>
                     </StackPanel>
                   </Grid>
+                  <StackPanel Spacing="6">
+                    <TextBlock Text="Privacy preference" FontSize="12" Foreground="#A9B7CD" />
+                    <ComboBox x:Name="PrivacyPreferenceComboBox">
+                      <ComboBoxItem Tag="retain">Retain individual preferences</ComboBoxItem>
+                      <ComboBoxItem Tag="NotConfigured">Not configured for all privacy controls</ComboBoxItem>
+                      <ComboBoxItem Tag="UserChoice">User choice for all privacy controls</ComboBoxItem>
+                      <ComboBoxItem Tag="Enabled">Enable all privacy controls</ComboBoxItem>
+                      <ComboBoxItem Tag="Disabled">Disable all privacy controls</ComboBoxItem>
+                    </ComboBox>
+                  </StackPanel>
+                </StackPanel>
+              </Expander>
+              <Expander Header="Applications and instructions">
+                <StackPanel Margin="0,12,0,0" Spacing="12">
+                  <TextBlock Text="Applications" FontWeight="SemiBold" Foreground="#EAF0FA" />
+                  <ListBox x:Name="ApplicationsList" Height="96" Background="#1D2A3E" BorderThickness="0">
+                    <ListBox.ItemTemplate>
+                      <DataTemplate DataType="{x:Type local:ApplicationListItem}">
+                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="6,3">
+                          <TextBlock Text="{Binding DisplayName}" Foreground="#EAF0FA" />
+                          <TextBlock Text="{Binding Detail}" FontSize="12" Foreground="#9EB0CC" />
+                        </StackPanel>
+                      </DataTemplate>
+                    </ListBox.ItemTemplate>
+                  </ListBox>
+                  <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                    <StackPanel Spacing="6">
+                      <TextBlock Text="Application ID" FontSize="12" Foreground="#A9B7CD" />
+                      <TextBox x:Name="ApplicationIdTextBox" PlaceholderText="example-app" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="6">
+                      <TextBlock Text="Display name" FontSize="12" Foreground="#A9B7CD" />
+                      <TextBox x:Name="ApplicationDisplayNameTextBox" PlaceholderText="Example application" />
+                    </StackPanel>
+                  </Grid>
+                  <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                    <StackPanel Spacing="6">
+                      <TextBlock Text="Source" FontSize="12" Foreground="#A9B7CD" />
+                      <ComboBox x:Name="ApplicationSourceComboBox">
+                        <ComboBoxItem>PackageRelative</ComboBoxItem>
+                        <ComboBoxItem>ExternalManual</ComboBoxItem>
+                      </ComboBox>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="6">
+                      <TextBlock Text="Package-relative path" FontSize="12" Foreground="#A9B7CD" />
+                      <TextBox x:Name="ApplicationPathTextBox" PlaceholderText="installers/example.msi" />
+                    </StackPanel>
+                  </Grid>
+                  <StackPanel Spacing="6">
+                    <TextBlock Text="Arguments, one per line" FontSize="12" Foreground="#A9B7CD" />
+                    <TextBox x:Name="ApplicationArgumentsTextBox" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="44" />
+                  </StackPanel>
+                  <StackPanel Orientation="Horizontal" Spacing="10">
+                    <Button Content="Add application" Click="AddApplication_Click" />
+                    <Button Content="Remove selected application" Click="RemoveApplication_Click" />
+                  </StackPanel>
+                  <TextBlock Text="Instructions" FontWeight="SemiBold" Foreground="#EAF0FA" Margin="0,8,0,0" />
+                  <ListBox x:Name="InstructionsList" Height="96" Background="#1D2A3E" BorderThickness="0">
+                    <ListBox.ItemTemplate>
+                      <DataTemplate DataType="{x:Type local:InstructionListItem}">
+                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="6,3">
+                          <TextBlock Text="{Binding Title}" Foreground="#EAF0FA" />
+                          <TextBlock Text="{Binding Id}" FontSize="12" Foreground="#9EB0CC" />
+                        </StackPanel>
+                      </DataTemplate>
+                    </ListBox.ItemTemplate>
+                  </ListBox>
+                  <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                    <StackPanel Spacing="6">
+                      <TextBlock Text="Instruction ID" FontSize="12" Foreground="#A9B7CD" />
+                      <TextBox x:Name="InstructionIdTextBox" PlaceholderText="post-install" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="6">
+                      <TextBlock Text="Title" FontSize="12" Foreground="#A9B7CD" />
+                      <TextBox x:Name="InstructionTitleTextBox" PlaceholderText="After setup" />
+                    </StackPanel>
+                  </Grid>
+                  <StackPanel Spacing="6">
+                    <TextBlock Text="Instruction text" FontSize="12" Foreground="#A9B7CD" />
+                    <TextBox x:Name="InstructionContentTextBox" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="54" />
+                  </StackPanel>
+                  <StackPanel Orientation="Horizontal" Spacing="10">
+                    <Button Content="Add instruction" Click="AddInstruction_Click" />
+                    <Button Content="Remove selected instruction" Click="RemoveInstruction_Click" />
+                  </StackPanel>
                 </StackPanel>
               </Expander>
               <Button Content="Save changes" Click="SaveProfile_Click" IsEnabled="{Binding HasSelectedProfile}" HorizontalAlignment="Left" />

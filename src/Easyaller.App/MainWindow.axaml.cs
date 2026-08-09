@@ -14,6 +14,8 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     private readonly ProfileImportExportService _profileImportExportService;
     private readonly ProfileEditorController _profileEditorController;
     private readonly ObservableCollection<ProfileListItem> _profiles = [];
+    private readonly ObservableCollection<ApplicationListItem> _applications = [];
+    private readonly ObservableCollection<InstructionListItem> _instructions = [];
     private ProfileListItem? _selectedProfile;
     private byte[]? _pendingImportSource;
     private ProvisioningProfile? _pendingExportProfile;
@@ -30,6 +32,8 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         _profileImportExportService = new ProfileImportExportService(_repository);
         _profileEditorController = new ProfileEditorController(_repository);
         ProfilesList.ItemsSource = _profiles;
+        ApplicationsList.ItemsSource = _applications;
+        InstructionsList.ItemsSource = _instructions;
         StoragePathText.Text = _repository.RootDirectory;
         RefreshProfiles();
     }
@@ -100,9 +104,11 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        var result = _profileEditorController.SaveSettings(
+        var result = _profileEditorController.SaveComplete(
             _selectedProfile.Profile,
-            CreateProfileSettingsEdit(_selectedProfile.Profile));
+            CreateProfileSettingsEdit(_selectedProfile.Profile),
+            _applications.Select(static item => item.Application).ToArray(),
+            _instructions.Select(static item => item.Instruction).ToArray());
         if (result.Status != ProfileRepositoryStatus.Success)
         {
             SetStatus($"Could not save profile: {GetMessage(result.Errors)}");
@@ -261,6 +267,62 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         SetStatus($"Deleted {selectedProfile.Metadata.Name}. A local backup remains available.");
     }
 
+    private void AddApplication_Click(object? sender, RoutedEventArgs e)
+    {
+        var application = new ApplicationProfile(
+            ApplicationIdTextBox.Text?.Trim() ?? string.Empty,
+            ApplicationDisplayNameTextBox.Text?.Trim() ?? string.Empty,
+            GetSelectedEnum(ApplicationSourceComboBox, ApplicationSourceKind.PackageRelative),
+            string.IsNullOrWhiteSpace(ApplicationPathTextBox.Text) ? null : ApplicationPathTextBox.Text.Trim(),
+            (ApplicationArgumentsTextBox.Text ?? string.Empty)
+                .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+        _applications.Add(new ApplicationListItem(application));
+        ApplicationsList.SelectedItem = _applications[^1];
+        ApplicationIdTextBox.Text = string.Empty;
+        ApplicationDisplayNameTextBox.Text = string.Empty;
+        ApplicationPathTextBox.Text = string.Empty;
+        ApplicationArgumentsTextBox.Text = string.Empty;
+        SetStatus("Application added. Save profile changes to persist it.");
+    }
+
+    private void RemoveApplication_Click(object? sender, RoutedEventArgs e)
+    {
+        if (ApplicationsList.SelectedItem is not ApplicationListItem selected)
+        {
+            SetStatus("Select an application to remove it.");
+            return;
+        }
+
+        _applications.Remove(selected);
+        SetStatus("Application removed. Save profile changes to persist it.");
+    }
+
+    private void AddInstruction_Click(object? sender, RoutedEventArgs e)
+    {
+        var instruction = new InstructionProfile(
+            InstructionIdTextBox.Text?.Trim() ?? string.Empty,
+            InstructionTitleTextBox.Text?.Trim() ?? string.Empty,
+            InstructionContentTextBox.Text?.Trim() ?? string.Empty);
+        _instructions.Add(new InstructionListItem(instruction));
+        InstructionsList.SelectedItem = _instructions[^1];
+        InstructionIdTextBox.Text = string.Empty;
+        InstructionTitleTextBox.Text = string.Empty;
+        InstructionContentTextBox.Text = string.Empty;
+        SetStatus("Instruction added. Save profile changes to persist it.");
+    }
+
+    private void RemoveInstruction_Click(object? sender, RoutedEventArgs e)
+    {
+        if (InstructionsList.SelectedItem is not InstructionListItem selected)
+        {
+            SetStatus("Select an instruction to remove it.");
+            return;
+        }
+
+        _instructions.Remove(selected);
+        SetStatus("Instruction removed. Save profile changes to persist it.");
+    }
+
     private void Refresh_Click(object? sender, RoutedEventArgs e)
     {
         RefreshProfiles(_selectedProfile?.Profile.ProfileId);
@@ -344,6 +406,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         OfflineInitialSetupCheckBox.IsChecked == true,
         GetOptionalBoolean(HideWirelessSetupComboBox),
         GetOptionalBoolean(HideOnlineAccountComboBox),
+        GetPrivacyPreference(),
         ComputerNamePrefixTextBox.Text,
         GetSelectedEnum(ProxyModeComboBox, original.Machine.Proxy.Mode),
         GetSelectedEnum(DomainModeComboBox, original.Domain.Mode),
@@ -379,11 +442,27 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         OfflineInitialSetupCheckBox.IsChecked = windows?.Oobe.OfflineInitialSetup == true;
         SetOptionalBoolean(HideWirelessSetupComboBox, windows?.Oobe.HideWirelessSetup);
         SetOptionalBoolean(HideOnlineAccountComboBox, windows?.Oobe.HideOnlineAccountScreens);
+        SetPrivacyPreference(windows?.Privacy);
         ComputerNamePrefixTextBox.Text = profile?.Machine.ComputerName.Prefix ?? string.Empty;
         SetSelectedEnum(ProxyModeComboBox, profile?.Machine.Proxy.Mode);
         SetSelectedEnum(DomainModeComboBox, profile?.Domain.Mode);
         SetSelectedEnum(LaunchModeComboBox, profile?.Deployment.LaunchMode);
         SetSelectedEnum(CleanupModeComboBox, profile?.Cleanup.ProvisioningAccount);
+        ApplicationSourceComboBox.SelectedItem = ApplicationSourceComboBox.Items.OfType<ComboBoxItem>().FirstOrDefault();
+        _applications.Clear();
+        _instructions.Clear();
+        if (profile is not null)
+        {
+            foreach (var application in profile.Applications)
+            {
+                _applications.Add(new ApplicationListItem(application));
+            }
+
+            foreach (var instruction in profile.Instructions)
+            {
+                _instructions.Add(new InstructionListItem(instruction));
+            }
+        }
     }
 
     private static bool? GetOptionalBoolean(ComboBox comboBox) =>
@@ -405,6 +484,31 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         comboBox.SelectedItem = comboBox.Items
             .OfType<ComboBoxItem>()
             .FirstOrDefault(item => string.Equals(item.Tag?.ToString(), target, StringComparison.Ordinal));
+    }
+
+    private PrivacyPreference? GetPrivacyPreference() =>
+        Enum.TryParse<PrivacyPreference>((PrivacyPreferenceComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString(), out var value)
+            ? value
+            : null;
+
+    private void SetPrivacyPreference(PrivacySettings? privacy)
+    {
+        var values = privacy is null
+            ? []
+            : new[]
+            {
+                privacy.LocationServices,
+                privacy.AdvertisingId,
+                privacy.DiagnosticData,
+                privacy.TailoredExperiences,
+                privacy.OnlineSpeechRecognition,
+                privacy.FindMyDevice,
+                privacy.InkingAndTypingPersonalization,
+            };
+        var tag = values.Distinct().Count() == 1 ? values[0].ToString() : "retain";
+        PrivacyPreferenceComboBox.SelectedItem = PrivacyPreferenceComboBox.Items
+            .OfType<ComboBoxItem>()
+            .FirstOrDefault(item => string.Equals(item.Tag?.ToString(), tag, StringComparison.Ordinal));
     }
 
     private static T GetSelectedEnum<T>(ComboBox comboBox, T fallback)
@@ -511,4 +615,18 @@ public sealed record ProfileListItem(ProvisioningProfile Profile)
     public string Name => Profile.Metadata.Name;
 
     public string Detail => $"Revision {Profile.Revision}  ·  {Profile.Windows.Architecture}  ·  {Profile.Windows.TimeZone}";
+}
+
+public sealed record ApplicationListItem(ApplicationProfile Application)
+{
+    public string DisplayName => Application.DisplayName;
+
+    public string Detail => Application.SourceKind.ToString();
+}
+
+public sealed record InstructionListItem(InstructionProfile Instruction)
+{
+    public string Id => Instruction.Id;
+
+    public string Title => Instruction.Title;
 }

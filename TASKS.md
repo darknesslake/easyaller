@@ -63,7 +63,7 @@ Implemented `ProfileImportExportService` with a 1 MiB default size limit, strict
 
 Verified: `dotnet test Easyaller.slnx` with 30 passing tests.
 
-### [ ] WP-014: Profile management UI
+### [x] WP-014: Profile management UI
 
 Add the first functional desktop UI for profile list, editor, validation, cloning, import preview, export preview, and revision conflicts.
 
@@ -74,7 +74,9 @@ Acceptance criteria:
 - The functional UI matches the documented safety model, not only the static preview.
 - Core user states have UI or view-model tests.
 
-The current cross-platform Avalonia screen lists, creates, clones, edits profile metadata, Windows target, locale, OOBE, machine prefix, proxy mode, domain mode, launch mode, and temporary-account cleanup. It opens native import/export dialogs, previews an import, requires an explicit conflict choice, and requires an explicit export confirmation after displaying confidential-field count. `ProfileEditorController` has focused tests for metadata validation and Windows and machine settings. It remains intentionally incomplete until applications, instructions, privacy controls, and wider UI-flow coverage are added.
+Implemented the first functional cross-platform Avalonia profile manager. It lists, creates, clones, edits, refreshes, imports, exports, and explicitly deletes local profiles. The editor covers metadata, Windows target, locale, OOBE, privacy preference, machine prefix, proxy mode, domain mode, launch mode, temporary-account cleanup, applications, and instructions. Import uses preview and explicit conflict choice; export shows a confidential-field count and needs confirmation. Credentials have no profile input field. `ProfileEditorController` tests cover metadata validation, Windows and machine settings, privacy preferences, applications, and instructions.
+
+Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 34 passing tests.
 
 ### [ ] WP-015: Connect a selected profile to the provisioning pipeline
 

@@ -57,6 +57,7 @@ public sealed class ProfileEditorControllerTests
             OfflineInitialSetup: true,
             HideWirelessSetup: true,
             HideOnlineAccountScreens: true,
+            PrivacyPreference: PrivacyPreference.Disabled,
             ComputerNamePrefix: "LAB",
             ProxyMode: ProxyConfigurationMode.PromptAtRuntime,
             DomainMode: DomainMode.Required,
@@ -74,6 +75,49 @@ public sealed class ProfileEditorControllerTests
         Assert.Equal("LAB", result.Profile.Machine.ComputerName.Prefix);
         Assert.Equal(DomainMode.Required, result.Profile.Domain.Mode);
         Assert.Equal(ProvisioningAccountCleanupMode.DeleteAfterValidation, result.Profile.Cleanup.ProvisioningAccount);
+        Assert.Equal(PrivacyPreference.Disabled, result.Profile.Windows.Privacy.LocationServices);
+    }
+
+    [Fact]
+    public void SaveComplete_ApplicationsAndInstructions_ArePersistedWithTheProfile()
+    {
+        using var directory = new TemporaryDirectory();
+        var repository = new FileProfileRepository(directory.Path);
+        var original = ProvisioningProfileFactory.CreateDefault();
+        Assert.Equal(ProfileRepositoryStatus.Success, repository.Create(original).Status);
+        var controller = new ProfileEditorController(repository);
+        var settings = new ProfileSettingsEdit(
+            original.Metadata.Name,
+            original.Metadata.Description,
+            original.Windows.SupportedEditions,
+            original.Windows.Locale.UiLanguage,
+            original.Windows.Locale.InputLocale,
+            original.Windows.Locale.SystemLocale,
+            original.Windows.Locale.UserLocale,
+            original.Windows.TimeZone,
+            original.Windows.Oobe.OfflineInitialSetup,
+            original.Windows.Oobe.HideWirelessSetup,
+            original.Windows.Oobe.HideOnlineAccountScreens,
+            null,
+            original.Machine.ComputerName.Prefix,
+            original.Machine.Proxy.Mode,
+            original.Domain.Mode,
+            original.Deployment.LaunchMode,
+            original.Cleanup.ProvisioningAccount);
+        var applications = new[]
+        {
+            new ApplicationProfile("contoso-tool", "Contoso tool", ApplicationSourceKind.PackageRelative, "installers/tool.msi", []),
+        };
+        var instructions = new[]
+        {
+            new InstructionProfile("after-install", "After installation", "Open the support portal."),
+        };
+
+        var result = controller.SaveComplete(original, settings, applications, instructions);
+
+        Assert.Equal(ProfileRepositoryStatus.Success, result.Status);
+        Assert.Equal(applications.Select(static application => application.Id), result.Profile!.Applications.Select(static application => application.Id));
+        Assert.Equal(instructions.Select(static instruction => instruction.Id), result.Profile.Instructions.Select(static instruction => instruction.Id));
     }
 
     private sealed class TemporaryDirectory : IDisposable
