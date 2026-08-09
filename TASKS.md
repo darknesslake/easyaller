@@ -153,9 +153,13 @@ Implemented `TemporaryLocalAccountCredentialFactory`. It uses `RandomNumberGener
 
 Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 57 passing tests.
 
-### [ ] WP-026: Preview and dry run
+### [x] WP-026: Preview and dry run
 
 Show the effective profile, OOBE behavior, privacy state, compatibility status, and sensitive-material warning. Preview XML must use the same generator as export. Dry run changes neither disk nor Windows state.
+
+Implemented `DeploymentDryRunService`. It first creates the file-only deployment preview, then calls the shared `IUnattendGenerator` and retains the exact answer-file bytes only in memory. Its result explicitly exposes the effective profile, OOBE settings, privacy settings, compatibility result, and sensitive-material warnings. Every dry run warns that profile data can be organization-specific; one with an ephemeral local account also warns that its obfuscated password is sensitive. No dry-run API accepts an output path or performs file, disk, or Windows-state writes.
+
+Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 61 passing tests.
 
 ### [ ] WP-027: Safe deployment-package export
 

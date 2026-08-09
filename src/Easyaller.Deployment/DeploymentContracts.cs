@@ -87,6 +87,27 @@ public sealed record DeploymentPreviewResult(
     public bool IsValid => Preview is not null && Errors.Count == 0;
 }
 
+public sealed record DeploymentSensitiveMaterialWarning(string Code, string Message);
+
+public sealed record DeploymentDryRun(
+    DeploymentPreview Preview,
+    ProvisioningProfile EffectiveProfile,
+    OobeSettings Oobe,
+    PrivacySettings Privacy,
+    ReadOnlyMemory<byte> AnswerFile,
+    IReadOnlyList<DeploymentSensitiveMaterialWarning> SensitiveMaterialWarnings)
+{
+    public bool IsFileOnly => true;
+}
+
+public sealed record DeploymentDryRunResult(
+    DeploymentDryRun? DryRun,
+    IReadOnlyList<DeploymentValidationError> Errors,
+    IReadOnlyList<DeploymentValidationError> Warnings)
+{
+    public bool IsValid => DryRun is not null && Errors.Count == 0;
+}
+
 public sealed record DeploymentPackagePlan(
     DeploymentPreview Preview,
     IReadOnlyList<DeploymentPackageFile> Files);
@@ -126,6 +147,11 @@ public interface IDeploymentPreviewService
 public interface IUnattendGenerator
 {
     byte[] Generate(DeploymentPreparationRequest request);
+}
+
+public interface IDeploymentDryRunService
+{
+    DeploymentDryRunResult CreateDryRun(DeploymentPreparationRequest request);
 }
 
 public interface IDeploymentPackagePlanner
