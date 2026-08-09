@@ -2,7 +2,7 @@
 
 Easyaller is an open-source Windows workstation provisioning tool. It separates reusable, versioned configuration profiles from sensitive per-machine deployment packages, so teams can share setup standards without committing credentials or local configuration to Git.
 
-> Status: pre-alpha. The profile contract, validation foundation, local profile storage, import/export service, deterministic answer-file generation, in-memory dry run, safe file-only deployment-package export, its desktop workflow, configuration-set payload delivery, fixed first-logon bootstrapper, temporary-account cleanup state machine, explicit privacy-policy service, runtime Windows version gate, and read-only removable-disk safety model are implemented. Completed Windows SIM and VM validation, real account cleanup, desktop policy application, first-boot execution, ISO inspection, USB confirmation, and USB writing are not implemented yet.
+> Status: pre-alpha. The profile contract, validation foundation, local profile storage, import/export service, deterministic answer-file generation, in-memory dry run, safe file-only deployment-package export, its desktop workflow, configuration-set payload delivery, fixed first-logon bootstrapper, temporary-account cleanup state machine, explicit privacy-policy service, runtime Windows version gate, read-only removable-disk safety model, and read-only ISO inspection are implemented. Completed Windows SIM and VM validation, real account cleanup, desktop policy application, first-boot execution, USB confirmation, and USB writing are not implemented yet.
 
 ## Interface previews
 
@@ -49,6 +49,7 @@ These are static pre-alpha interface previews, created before the current Russia
 - Explicit privacy-policy service for documented location, advertising ID, and online speech settings. It supports only guarded Windows 11 targets, rereads every value after application, and keeps `notConfigured` and `userChoice` as no-ops. The desktop UI does not call it yet. See [`docs/PRIVACY_POLICIES.md`](docs/PRIVACY_POLICIES.md).
 - Read-only runtime Windows version gate compares the installed system with the deployment manifest and selected profile. Unknown builds warn and skip validated actions; mismatches block them. The desktop UI does not call it yet. See [`docs/RUNTIME_VERSION_GATE.md`](docs/RUNTIME_VERSION_GATE.md).
 - Read-only removable-disk inventory and hot-swap safety model. It never selects a default target and blocks system, boot, fixed, offline, read-only, or identity-less disks. See [`docs/DISK_SAFETY.md`](docs/DISK_SAFETY.md).
+- Read-only Windows ISO inspection calculates SHA-256, validates media structure, editions, architecture, and a configurable size cap. It mounts only with read-only access and always attempts to dismount in `finally`; the desktop UI does not call it yet. See [`docs/ISO_INSPECTION.md`](docs/ISO_INSPECTION.md).
 - Cryptographically generated 24-character temporary local-account password with one-time reveal and memory cleanup. It is never profile or manifest data, and AutoLogon remains excluded.
 - Windows-host validation harness that records ISO, image, and answer-file hashes plus explicit Windows SIM evidence without mounting images or touching disks. See [`docs/WINDOWS_SIM_VALIDATION.md`](docs/WINDOWS_SIM_VALIDATION.md).
 - Initial Windows 11 compatibility catalog for documented Pro and Enterprise amd64 24H2 and 25H2 targets. See [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md).
@@ -98,6 +99,8 @@ Windows-host validation instructions: [`docs/WINDOWS_SIM_VALIDATION.md`](docs/WI
 VM validation instructions: [`docs/VM_TESTING.md`](docs/VM_TESTING.md) and [`docs/VM_TESTING_RU.md`](docs/VM_TESTING_RU.md).
 
 Removable-disk safety instructions: [`docs/DISK_SAFETY.md`](docs/DISK_SAFETY.md) and [`docs/DISK_SAFETY_RU.md`](docs/DISK_SAFETY_RU.md).
+
+ISO inspection instructions: [`docs/ISO_INSPECTION.md`](docs/ISO_INSPECTION.md) and [`docs/ISO_INSPECTION_RU.md`](docs/ISO_INSPECTION_RU.md).
 
 Deployment package format and safety instructions: [`docs/DEPLOYMENT_PACKAGE.md`](docs/DEPLOYMENT_PACKAGE.md) and [`docs/DEPLOYMENT_PACKAGE_RU.md`](docs/DEPLOYMENT_PACKAGE_RU.md).
 

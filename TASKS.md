@@ -245,9 +245,13 @@ Implemented `WindowsRemovableDiskInventoryProvider` and `RemovableDiskSafetyServ
 
 Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 93 passing tests. The Windows provider was not invoked in this macOS environment, and no destructive disk operation exists.
 
-### [ ] WP-051: Read-only ISO inspection
+### [x] WP-051: Read-only ISO inspection
 
 Validate the supplied ISO structure, image editions, hash, architecture, and file-size constraints before any format operation. Always unmount safely.
+
+Implemented `WindowsIsoInspectionService` with a 12 GiB default limit, absolute-local-path and extension checks, file-size checks, and a SHA-256 result before Windows accesses the ISO. Its Windows-only content reader uses a fixed non-interactive PowerShell query that mounts only with `Mount-DiskImage -Access ReadOnly`, reads required setup paths and `Get-WindowsImage` metadata, and calls `Dismount-DiskImage` in `finally`. It blocks missing setup structure, zero or ambiguous install images, non-amd64 images, and a missing selected Professional or Enterprise amd64 edition. It is not connected to the desktop UI or any disk-writing flow. English and Russian notes are in `docs/ISO_INSPECTION.md` and `docs/ISO_INSPECTION_RU.md`.
+
+Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 98 passing tests. A real ISO was not mounted in this macOS environment; the fixed Windows probe is covered by contract tests and must still be exercised on a disposable Windows host before it is treated as an operational USB workflow.
 
 ### [ ] WP-052: Destructive confirmation state machine
 
