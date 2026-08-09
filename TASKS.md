@@ -233,11 +233,17 @@ Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easy
 
 Run the complete flow for Windows 11 24H2 and 25H2, Pro and Enterprise: offline OOBE behavior, locale, temporary sign-in, local payload, name input, mock network/domain/reboot/resume, cleanup, corrupted payload, and unknown-build warning.
 
+Deferred by the user until an approved Windows 11 Pro or Enterprise amd64 VM, official ISO, and checkpoint-capable hypervisor are available. Do not mark any catalog entry `VmValidated` without the exact evidence described in `docs/VM_TESTING.md`.
+
 ## Phase 5: protected USB creation
 
-### [ ] WP-050: Read-only disk inventory and safety model
+### [x] WP-050: Read-only disk inventory and safety model
 
 Use immutable disk identity, removable status, bus type, serial, size, system-disk and boot-disk checks. Never choose a default target. Add a mock provider and hot-swap tests.
+
+Implemented `WindowsRemovableDiskInventoryProvider` and `RemovableDiskSafetyService`. The fixed Windows-only query reads disk facts only: number, vendor, friendly name, serial, immutable `UniqueId`, bus, removable state, size, and system, boot, read-only, and offline flags. The safety service never selects a default target and permits explicit confirmation only for a uniquely identified removable USB, SD, or MMC disk that is writable, online, non-system, non-boot, and positive-sized. The selection is rechecked by immutable identity and serial before future operations, so a replacement at the same disk number is blocked while a safe renumbering of the same device remains valid. English and Russian notes are in `docs/DISK_SAFETY.md` and `docs/DISK_SAFETY_RU.md`.
+
+Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 93 passing tests. The Windows provider was not invoked in this macOS environment, and no destructive disk operation exists.
 
 ### [ ] WP-051: Read-only ISO inspection
 
