@@ -269,6 +269,10 @@ Implemented `UsbMediaWriteEngine`. It builds an immutable plan with source paths
 
 Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 107 passing tests. Only an in-memory target was invoked; no disk or filesystem target was written.
 
+Added a Windows-only `WindowsUsbVolumeBindingInspector` and `DiskBoundDirectoryUsbMediaWriteTarget`. The fixed read-only query binds a requested volume root to a single partition and disk through `Get-Volume`, `Get-Partition`, `Get-Disk`, and `Win32_DiskDrive`; it then reuses immutable ID, serial, removable, bus, system, boot, read-only, and offline safety checks. The target rejects any nonempty root, stages files below `.easyaller-staging-*`, checks for root changes before commit, and verifies final hashes through the write engine. It is not connected to UI and has not been run against a physical USB. English and Russian notes are in `docs/USB_VOLUME_BINDING.md` and `docs/USB_VOLUME_BINDING_RU.md`.
+
+Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 111 passing tests. The Windows query was checked by script-contract tests, while the staging target was exercised only against a temporary test directory with a mock binding inspector.
+
 ### [ ] WP-054: Create installation USB screen
 
 Add the functional UI only after the safety engine and mock-disk tests pass. The normal UI must never expose a system or fixed internal disk as a target.
