@@ -94,6 +94,8 @@ Read [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md) for a practical guide 
 
 Windows-host validation instructions: [`docs/WINDOWS_SIM_VALIDATION.md`](docs/WINDOWS_SIM_VALIDATION.md) and [`docs/WINDOWS_SIM_VALIDATION_RU.md`](docs/WINDOWS_SIM_VALIDATION_RU.md).
 
+VM validation instructions: [`docs/VM_TESTING.md`](docs/VM_TESTING.md) and [`docs/VM_TESTING_RU.md`](docs/VM_TESTING_RU.md).
+
 Deployment package format and safety instructions: [`docs/DEPLOYMENT_PACKAGE.md`](docs/DEPLOYMENT_PACKAGE.md) and [`docs/DEPLOYMENT_PACKAGE_RU.md`](docs/DEPLOYMENT_PACKAGE_RU.md).
 
 ## License

@@ -1,0 +1,40 @@
+{
+  "formatVersion": 1,
+  "runId": "replace-with-local-run-id",
+  "startedAtUtc": "replace-with-utc-timestamp",
+  "hypervisor": "replace-with-hypervisor-and-version",
+  "checkpoint": "before-oobe",
+  "networkMode": "isolated-or-nat",
+  "iso": {
+    "sha256": "replace-with-sha256",
+    "source": "approved-official-source"
+  },
+  "image": {
+    "path": "outside-repository",
+    "sha256": "replace-with-sha256",
+    "index": 0,
+    "edition": "Professional-or-Enterprise"
+  },
+  "deploymentPackage": {
+    "manifestSha256": "replace-with-sha256",
+    "profileId": "replace-with-profile-guid",
+    "profileRevision": 0,
+    "answerFileSha256": "replace-with-sha256"
+  },
+  "runtime": {
+    "edition": "Professional-or-Enterprise",
+    "displayVersion": "24H2-or-25H2",
+    "build": 0,
+    "architecture": "amd64"
+  },
+  "results": {
+    "windowsSimEvidencePath": "outside-repository",
+    "oobe": "not-run",
+    "firstLogon": "not-run",
+    "payloadVerification": "not-run",
+    "runtimeVersionGate": "not-run",
+    "mockDomainJoin": "not-run",
+    "cleanup": "not-run"
+  },
+  "notes": "Do not include passwords, tokens, domain credentials, or organization-specific addresses."
+}

@@ -221,9 +221,13 @@ Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easy
 
 ## Phase 4: VM validation
 
-### [ ] WP-040: VM test guide and fixtures
+### [x] WP-040: VM test guide and fixtures
 
 Create `docs/VM_TESTING.md` with VM prerequisites, snapshots, official ISO handling, manual disk choice, mock domain join, evidence collection, and test-secret cleanup.
+
+Added English and Russian VM test guides plus a safe committed evidence template. The guides require an isolated Windows 11 VM with documented UEFI, Secure Boot, vTPM, storage, memory, and CPU settings; a `before-oobe` checkpoint; administrator-supplied official ISO; manual choice of one empty VM disk; mock-only domain results; evidence outside Git; and test-secret cleanup. They prohibit physical disks, USB pass-through, production domains, production credentials, completed evidence, VM disks, snapshots, and generated passwords in the repository. Added ignore rules for VM disk-chain artifacts and local VM evidence.
+
+Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 88 passing tests. No VM or Windows ISO is available in this macOS environment, so no scenario has been marked `VmValidated`.
 
 ### [ ] WP-041: VM matrix
 

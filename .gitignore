@@ -15,6 +15,10 @@
 *.esd
 *.vhd
 *.vhdx
+*.avhdx
+*.vmcx
+*.vmrs
+/vm-evidence/
 
 # Build and IDE output.
 [Bb]in/
