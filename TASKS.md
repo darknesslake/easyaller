@@ -319,6 +319,6 @@ Reviewed the approved local setup instructions and created an ignored local asse
 
 Added the optional `staticIpv4` profile block for a validated IPv4 address, subnet mask, default gateway, and one to three DNS servers. The profile editor can create and edit it, and export preview marks it confidential. Existing runtime profiles remain compatible. Applying the plan still requires an explicit enabled adapter name or interface GUID and exact `APPLY`; the Windows adapter changes only that adapter, verifies the resulting address and DNS, and attempts a same-adapter rollback on failure. No profile stores credentials, Wi-Fi, VPN, or arbitrary commands. Mock tests cover validation, serialization, planning, editor persistence, operation order, and adapter binding. Real Windows VM validation remains mandatory before workstation use.
 
-### [ ] WP-071: Choose license and publish the first release
+### [x] WP-071: Publish the first GitHub prerelease
 
-The owner must choose the repository license, visibility, and release policy. Creating or pushing a GitHub repository is authorized, but publishing a release requires the license decision.
+The owner explicitly authorized the public MIT-licensed GitHub prerelease `v0.1.0` on 2026-08-09. The tag targets commit `9788ff4`, whose GitHub Actions CI run passed. It contains source archives and English release notes only, with no local profiles, deployment packages, credentials, or installers. This is a pre-alpha testing milestone, not a claim of Windows VM or physical-media validation.
