@@ -203,9 +203,13 @@ Implemented an immutable in-memory `TemporaryAccountCleanupStateMachine`. It acc
 
 Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 77 passing tests. Windows SIM and VM validation are still required before a real account-management adapter can be added.
 
-### [ ] WP-033: PrivacyConfigurationService
+### [x] WP-033: PrivacyConfigurationService
 
 Separate post-install privacy policies from OOBE page hiding. Apply only documented policies with a supported-build check and a verification method. `notConfigured` must remain a no-op.
+
+Implemented an explicit `PrivacyConfigurationService` with a separately injectable Windows registry adapter. It accepts `PrivacySettings` and a Windows target only, so OOBE page hiding cannot enter the post-install policy path. On Windows 11 Pro or Enterprise amd64 build 26100 or later, it can apply and reread documented policies for location services, disabling advertising ID, and disabling online speech recognition. `notConfigured` and `userChoice` make no writes and do not remove existing organization policy. Unsupported fields and unsupported force-enable requests warn without writing an invented registry value. The desktop UI does not invoke the adapter. English and Russian policy notes are in `docs/PRIVACY_POLICIES.md` and `docs/PRIVACY_POLICIES_RU.md`.
+
+Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 83 passing tests. The adapter was not invoked against Windows in this macOS environment; Windows SIM and VM validation are required before workstation use.
 
 ### [ ] WP-034: Runtime Windows version gate
 
