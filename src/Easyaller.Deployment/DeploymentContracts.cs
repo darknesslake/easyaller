@@ -96,6 +96,19 @@ public interface IDeploymentCompatibilityValidator
     DeploymentCompatibilityResult Validate(WindowsDeploymentTarget target, ProvisioningProfile profile);
 }
 
+public interface IDeploymentProfileValidator
+{
+    DeploymentProfileValidationResult Validate(DeploymentPreparationRequest request);
+}
+
+public sealed record DeploymentProfileValidationResult(
+    IReadOnlyList<DeploymentValidationError> Errors,
+    IReadOnlyList<DeploymentValidationError> Warnings,
+    DeploymentCompatibilityState CompatibilityState)
+{
+    public bool IsValid => Errors.Count == 0;
+}
+
 public interface IWindowsCompatibilityCatalog
 {
     IReadOnlyList<WindowsCompatibilityEntry> Entries { get; }
@@ -241,10 +254,10 @@ public sealed class CatalogDeploymentCompatibilityValidator(
 }
 
 public sealed class DeploymentPreviewService(
-    IDeploymentCompatibilityValidator? compatibilityValidator = null,
+    IDeploymentProfileValidator? deploymentProfileValidator = null,
     IProvisioningPlanBuilder? provisioningPlanBuilder = null) : IDeploymentPreviewService
 {
-    private readonly IDeploymentCompatibilityValidator _compatibilityValidator = compatibilityValidator ?? new CatalogDeploymentCompatibilityValidator();
+    private readonly IDeploymentProfileValidator _deploymentProfileValidator = deploymentProfileValidator ?? new DeploymentProfileValidator();
     private readonly IProvisioningPlanBuilder _provisioningPlanBuilder = provisioningPlanBuilder ?? new ProvisioningPlanBuilder();
 
     public DeploymentPreviewResult CreatePreview(DeploymentPreparationRequest request)
@@ -253,19 +266,22 @@ public sealed class DeploymentPreviewService(
         ArgumentNullException.ThrowIfNull(request.Profile);
         ArgumentNullException.ThrowIfNull(request.Target);
 
+        var validation = _deploymentProfileValidator.Validate(request);
+        if (!validation.IsValid)
+        {
+            return new DeploymentPreviewResult(
+                null,
+                validation.Errors,
+                validation.Warnings);
+        }
+
         var profilePlan = _provisioningPlanBuilder.Create(request.Profile);
         if (!profilePlan.IsValid)
         {
             return new DeploymentPreviewResult(
                 null,
                 profilePlan.Errors.Select(static error => new DeploymentValidationError(error.Code, error.FieldPath, error.Message)).ToArray(),
-                []);
-        }
-
-        var compatibility = _compatibilityValidator.Validate(request.Target, request.Profile);
-        if (!compatibility.CanContinue)
-        {
-            return new DeploymentPreviewResult(null, compatibility.Errors, compatibility.Warnings);
+                validation.Warnings);
         }
 
         var operations = new[]
@@ -280,13 +296,13 @@ public sealed class DeploymentPreviewService(
                 request.Profile.ProfileId,
                 request.Profile.Revision,
                 request.Target,
-                compatibility.State,
-                profilePlan.Plan!.Steps,
-                profilePlan.Plan.RuntimePrompts,
+                validation.CompatibilityState,
+                profilePlan.Plan!.Steps.Where(static step => step.Kind != ProvisioningStepKind.RequestDomainJoin).ToArray(),
+                profilePlan.Plan.RuntimePrompts.Where(static prompt => prompt.Kind != RuntimePromptKind.DomainJoin).ToArray(),
                 operations,
                 IsFileOnly: true),
             [],
-            compatibility.Warnings);
+            validation.Warnings);
     }
 }
 

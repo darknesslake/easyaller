@@ -112,11 +112,15 @@ Implemented `Windows11CompatibilityCatalog` for documented Windows 11 Pro and En
 
 Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 43 passing tests.
 
-### [ ] WP-022: Deployment profile validator
+### [x] WP-022: Deployment profile validator
 
 Validate locale, Windows time zone, architecture, target edition, OOBE combination, privacy state, and credentials. Block domain join and internal-disk partitioning in the deployment profile.
 
 Required message for any credential field: `Deployment profile contains a forbidden credential field.`
+
+Implemented `DeploymentProfileValidator` as the deployment boundary before a preview is created. It revalidates profile locale, time-zone, architecture, edition, OOBE consistency, and privacy preferences; evaluates the documented compatibility catalog; blocks profiles that require a domain join; excludes optional runtime domain prompts from the deployment preview; and scans serialized profiles for credential-like fields with the required message. Internal-disk partitioning has no deployment profile field or planned operation, so it cannot enter the file-only path. Added `docs/GETTING_STARTED.md` with the current launch, profile, safety, deployment-status, build, and test instructions.
+
+Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 46 passing tests.
 
 ### [ ] WP-023: Deterministic `autounattend.xml` generator
 

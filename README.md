@@ -78,6 +78,8 @@ Local organization configuration, real exported profiles, deployment output, ISO
 
 Read [`PRODUCT_SPEC.md`](PRODUCT_SPEC.md) for product decisions.
 
+Read [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md) for a practical guide to running the desktop application, creating profiles, importing and exporting them, and understanding the current pre-alpha limits.
+
 ## License
 
 [MIT](LICENSE)
