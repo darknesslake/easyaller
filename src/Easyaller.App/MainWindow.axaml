@@ -51,21 +51,34 @@
 
       <Grid Grid.Row="1" ColumnDefinitions="0.82*,1.55*" ColumnSpacing="20">
         <Border Background="#172233" BorderBrush="#2A3B55" BorderThickness="1" CornerRadius="20" Padding="14">
-          <Grid RowDefinitions="Auto,*,Auto">
-            <TextBlock Text="Сохранённые профили" FontSize="15" FontWeight="SemiBold" Foreground="#EAF0FA" Margin="8,6,8,12" />
-            <ListBox x:Name="ProfilesList" Grid.Row="1" SelectionChanged="ProfilesList_SelectionChanged" Background="Transparent" BorderThickness="0">
-              <ListBox.ItemTemplate>
-                <DataTemplate DataType="{x:Type local:ProfileListItem}">
-                  <Border Padding="10" Margin="0,2" CornerRadius="7">
-                    <StackPanel Spacing="3">
-                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="#EDF3FC" />
-                      <TextBlock Text="{Binding Detail}" FontSize="12" Foreground="#9EB0CC" />
-                    </StackPanel>
-                  </Border>
-                </DataTemplate>
-              </ListBox.ItemTemplate>
-            </ListBox>
-            <Button Grid.Row="2" Content="Обновить список" Click="Refresh_Click" HorizontalAlignment="Left" Margin="8,12,8,4" />
+          <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="10">
+            <Grid ColumnDefinitions="*,Auto" Margin="8,6,8,0">
+              <TextBlock Text="Сохранённые профили" FontSize="15" FontWeight="SemiBold" Foreground="#EAF0FA" />
+              <TextBlock Grid.Column="1" Text="{Binding ProfileListCountText}" FontSize="12" Foreground="#8194B1" VerticalAlignment="Center" />
+            </Grid>
+            <TextBox x:Name="ProfileSearchTextBox" Grid.Row="1" PlaceholderText="Найти профиль" TextChanged="ProfileSearchTextBox_TextChanged" IsEnabled="{Binding CanSearchProfiles}" Margin="4,0" />
+            <Grid Grid.Row="2">
+              <ListBox x:Name="ProfilesList" SelectionChanged="ProfilesList_SelectionChanged" Background="Transparent" BorderThickness="0">
+                <ListBox.ItemTemplate>
+                  <DataTemplate DataType="{x:Type local:ProfileListItem}">
+                    <Grid ColumnDefinitions="*,Auto" Margin="10,8" ColumnSpacing="8">
+                      <StackPanel Spacing="4">
+                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="#EDF3FC" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding Detail}" FontSize="12" Foreground="#9EB0CC" TextWrapping="Wrap" />
+                      </StackPanel>
+                      <Border Grid.Column="1" Background="#203653" CornerRadius="999" Padding="8,3" VerticalAlignment="Top">
+                        <TextBlock Text="{Binding RevisionLabel}" FontSize="11" Foreground="#A9CCFF" />
+                      </Border>
+                    </Grid>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+              <StackPanel IsVisible="{Binding HasNoVisibleProfiles}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="5" Margin="18">
+                <TextBlock Text="Профили не найдены" FontWeight="SemiBold" Foreground="#B7C7E1" HorizontalAlignment="Center" />
+                <TextBlock Text="Измените запрос или создайте новый профиль." TextWrapping="Wrap" TextAlignment="Center" FontSize="12" Foreground="#7F93B4" />
+              </StackPanel>
+            </Grid>
+            <Button Grid.Row="3" Content="Обновить список" Click="Refresh_Click" HorizontalAlignment="Left" Margin="8,2,8,4" />
           </Grid>
         </Border>
 

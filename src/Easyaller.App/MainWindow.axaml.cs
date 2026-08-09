@@ -15,6 +15,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     private readonly FileProfileRepository _repository;
     private readonly ProfileImportExportService _profileImportExportService;
     private readonly ProfileEditorController _profileEditorController;
+    private readonly List<ProfileListItem> _allProfiles = [];
     private readonly ObservableCollection<ProfileListItem> _profiles = [];
     private readonly ObservableCollection<ApplicationListItem> _applications = [];
     private readonly ObservableCollection<InstructionListItem> _instructions = [];
@@ -24,6 +25,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     private string _selectedProfileName = "Выберите профиль";
     private string _selectedProfileDescription = "Выберите сохранённый профиль, чтобы посмотреть его локальное состояние.";
     private string _selectedProfileRevision = "Профиль не выбран";
+    private string _profileListCountText = "0 профилей";
     private bool _hasUnsavedChanges;
     private bool _isPopulatingEditor;
     private bool _isChangingProfileSelection;
@@ -68,10 +70,18 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         private set => SetField(ref _selectedProfileRevision, value);
     }
 
+    public string ProfileListCountText
+    {
+        get => _profileListCountText;
+        private set => SetField(ref _profileListCountText, value);
+    }
+
     public bool HasSelectedProfile => _selectedProfile is not null;
     public bool HasUnsavedChanges => _hasUnsavedChanges;
     public bool CanSaveProfile => HasSelectedProfile && HasUnsavedChanges;
     public bool CanUseSavedProfileActions => HasSelectedProfile && !HasUnsavedChanges;
+    public bool CanSearchProfiles => _allProfiles.Count > 0 && !HasUnsavedChanges;
+    public bool HasNoVisibleProfiles => _profiles.Count == 0;
 
     private void MainWindow_Closing(object? sender, WindowClosingEventArgs e)
     {
@@ -425,6 +435,19 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         SetStatus("Список профилей обновлён.");
     }
 
+    private void ProfileSearchTextBox_TextChanged(object? sender, TextChangedEventArgs e)
+    {
+        if (_isChangingProfileSelection)
+        {
+            return;
+        }
+
+        ApplyProfileFilter(_selectedProfile?.Profile.ProfileId, forceEditorRefresh: false);
+        SetStatus(HasNoVisibleProfiles
+            ? "По этому запросу профили не найдены."
+            : $"Показано профилей: {_profiles.Count}.");
+    }
+
     private void ProfilesList_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (_isChangingProfileSelection)
@@ -450,13 +473,48 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     private void RefreshProfiles(Guid? selectedProfileId = null)
     {
         var list = _repository.List();
+        _allProfiles.Clear();
+        foreach (var profile in list.Profiles)
+        {
+            _allProfiles.Add(new ProfileListItem(profile));
+        }
+
+        if (selectedProfileId is { } requestedId
+            && _allProfiles.Any(item => item.Profile.ProfileId == requestedId)
+            && !_allProfiles.Where(item => ProfileListFilter.Matches(item, ProfileSearchTextBox.Text))
+                .Any(item => item.Profile.ProfileId == requestedId))
+        {
+            _isChangingProfileSelection = true;
+            ProfileSearchTextBox.Text = string.Empty;
+            _isChangingProfileSelection = false;
+        }
+
+        ApplyProfileFilter(selectedProfileId, forceEditorRefresh: true);
+
+        if (list.Issues.Count > 0)
+        {
+            SetStatus($"Повреждённых локальных файлов профиля: {list.Issues.Count}. Они перемещены в Corrupted.");
+        }
+        else if (_selectedProfile is not null)
+        {
+            SetStatus($"Выбран профиль «{_selectedProfile.Name}». Измените настройки или откройте экран применения.");
+        }
+    }
+
+    private void ApplyProfileFilter(Guid? selectedProfileId, bool forceEditorRefresh)
+    {
+        var previousProfileId = _selectedProfile?.Profile.ProfileId;
+        var matchingProfiles = _allProfiles
+            .Where(item => ProfileListFilter.Matches(item, ProfileSearchTextBox.Text))
+            .ToArray();
+
         _isChangingProfileSelection = true;
         try
         {
             _profiles.Clear();
-            foreach (var profile in list.Profiles)
+            foreach (var item in matchingProfiles)
             {
-                _profiles.Add(new ProfileListItem(profile));
+                _profiles.Add(item);
             }
 
             var selected = _profiles.FirstOrDefault(item => item.Profile.ProfileId == selectedProfileId)
@@ -469,16 +527,40 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             _isChangingProfileSelection = false;
         }
 
-        UpdateSelectionDetails();
+        UpdateProfileListCount();
+        if (forceEditorRefresh || previousProfileId != _selectedProfile?.Profile.ProfileId)
+        {
+            UpdateSelectionDetails();
+        }
+        else
+        {
+            OnPropertyChanged(nameof(HasSelectedProfile));
+            OnPropertyChanged(nameof(CanUseSavedProfileActions));
+        }
+    }
 
-        if (list.Issues.Count > 0)
-        {
-            SetStatus($"Повреждённых локальных файлов профиля: {list.Issues.Count}. Они перемещены в Corrupted.");
-        }
-        else if (_selectedProfile is not null)
-        {
-            SetStatus($"Выбран профиль «{_selectedProfile.Name}». Измените настройки или откройте экран применения.");
-        }
+    private void UpdateProfileListCount()
+    {
+        ProfileListCountText = string.IsNullOrWhiteSpace(ProfileSearchTextBox.Text)
+            ? GetProfileCountText(_profiles.Count)
+            : $"{_profiles.Count} из {_allProfiles.Count}";
+        OnPropertyChanged(nameof(HasNoVisibleProfiles));
+        OnPropertyChanged(nameof(CanSearchProfiles));
+    }
+
+    private static string GetProfileCountText(int count)
+    {
+        var lastTwoDigits = count % 100;
+        var lastDigit = count % 10;
+        var noun = lastTwoDigits is >= 11 and <= 14
+            ? "профилей"
+            : lastDigit switch
+            {
+                1 => "профиль",
+                2 or 3 or 4 => "профиля",
+                _ => "профилей",
+            };
+        return $"{count} {noun}";
     }
 
     private void UpdateSelectionDetails()
@@ -618,6 +700,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         OnPropertyChanged(nameof(HasUnsavedChanges));
         OnPropertyChanged(nameof(CanSaveProfile));
         OnPropertyChanged(nameof(CanUseSavedProfileActions));
+        OnPropertyChanged(nameof(CanSearchProfiles));
         UpdateDeleteButtonState();
     }
 
@@ -1053,7 +1136,46 @@ public sealed record ProfileListItem(ProvisioningProfile Profile)
 {
     public string Name => Profile.Metadata.Name;
 
-    public string Detail => $"Версия {Profile.Revision}  ·  {Profile.Windows.Architecture}  ·  {Profile.Windows.TimeZone}";
+    public string RevisionLabel => $"v{Profile.Revision}";
+
+    public string Detail
+    {
+        get
+        {
+            var editions = string.Join(" + ", Profile.Windows.SupportedEditions.Select(static edition => edition switch
+            {
+                WindowsEdition.Professional => "Pro",
+                WindowsEdition.Enterprise => "Enterprise",
+                _ => edition.ToString(),
+            }));
+            var language = Profile.Windows.Locale.UiLanguage == "ru-RU" ? "Русский" : "English";
+            var timeZone = Profile.Windows.TimeZone switch
+            {
+                "West Asia Standard Time" => "UTC+05",
+                "Central Asia Standard Time" => "UTC+06",
+                "Russian Standard Time" => "UTC+03",
+                var value => value,
+            };
+            return string.Join(" · ", editions, language, timeZone);
+        }
+    }
+}
+
+public static class ProfileListFilter
+{
+    public static bool Matches(ProfileListItem item, string? query)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return true;
+        }
+
+        var normalizedQuery = query.Trim();
+        return item.Name.Contains(normalizedQuery, StringComparison.OrdinalIgnoreCase)
+            || (item.Profile.Metadata.Description?.Contains(normalizedQuery, StringComparison.OrdinalIgnoreCase) ?? false)
+            || item.Detail.Contains(normalizedQuery, StringComparison.OrdinalIgnoreCase);
+    }
 }
 
 public sealed record ApplicationListItem(ApplicationProfile Application)

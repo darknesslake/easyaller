@@ -57,5 +57,19 @@
       <Setter Property="Foreground" Value="#FCA5A5" />
       <Setter Property="TextWrapping" Value="Wrap" />
     </Style>
+    <Style Selector="ListBox#ProfilesList > ListBoxItem">
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Margin" Value="0,2" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="ListBox#ProfilesList > ListBoxItem:pointerover">
+      <Setter Property="Background" Value="#1F3047" />
+    </Style>
+    <Style Selector="ListBox#ProfilesList > ListBoxItem:selected">
+      <Setter Property="Background" Value="#29415F" />
+      <Setter Property="BorderBrush" Value="#40658D" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
   </Application.Styles>
 </Application>

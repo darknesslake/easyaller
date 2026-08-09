@@ -128,6 +128,22 @@ public sealed class ProfileEditorControllerTests
         Assert.True(controller.HasChanges(original, editedSettings, original.Applications, original.Instructions));
     }
 
+    [Theory]
+    [InlineData("original", true)]
+    [InlineData("RUSSIAN", true)]
+    [InlineData("UTC", true)]
+    [InlineData("missing", false)]
+    public void ProfileListFilter_NameDescriptionAndDetails_AreSearchable(string query, bool expected)
+    {
+        var defaultProfile = ProvisioningProfileFactory.CreateDefault("Original profile");
+        var profile = defaultProfile with
+        {
+            Metadata = defaultProfile.Metadata with { Description = "Russian workstation" },
+        };
+
+        Assert.Equal(expected, ProfileListFilter.Matches(new ProfileListItem(profile), query));
+    }
+
     [Fact]
     public void SaveComplete_ApplicationsAndInstructions_ArePersistedWithTheProfile()
     {
