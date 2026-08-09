@@ -91,6 +91,8 @@ On Windows, profiles are stored in `%ProgramData%\Easyaller\Profiles`. On other 
 
 Local organization configuration, real exported profiles, deployment output, ISO files, VM disks, installers, and build output are ignored by Git. Only neutral test fixtures and future public examples may use the `*.wpprofile.json` extension in the repository.
 
+The public starting profile is [`examples/profiles/neutral-workstation.wpprofile.json`](examples/profiles/neutral-workstation.wpprofile.json). It contains no organization, network, proxy, application, or credential values. Replace its ID and review every setting before importing it.
+
 Read [`PRODUCT_SPEC.md`](PRODUCT_SPEC.md) for product decisions.
 
 Read [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md) for a practical guide to running the desktop application, creating profiles, importing and exporting them, and understanding the current pre-alpha limits.
@@ -116,6 +118,10 @@ Windows USB-volume binding instructions: [`docs/USB_VOLUME_BINDING.md`](docs/USB
 USB creation instructions: [`docs/USB_CREATOR.md`](docs/USB_CREATOR.md) and [`docs/USB_CREATOR_RU.md`](docs/USB_CREATOR_RU.md).
 
 Deployment package format and safety instructions: [`docs/DEPLOYMENT_PACKAGE.md`](docs/DEPLOYMENT_PACKAGE.md) and [`docs/DEPLOYMENT_PACKAGE_RU.md`](docs/DEPLOYMENT_PACKAGE_RU.md).
+
+## Contributing and security
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for local checks, profile boundaries, and pull-request expectations. See [SECURITY.md](SECURITY.md) for private vulnerability reporting and the safe research boundary.
 
 ## License
 

@@ -33,6 +33,19 @@ public sealed class ProfileJsonSerializerTests
         Assert.Equal([WindowsEdition.Professional, WindowsEdition.Enterprise], result.Profile.Windows.SupportedEditions);
     }
 
+    [Fact]
+    public void Read_PublicNeutralExample_ReturnsValidProfile()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "Fixtures", "Examples", "neutral-workstation.wpprofile.json");
+
+        var result = _serializer.Read(File.ReadAllBytes(path));
+
+        Assert.True(result.IsValid);
+        Assert.NotNull(result.Profile);
+        Assert.Equal("Neutral workstation", result.Profile.Metadata.Name);
+        Assert.Equal(CredentialHandling.PromptAtRuntime, result.Profile.Domain.Credentials);
+    }
+
     [Theory]
     [InlineData("invalid-duplicate-property.wpprofile.json", "profile.json.duplicateProperty")]
     [InlineData("invalid-future-schema.wpprofile.json", "profile.schemaVersion.unsupported")]

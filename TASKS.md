@@ -291,9 +291,13 @@ Added one English and Russian operator guide that connects the existing package,
 
 Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 115 passing tests.
 
-### [ ] WP-061: Public repository readiness
+### [x] WP-061: Public repository readiness
 
-Keep all public text and UI in English. Add contribution guidance, security policy, CI, neutral examples, and a chosen license. Scan current files and history for secrets and organization data. Do not publish a release before the owner chooses a license.
+Keep contributor-facing public text in English while retaining the user-requested Russian desktop UI. Add contribution guidance, security policy, CI, neutral examples, and a chosen license. Scan current files and history for secrets and organization data. Do not publish a release before the owner explicitly authorizes it.
+
+Added a least-privilege GitHub Actions CI workflow for restore, Release build, and tests on pushes to `main` and pull requests. Added English `CONTRIBUTING.md` and `SECURITY.md`, including public-profile boundaries, local verification, private vulnerability reporting, and safe research limits. Added a neutral public profile example and a unit test that parses it, so the example cannot silently drift from the profile contract. The repository already contains an MIT license. A current-tree scan and a scan across all 33 commits found no high-confidence credential or private-key material; expected secret-related source and test literals were manually reviewed. No release was created. The Russian desktop UI remains intentional; contributor-facing material is English unless it is an explicit Russian translation.
+
+Verified: Debug and Release `dotnet build Easyaller.slnx` completed with zero warnings; Debug and Release `dotnet test Easyaller.slnx --no-build` completed with 116 passing tests.
 
 ### [ ] WP-062: Physical-PC pilot
 
