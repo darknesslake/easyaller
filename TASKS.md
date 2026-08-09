@@ -195,9 +195,13 @@ Implemented the opt-in `FirstLogonBootstrapper`. It is valid only for an active 
 
 Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 73 passing tests. The first-logon behavior was not executed on Windows in this macOS environment; Windows SIM and VM validation remain required.
 
-### [ ] WP-032: Temporary-account cleanup state machine
+### [x] WP-032: Temporary-account cleanup state machine
 
 Track `created`, `firstLogin`, `provisioning`, `domainJoined`, `validated`, `cleanupEligible`, and `cleaned`. Delete or disable only when expected administrator access has been verified.
+
+Implemented an immutable in-memory `TemporaryAccountCleanupStateMachine`. It accepts only ordered lifecycle events, skips `domainJoined` only when domain join is not required, and will not mark cleanup eligible until the required resume, required domain join, and expected administrator access are all verified. The selected profile policy returns a `disable` or `delete` plan only at `cleanupEligible`; no current code executes an operating-system account operation. English and Russian safety notes are in `docs/TEMPORARY_ACCOUNT_CLEANUP.md` and `docs/TEMPORARY_ACCOUNT_CLEANUP_RU.md`.
+
+Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 77 passing tests. Windows SIM and VM validation are still required before a real account-management adapter can be added.
 
 ### [ ] WP-033: PrivacyConfigurationService
 
