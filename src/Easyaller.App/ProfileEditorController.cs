@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Easyaller.Core.Profiles;
 
 namespace Easyaller.App;
@@ -7,6 +8,7 @@ public sealed class ProfileEditorController(IProfileRepository repository)
     public const string RequiredInputLocales = "en-US;ru-RU";
 
     private readonly IProfileRepository _repository = repository ?? throw new ArgumentNullException(nameof(repository));
+    private readonly ProvisioningProfileValidator _validator = new();
 
     public ProfileRepositoryWriteResult Save(ProvisioningProfile original, string? name, string? description)
     {
@@ -30,16 +32,42 @@ public sealed class ProfileEditorController(IProfileRepository repository)
         IReadOnlyList<ApplicationProfile> applications,
         IReadOnlyList<InstructionProfile> instructions)
     {
+        var updated = CreateCompleteDraft(original, settings, applications, instructions);
+        return _repository.Update(updated, original.Revision);
+    }
+
+    public ProfileValidationResult ValidateComplete(
+        ProvisioningProfile original,
+        ProfileSettingsEdit settings,
+        IReadOnlyList<ApplicationProfile> applications,
+        IReadOnlyList<InstructionProfile> instructions) =>
+        _validator.Validate(CreateCompleteDraft(original, settings, applications, instructions));
+
+    public bool HasChanges(
+        ProvisioningProfile original,
+        ProfileSettingsEdit settings,
+        IReadOnlyList<ApplicationProfile> applications,
+        IReadOnlyList<InstructionProfile> instructions) =>
+        !string.Equals(
+            JsonSerializer.Serialize(original),
+            JsonSerializer.Serialize(CreateCompleteDraft(original, settings, applications, instructions)),
+            StringComparison.Ordinal);
+
+    private static ProvisioningProfile CreateCompleteDraft(
+        ProvisioningProfile original,
+        ProfileSettingsEdit settings,
+        IReadOnlyList<ApplicationProfile> applications,
+        IReadOnlyList<InstructionProfile> instructions)
+    {
         ArgumentNullException.ThrowIfNull(original);
         ArgumentNullException.ThrowIfNull(settings);
-
         ArgumentNullException.ThrowIfNull(applications);
         ArgumentNullException.ThrowIfNull(instructions);
 
         var privacy = settings.PrivacyPreference is { } preference
             ? new PrivacySettings(preference, preference, preference, preference, preference, preference, preference)
             : original.Windows.Privacy;
-        var updated = original with
+        return original with
         {
             Metadata = new ProfileMetadata(
                 settings.Name?.Trim() ?? string.Empty,
@@ -79,7 +107,6 @@ public sealed class ProfileEditorController(IProfileRepository repository)
             Applications = applications.ToArray(),
             Instructions = instructions.ToArray(),
         };
-        return _repository.Update(updated, original.Revision);
     }
 
     private static NetworkSettings CreateNetworkSettings(ProfileSettingsEdit settings) => settings.NetworkMode switch

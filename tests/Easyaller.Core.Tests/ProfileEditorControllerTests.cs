@@ -80,6 +80,55 @@ public sealed class ProfileEditorControllerTests
     }
 
     [Fact]
+    public void ValidateComplete_InvalidDraft_ReturnsFieldErrorsWithoutWritingTheProfile()
+    {
+        using var directory = new TemporaryDirectory();
+        var repository = new FileProfileRepository(directory.Path);
+        var original = ProvisioningProfileFactory.CreateDefault("Original profile");
+        Assert.Equal(ProfileRepositoryStatus.Success, repository.Create(original).Status);
+        var controller = new ProfileEditorController(repository);
+        var settings = new ProfileSettingsEdit(
+            " ",
+            original.Metadata.Description,
+            [],
+            original.Windows.Locale.UiLanguage,
+            original.Windows.Locale.InputLocale,
+            original.Windows.Locale.SystemLocale,
+            original.Windows.Locale.UserLocale,
+            original.Windows.TimeZone,
+            original.Windows.Oobe.OfflineInitialSetup,
+            original.Windows.Oobe.HideWirelessSetup,
+            original.Windows.Oobe.HideOnlineAccountScreens,
+            null,
+            original.Machine.ComputerName.Prefix,
+            original.Machine.Proxy.Mode,
+            original.Domain.Mode,
+            original.Deployment.LaunchMode,
+            original.Cleanup.ProvisioningAccount);
+
+        var result = controller.ValidateComplete(original, settings, original.Applications, original.Instructions);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, error => error.FieldPath == "metadata.name");
+        Assert.Contains(result.Errors, error => error.FieldPath == "windows.supportedEditions");
+        Assert.Equal(1, repository.Read(original.ProfileId).Profile!.Revision);
+    }
+
+    [Fact]
+    public void HasChanges_OriginalValuesAndEditedValues_AreDistinguished()
+    {
+        using var directory = new TemporaryDirectory();
+        var repository = new FileProfileRepository(directory.Path);
+        var original = ProvisioningProfileFactory.CreateDefault("Original profile");
+        var controller = new ProfileEditorController(repository);
+        var originalSettings = CreateSettings(original, original.Metadata.Name);
+        var editedSettings = CreateSettings(original, "Edited profile");
+
+        Assert.False(controller.HasChanges(original, originalSettings, original.Applications, original.Instructions));
+        Assert.True(controller.HasChanges(original, editedSettings, original.Applications, original.Instructions));
+    }
+
+    [Fact]
     public void SaveComplete_ApplicationsAndInstructions_ArePersistedWithTheProfile()
     {
         using var directory = new TemporaryDirectory();
@@ -207,4 +256,29 @@ public sealed class ProfileEditorControllerTests
 
         public void Dispose() => Directory.Delete(Path, recursive: true);
     }
+
+    private static ProfileSettingsEdit CreateSettings(ProvisioningProfile profile, string name) => new(
+        name,
+        profile.Metadata.Description,
+        profile.Windows.SupportedEditions,
+        profile.Windows.Locale.UiLanguage,
+        profile.Windows.Locale.InputLocale,
+        profile.Windows.Locale.SystemLocale,
+        profile.Windows.Locale.UserLocale,
+        profile.Windows.TimeZone,
+        profile.Windows.Oobe.OfflineInitialSetup,
+        profile.Windows.Oobe.HideWirelessSetup,
+        profile.Windows.Oobe.HideOnlineAccountScreens,
+        null,
+        profile.Machine.ComputerName.Prefix,
+        profile.Machine.Proxy.Mode,
+        profile.Domain.Mode,
+        profile.Deployment.LaunchMode,
+        profile.Cleanup.ProvisioningAccount,
+        profile.Machine.Network.Mode,
+        profile.Machine.Network.StaticIpv4?.Address,
+        profile.Machine.Network.StaticIpv4?.SubnetMask,
+        profile.Machine.Network.StaticIpv4?.DefaultGateway,
+        profile.Machine.Network.StaticIpv4 is { } staticIpv4 ? string.Join(", ", staticIpv4.DnsServers) : null,
+        string.Join(", ", profile.Machine.Proxy.BypassList ?? []));
 }

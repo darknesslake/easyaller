@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Easyaller.Core.Profiles;
@@ -23,6 +24,9 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     private string _selectedProfileName = "Выберите профиль";
     private string _selectedProfileDescription = "Выберите сохранённый профиль, чтобы посмотреть его локальное состояние.";
     private string _selectedProfileRevision = "Профиль не выбран";
+    private bool _hasUnsavedChanges;
+    private bool _isPopulatingEditor;
+    private bool _isChangingProfileSelection;
     private event PropertyChangedEventHandler? ViewModelPropertyChanged;
 
     public MainWindow()
@@ -36,6 +40,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         ApplicationsList.ItemsSource = _applications;
         InstructionsList.ItemsSource = _instructions;
         StoragePathText.Text = _repository.RootDirectory;
+        AttachEditorChangeHandlers();
         RefreshProfiles();
     }
 
@@ -64,9 +69,28 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     }
 
     public bool HasSelectedProfile => _selectedProfile is not null;
+    public bool HasUnsavedChanges => _hasUnsavedChanges;
+    public bool CanSaveProfile => HasSelectedProfile && HasUnsavedChanges;
+    public bool CanUseSavedProfileActions => HasSelectedProfile && !HasUnsavedChanges;
+
+    private void MainWindow_Closing(object? sender, WindowClosingEventArgs e)
+    {
+        if (!HasUnsavedChanges)
+        {
+            return;
+        }
+
+        e.Cancel = true;
+        SetStatus("Окно не закрыто: сохраните изменения или нажмите «Сбросить».");
+    }
 
     private void CreateProfile_Click(object? sender, RoutedEventArgs e)
     {
+        if (!CanLeaveCurrentProfile())
+        {
+            return;
+        }
+
         var defaultProfile = ProvisioningProfileFactory.CreateDefault(GetNextProfileName());
         var profile = defaultProfile with
         {
@@ -83,13 +107,19 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         SetStatus($"Профиль «{profile.Metadata.Name}» создан.");
     }
 
-    private void OpenSetup_Click(object? sender, RoutedEventArgs e) => new SetupWindow(_repository).Show(this);
+    private void OpenSetup_Click(object? sender, RoutedEventArgs e)
+    {
+        if (CanLeaveCurrentProfile())
+        {
+            new SetupWindow(_repository).Show(this);
+        }
+    }
 
     private void OpenUsbCreator_Click(object? sender, RoutedEventArgs e) => new UsbCreatorWindow().Show(this);
 
     private void CloneProfile_Click(object? sender, RoutedEventArgs e)
     {
-        if (_selectedProfile is null)
+        if (_selectedProfile is null || !CanLeaveCurrentProfile())
         {
             return;
         }
@@ -120,10 +150,12 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             _instructions.Select(static item => item.Instruction).ToArray());
         if (result.Status != ProfileRepositoryStatus.Success)
         {
+            RefreshEditorFeedback();
             SetStatus($"Не удалось сохранить профиль: {GetMessage(result.Errors)}");
             return;
         }
 
+        SetHasUnsavedChanges(false);
         RefreshProfiles(result.Profile!.ProfileId);
         SetStatus("Изменения профиля сохранены.");
     }
@@ -173,6 +205,11 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
     private async void ImportProfile_Click(object? sender, RoutedEventArgs e)
     {
+        if (!CanLeaveCurrentProfile())
+        {
+            return;
+        }
+
         if (!StorageProvider.CanOpen)
         {
             SetStatus("Импорт файлов недоступен на этой платформе.");
@@ -238,7 +275,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
     private void ExportProfile_Click(object? sender, RoutedEventArgs e)
     {
-        if (_selectedProfile is null)
+        if (_selectedProfile is null || !CanLeaveCurrentProfile())
         {
             return;
         }
@@ -295,7 +332,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
     private void DeleteProfile_Click(object? sender, RoutedEventArgs e)
     {
-        if (_selectedProfile is null)
+        if (_selectedProfile is null || !CanLeaveCurrentProfile())
         {
             return;
         }
@@ -379,60 +416,101 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
     private void Refresh_Click(object? sender, RoutedEventArgs e)
     {
+        if (!CanLeaveCurrentProfile())
+        {
+            return;
+        }
+
         RefreshProfiles(_selectedProfile?.Profile.ProfileId);
         SetStatus("Список профилей обновлён.");
     }
 
     private void ProfilesList_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        _selectedProfile = ProfilesList.SelectedItem as ProfileListItem;
+        if (_isChangingProfileSelection)
+        {
+            return;
+        }
+
+        var requestedProfile = ProfilesList.SelectedItem as ProfileListItem;
+        if (HasUnsavedChanges
+            && requestedProfile?.Profile.ProfileId != _selectedProfile?.Profile.ProfileId)
+        {
+            _isChangingProfileSelection = true;
+            ProfilesList.SelectedItem = _selectedProfile;
+            _isChangingProfileSelection = false;
+            SetStatus("Сначала сохраните или сбросьте изменения текущего профиля.");
+            return;
+        }
+
+        _selectedProfile = requestedProfile;
         UpdateSelectionDetails();
     }
 
     private void RefreshProfiles(Guid? selectedProfileId = null)
     {
         var list = _repository.List();
-        _profiles.Clear();
-        foreach (var profile in list.Profiles)
+        _isChangingProfileSelection = true;
+        try
         {
-            _profiles.Add(new ProfileListItem(profile));
+            _profiles.Clear();
+            foreach (var profile in list.Profiles)
+            {
+                _profiles.Add(new ProfileListItem(profile));
+            }
+
+            var selected = _profiles.FirstOrDefault(item => item.Profile.ProfileId == selectedProfileId)
+                ?? _profiles.FirstOrDefault();
+            ProfilesList.SelectedItem = selected;
+            _selectedProfile = selected;
+        }
+        finally
+        {
+            _isChangingProfileSelection = false;
         }
 
-        var selected = _profiles.FirstOrDefault(item => item.Profile.ProfileId == selectedProfileId)
-            ?? _profiles.FirstOrDefault();
-        ProfilesList.SelectedItem = selected;
-        _selectedProfile = selected;
         UpdateSelectionDetails();
 
         if (list.Issues.Count > 0)
         {
             SetStatus($"Повреждённых локальных файлов профиля: {list.Issues.Count}. Они перемещены в Corrupted.");
         }
-        else if (selected is not null)
+        else if (_selectedProfile is not null)
         {
-            SetStatus($"Выбран профиль «{selected.Name}». Измените настройки или откройте экран применения.");
+            SetStatus($"Выбран профиль «{_selectedProfile.Name}». Измените настройки или откройте экран применения.");
         }
     }
 
     private void UpdateSelectionDetails()
     {
-        if (_selectedProfile is null)
+        _isPopulatingEditor = true;
+        try
         {
-            SelectedProfileName = "Выберите профиль";
-            SelectedProfileDescription = "Выберите сохранённый профиль, чтобы посмотреть его локальное состояние.";
-            SelectedProfileRevision = "Профиль не выбран";
+            if (_selectedProfile is null)
+            {
+                SelectedProfileName = "Выберите профиль";
+                SelectedProfileDescription = "Выберите сохранённый профиль, чтобы посмотреть его локальное состояние.";
+                SelectedProfileRevision = "Профиль не выбран";
+            }
+            else
+            {
+                SelectedProfileName = _selectedProfile.Name;
+                SelectedProfileDescription = _selectedProfile.Profile.Metadata.Description ?? "Описание не указано.";
+                SelectedProfileRevision = $"Версия {_selectedProfile.Profile.Revision}";
+            }
+
+            ProfileNameTextBox.Text = _selectedProfile?.Profile.Metadata.Name ?? string.Empty;
+            ProfileDescriptionTextBox.Text = _selectedProfile?.Profile.Metadata.Description ?? string.Empty;
+            PopulateSettingsControls(_selectedProfile?.Profile);
+            ConfirmDeleteCheckBox.IsChecked = false;
         }
-        else
+        finally
         {
-            SelectedProfileName = _selectedProfile.Name;
-            SelectedProfileDescription = _selectedProfile.Profile.Metadata.Description ?? "Описание не указано.";
-            SelectedProfileRevision = $"Версия {_selectedProfile.Profile.Revision}";
+            _isPopulatingEditor = false;
         }
 
-        ProfileNameTextBox.Text = _selectedProfile?.Profile.Metadata.Name ?? string.Empty;
-        ProfileDescriptionTextBox.Text = _selectedProfile?.Profile.Metadata.Description ?? string.Empty;
-        PopulateSettingsControls(_selectedProfile?.Profile);
-        ConfirmDeleteCheckBox.IsChecked = false;
+        SetHasUnsavedChanges(false);
+        RefreshEditorFeedback();
         UpdateDeleteButtonState();
         ProfileEditorScrollViewer.Offset = default;
         Dispatcher.UIThread.Post(
@@ -440,10 +518,12 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             DispatcherPriority.Background);
 
         OnPropertyChanged(nameof(HasSelectedProfile));
+        OnPropertyChanged(nameof(CanSaveProfile));
+        OnPropertyChanged(nameof(CanUseSavedProfileActions));
     }
 
     private void UpdateDeleteButtonState() => DeleteProfileButton.IsEnabled =
-        _selectedProfile is not null && ConfirmDeleteCheckBox.IsChecked == true;
+        _selectedProfile is not null && !HasUnsavedChanges && ConfirmDeleteCheckBox.IsChecked == true;
 
     private string GetNextProfileName() => _profiles.Count == 0
         ? "Новый профиль компьютера"
@@ -457,9 +537,276 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             "Profiles");
 
     private static string GetMessage(IReadOnlyList<ProfileValidationError> errors) =>
-        errors.FirstOrDefault()?.Message ?? "Повторите попытку.";
+        errors.FirstOrDefault() is { } error ? GetValidationMessage(error) : "Повторите попытку.";
 
     private void SetStatus(string message) => StatusText.Text = message;
+
+    private void AttachEditorChangeHandlers()
+    {
+        foreach (var textBox in new[]
+        {
+            ProfileNameTextBox,
+            ProfileDescriptionTextBox,
+            ComputerNamePrefixTextBox,
+            StaticIpv4AddressTextBox,
+            StaticIpv4SubnetMaskTextBox,
+            StaticIpv4DefaultGatewayTextBox,
+            StaticIpv4DnsServersTextBox,
+            ProxyBypassListTextBox,
+        })
+        {
+            textBox.TextChanged += (_, _) => EditorValueChanged();
+        }
+
+        foreach (var comboBox in new[]
+        {
+            UiLanguageComboBox,
+            SystemLocaleComboBox,
+            UserLocaleComboBox,
+            TimeZoneComboBox,
+            HideWirelessSetupComboBox,
+            HideOnlineAccountComboBox,
+            PrivacyPreferenceComboBox,
+            NetworkModeComboBox,
+            ProxyModeComboBox,
+            DomainModeComboBox,
+            LaunchModeComboBox,
+            CleanupModeComboBox,
+        })
+        {
+            comboBox.SelectionChanged += (_, _) => EditorValueChanged();
+        }
+
+        foreach (var checkBox in new[]
+        {
+            ProfessionalEditionCheckBox,
+            EnterpriseEditionCheckBox,
+            OfflineInitialSetupCheckBox,
+        })
+        {
+            checkBox.IsCheckedChanged += (_, _) => EditorValueChanged();
+        }
+
+        _applications.CollectionChanged += (_, _) => EditorValueChanged();
+        _instructions.CollectionChanged += (_, _) => EditorValueChanged();
+    }
+
+    private void EditorValueChanged()
+    {
+        if (_isPopulatingEditor || _selectedProfile is null)
+        {
+            return;
+        }
+
+        var original = _selectedProfile.Profile;
+        SetHasUnsavedChanges(_profileEditorController.HasChanges(
+            original,
+            CreateProfileSettingsEdit(original),
+            _applications.Select(static item => item.Application).ToArray(),
+            _instructions.Select(static item => item.Instruction).ToArray()));
+        RefreshEditorFeedback();
+    }
+
+    private void SetHasUnsavedChanges(bool value)
+    {
+        if (_hasUnsavedChanges == value)
+        {
+            return;
+        }
+
+        _hasUnsavedChanges = value;
+        OnPropertyChanged(nameof(HasUnsavedChanges));
+        OnPropertyChanged(nameof(CanSaveProfile));
+        OnPropertyChanged(nameof(CanUseSavedProfileActions));
+        UpdateDeleteButtonState();
+    }
+
+    private bool CanLeaveCurrentProfile()
+    {
+        if (!HasUnsavedChanges)
+        {
+            return true;
+        }
+
+        SetStatus("Есть несохранённые изменения. Сохраните их или нажмите «Сбросить».");
+        return false;
+    }
+
+    private void RefreshEditorFeedback()
+    {
+        ClearInlineErrors();
+        UpdateProfileSummary();
+        if (_selectedProfile is null)
+        {
+            SetSectionStatus(WindowsSectionStatusText, hasErrors: false, isOptional: true);
+            SetSectionStatus(NetworkSectionStatusText, hasErrors: false, isOptional: true);
+            SetSectionStatus(DomainSectionStatusText, hasErrors: false, isOptional: true);
+            SetSectionStatus(ApplicationsSectionStatusText, hasErrors: false, isOptional: true);
+            return;
+        }
+
+        var original = _selectedProfile.Profile;
+        var staticNetworkEnabled = GetSelectedEnum(NetworkModeComboBox, original.Machine.Network.Mode)
+            == NetworkConfigurationMode.StaticIpv4;
+        StaticIpv4AddressTextBox.IsEnabled = staticNetworkEnabled;
+        StaticIpv4SubnetMaskTextBox.IsEnabled = staticNetworkEnabled;
+        StaticIpv4DefaultGatewayTextBox.IsEnabled = staticNetworkEnabled;
+        StaticIpv4DnsServersTextBox.IsEnabled = staticNetworkEnabled;
+        ProxyBypassListTextBox.IsEnabled = GetSelectedEnum(ProxyModeComboBox, original.Machine.Proxy.Mode)
+            == ProxyConfigurationMode.PromptAtRuntime;
+        var validation = _profileEditorController.ValidateComplete(
+            original,
+            CreateProfileSettingsEdit(original),
+            _applications.Select(static item => item.Application).ToArray(),
+            _instructions.Select(static item => item.Instruction).ToArray());
+        var errors = validation.Errors;
+
+        ShowInlineError(ProfileNameErrorText, FindError(errors, "metadata.name"));
+        ShowInlineError(WindowsEditionErrorText, FindError(errors, "windows.supportedEditions"));
+        ShowInlineError(
+            WindowsSettingsErrorText,
+            errors.FirstOrDefault(error =>
+                error.FieldPath.StartsWith("windows.", StringComparison.Ordinal)
+                && error.FieldPath != "windows.supportedEditions"));
+        ShowInlineError(ComputerNamePrefixErrorText, FindError(errors, "machine.computerName.prefix"));
+        ShowInlineError(StaticIpv4AddressErrorText, FindError(errors, "machine.network.staticIpv4.address"));
+        ShowInlineError(StaticIpv4SubnetMaskErrorText, FindError(errors, "machine.network.staticIpv4.subnetMask"));
+        ShowInlineError(StaticIpv4DefaultGatewayErrorText, FindError(errors, "machine.network.staticIpv4.defaultGateway"));
+        ShowInlineError(StaticIpv4DnsServersErrorText, FindError(errors, "machine.network.staticIpv4.dnsServers"));
+        ShowInlineError(ProxyBypassListErrorText, FindError(errors, "machine.proxy.bypassList"));
+        ShowInlineError(
+            ApplicationsErrorText,
+            errors.FirstOrDefault(error => error.FieldPath.StartsWith("applications", StringComparison.Ordinal)));
+
+        SetSectionStatus(
+            WindowsSectionStatusText,
+            errors.Any(error => error.FieldPath.StartsWith("windows.", StringComparison.Ordinal)),
+            isOptional: false);
+        SetSectionStatus(
+            NetworkSectionStatusText,
+            errors.Any(error => error.FieldPath.StartsWith("machine.", StringComparison.Ordinal)),
+            GetSelectedEnum(NetworkModeComboBox, original.Machine.Network.Mode) == NetworkConfigurationMode.PromptAtRuntime
+                && GetSelectedEnum(ProxyModeComboBox, original.Machine.Proxy.Mode) == ProxyConfigurationMode.NotConfigured
+                && string.IsNullOrWhiteSpace(ComputerNamePrefixTextBox.Text));
+        SetSectionStatus(
+            DomainSectionStatusText,
+            errors.Any(error => error.FieldPath.StartsWith("domain.", StringComparison.Ordinal)),
+            GetSelectedEnum(DomainModeComboBox, original.Domain.Mode) == DomainMode.NotConfigured
+                && GetSelectedEnum(LaunchModeComboBox, original.Deployment.LaunchMode) == ProvisionerLaunchMode.Manual);
+        SetSectionStatus(
+            ApplicationsSectionStatusText,
+            errors.Any(error => error.FieldPath.StartsWith("applications", StringComparison.Ordinal)),
+            _applications.Count == 0 && _instructions.Count == 0);
+    }
+
+    private void UpdateProfileSummary()
+    {
+        if (_selectedProfile is null)
+        {
+            ProfileSummaryText.Text = "Выберите профиль, чтобы увидеть его основные настройки.";
+            return;
+        }
+
+        var original = _selectedProfile.Profile;
+        var editions = GetSelectedEditions();
+        var editionText = editions.Count == 0
+            ? "Редакция не выбрана"
+            : string.Join(" + ", editions.Select(static edition => edition == WindowsEdition.Professional ? "Windows 11 Pro" : "Windows 11 Enterprise"));
+        var language = GetSelectedTag(UiLanguageComboBox, original.Windows.Locale.UiLanguage) == "ru-RU" ? "Русский" : "English";
+        var timeZone = GetSelectedTag(TimeZoneComboBox, original.Windows.TimeZone) switch
+        {
+            "West Asia Standard Time" => "UTC+05",
+            "Central Asia Standard Time" => "UTC+06",
+            "Russian Standard Time" => "UTC+03",
+            var value => value,
+        };
+        var network = GetSelectedEnum(NetworkModeComboBox, original.Machine.Network.Mode) == NetworkConfigurationMode.StaticIpv4
+            ? "Статический IPv4"
+            : "Сеть при применении";
+        var proxy = GetSelectedEnum(ProxyModeComboBox, original.Machine.Proxy.Mode) == ProxyConfigurationMode.PromptAtRuntime
+            ? "Прокси при применении"
+            : "Без настройки прокси";
+        var domain = GetSelectedEnum(DomainModeComboBox, original.Domain.Mode) switch
+        {
+            DomainMode.Required => "Домен обязателен",
+            DomainMode.Optional => "Домен по выбору",
+            _ => "Без домена",
+        };
+        var repeatedSteps = _applications.Count == 0 && _instructions.Count == 0
+            ? "Без приложений и инструкций"
+            : $"Приложений: {_applications.Count}, инструкций: {_instructions.Count}";
+
+        ProfileSummaryText.Text = string.Join(" · ", editionText, language, timeZone, network, proxy, domain, repeatedSteps);
+    }
+
+    private void ClearInlineErrors()
+    {
+        foreach (var textBlock in new[]
+        {
+            ProfileNameErrorText,
+            WindowsEditionErrorText,
+            WindowsSettingsErrorText,
+            ComputerNamePrefixErrorText,
+            StaticIpv4AddressErrorText,
+            StaticIpv4SubnetMaskErrorText,
+            StaticIpv4DefaultGatewayErrorText,
+            StaticIpv4DnsServersErrorText,
+            ProxyBypassListErrorText,
+            ApplicationsErrorText,
+        })
+        {
+            textBlock.Text = string.Empty;
+            textBlock.IsVisible = false;
+        }
+    }
+
+    private static ProfileValidationError? FindError(
+        IReadOnlyList<ProfileValidationError> errors,
+        string fieldPathPrefix) =>
+        errors.FirstOrDefault(error => error.FieldPath.StartsWith(fieldPathPrefix, StringComparison.Ordinal));
+
+    private static void ShowInlineError(TextBlock textBlock, ProfileValidationError? error)
+    {
+        textBlock.Text = error is null ? string.Empty : GetValidationMessage(error);
+        textBlock.IsVisible = error is not null;
+    }
+
+    private static void SetSectionStatus(TextBlock textBlock, bool hasErrors, bool isOptional)
+    {
+        textBlock.Text = hasErrors ? "Ошибка" : isOptional ? "Необязательно" : "Готово";
+        textBlock.Foreground = Brush.Parse(hasErrors ? "#FCA5A5" : isOptional ? "#AFC4DF" : "#86E1B5");
+    }
+
+    private static string GetValidationMessage(ProfileValidationError error) => error.Code switch
+    {
+        "profile.name.required" => "Укажите название профиля.",
+        "windows.editions.required" => "Выберите хотя бы одну редакцию Windows 11.",
+        "windows.locale.required" => "Выберите язык из списка.",
+        "windows.locale.unknown" => "Выбранный язык не поддерживается.",
+        "windows.timeZone.required" => "Выберите часовой пояс.",
+        "windows.oobe.offline.requiresWirelessHide" => "Для автономного первого запуска скройте экран подключения к сети.",
+        "windows.oobe.offline.requiresOnlineAccountHide" => "Для автономного первого запуска скройте экран онлайн-учётной записи.",
+        "machine.computerName.prefix.invalid" => "Префикс: до 15 латинских букв, цифр или дефисов.",
+        "machine.network.staticIpv4.ipv4.invalid" => "Введите корректный IPv4-адрес.",
+        "machine.network.staticIpv4.ipv4.unusable" => "Этот IPv4-адрес нельзя использовать для рабочей настройки.",
+        "machine.network.staticIpv4.subnetMask.invalid" => "Введите корректную маску подсети.",
+        "machine.network.staticIpv4.subnetMask.unsupported" => "Эта маска подсети не поддерживается.",
+        "machine.network.staticIpv4.gateway.outsideSubnet" => "Шлюз должен находиться в той же подсети.",
+        "machine.network.staticIpv4.address.host.invalid" => "Укажите адрес компьютера, а не адрес сети или broadcast.",
+        "machine.network.staticIpv4.gateway.host.invalid" => "Укажите отдельный допустимый адрес шлюза.",
+        "machine.network.staticIpv4.dnsServers.count.invalid" => "Укажите от одного до трёх DNS-серверов.",
+        "machine.network.staticIpv4.dnsServers.duplicate" => "DNS-серверы не должны повторяться.",
+        "machine.proxy.bypassList.unexpected" => "Исключения доступны только когда прокси запрашивается при применении.",
+        "machine.proxy.bypassList.entry.invalid" => "Проверьте формат исключения прокси.",
+        "machine.proxy.bypassList.entry.duplicate" => "Исключения прокси не должны повторяться.",
+        "applications.id.required" => "У приложения должен быть ID.",
+        "applications.displayName.required" => "У приложения должно быть отображаемое название.",
+        "applications.packagePath.required" => "Укажите путь приложения внутри пакета.",
+        "applications.packagePath.unsafe" => "Путь должен находиться внутри пакета и не содержать переходов вверх.",
+        "applications.externalManual.path.forbidden" => "Для ручной установки путь внутри пакета не используется.",
+        "applications.arguments.invalid" => "Проверьте аргументы приложения.",
+        _ => error.Message,
+    };
 
     private ProfileSettingsEdit CreateProfileSettingsEdit(ProvisioningProfile original) => new(
         ProfileNameTextBox.Text,

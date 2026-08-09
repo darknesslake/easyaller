@@ -8,6 +8,7 @@
         Height="840"
         MinWidth="1040"
         MinHeight="720"
+        Closing="MainWindow_Closing"
         Background="#101826">
   <Grid ColumnDefinitions="236,*">
     <Border Background="#151E2D" BorderBrush="#27364E" BorderThickness="0,0,1,0" Padding="20">
@@ -43,7 +44,7 @@
         </StackPanel>
         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
           <Button Content="Импорт" Click="ImportProfile_Click" />
-          <Button Content="Экспорт" Click="ExportProfile_Click" IsEnabled="{Binding HasSelectedProfile}" />
+          <Button Content="Экспорт" Click="ExportProfile_Click" IsEnabled="{Binding CanUseSavedProfileActions}" />
           <Button Content="Новый профиль" Click="CreateProfile_Click" Background="#2D6CDF" Foreground="White" Padding="18,10" />
         </StackPanel>
       </Grid>
@@ -71,22 +72,32 @@
         <Border Grid.Column="1" Background="#172233" BorderBrush="#2A3B55" BorderThickness="1" CornerRadius="20" Padding="26">
           <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="16">
             <TextBlock Text="{Binding SelectedProfileName}" FontSize="22" FontWeight="SemiBold" Foreground="#F7F9FE" />
-            <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="8">
+            <WrapPanel Grid.Row="1" Orientation="Horizontal">
               <Border Background="#203653" CornerRadius="999" Padding="10,5"><TextBlock Text="{Binding SelectedProfileRevision}" Foreground="#A9CCFF" FontSize="12" /></Border>
-              <Border Grid.Column="1" Background="#203653" CornerRadius="999" Padding="10,5"><TextBlock Text="Без учётных данных" Foreground="#A9CCFF" FontSize="12" /></Border>
-              <Border Grid.Column="2" Background="#203653" CornerRadius="999" Padding="10,5"><TextBlock Text="Проверенный формат" Foreground="#A9CCFF" FontSize="12" /></Border>
-            </Grid>
+              <Border Background="#203653" CornerRadius="999" Padding="10,5" Margin="8,0,0,0"><TextBlock Text="Без учётных данных" Foreground="#A9CCFF" FontSize="12" /></Border>
+              <Border Background="#203653" CornerRadius="999" Padding="10,5" Margin="8,0,0,0"><TextBlock Text="Проверенный формат" Foreground="#A9CCFF" FontSize="12" /></Border>
+              <Border IsVisible="{Binding HasUnsavedChanges}" Background="#4A3819" BorderBrush="#9A7429" BorderThickness="1" CornerRadius="999" Padding="10,5" Margin="8,0,0,0">
+                <TextBlock Text="Есть несохранённые изменения" Foreground="#F6D98A" FontSize="12" FontWeight="SemiBold" />
+              </Border>
+            </WrapPanel>
             <ScrollViewer x:Name="ProfileEditorScrollViewer" Grid.Row="2" HorizontalScrollBarVisibility="Disabled">
               <StackPanel Spacing="12" Margin="0,10,0,0">
               <TextBlock Text="Карточка профиля" FontWeight="SemiBold" Foreground="#EAF0FA" />
               <StackPanel Spacing="6">
                 <TextBlock Text="Название" FontSize="12" Foreground="#A9B7CD" />
                 <TextBox x:Name="ProfileNameTextBox" />
+                <TextBlock x:Name="ProfileNameErrorText" Classes="validationError" IsVisible="False" />
               </StackPanel>
               <StackPanel Spacing="6">
                 <TextBlock Text="Описание" FontSize="12" Foreground="#A9B7CD" />
                 <TextBox x:Name="ProfileDescriptionTextBox" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="54" />
               </StackPanel>
+              <Border Background="#162C42" BorderBrush="#29496B" BorderThickness="1" CornerRadius="14" Padding="14">
+                <StackPanel Spacing="5">
+                  <TextBlock Text="Краткое резюме" FontSize="12" FontWeight="SemiBold" Foreground="#93C5FD" />
+                  <TextBlock x:Name="ProfileSummaryText" Text="Выберите профиль" TextWrapping="Wrap" Foreground="#E8F1FC" />
+                </StackPanel>
+              </Border>
               <Border Background="#1D2A3E" CornerRadius="16" Padding="14">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Как устроена настройка" FontWeight="SemiBold" Foreground="#EAF0FA" />
@@ -95,14 +106,17 @@
               </Border>
               <StackPanel>
                 <Button Classes="profileSectionButton" Click="ToggleWindowsSection_Click" HorizontalAlignment="Stretch">
-                  <Grid ColumnDefinitions="*,Auto">
+                  <Grid ColumnDefinitions="*,Auto,Auto">
                     <StackPanel Orientation="Horizontal">
                       <TextBlock Text="1. Windows и первый запуск" FontSize="16" FontWeight="SemiBold" />
                       <Border Classes="helpBadge" ToolTip.Tip="Настройки, которые будут использованы при подготовке новой Windows. Они не изменяют уже работающий компьютер.">
                         <TextBlock Classes="helpBadgeText" Text="!" />
                       </Border>
                     </StackPanel>
-                    <TextBlock x:Name="WindowsSectionChevron" Grid.Column="1" Text="⌃" FontSize="18" Foreground="#8FA4C4" VerticalAlignment="Center" />
+                    <Border Grid.Column="1" Classes="sectionStatusBadge">
+                      <TextBlock x:Name="WindowsSectionStatusText" Text="Готово" Classes="sectionStatusText" />
+                    </Border>
+                    <TextBlock x:Name="WindowsSectionChevron" Grid.Column="2" Text="⌃" FontSize="18" Foreground="#8FA4C4" VerticalAlignment="Center" />
                   </Grid>
                 </Button>
                 <Border x:Name="WindowsSectionContent" IsVisible="True" Background="#1A283B" CornerRadius="14" Margin="0,6,0,0" Padding="16">
@@ -116,6 +130,7 @@
                     <CheckBox x:Name="ProfessionalEditionCheckBox" Content="Windows 11 Pro" />
                     <CheckBox x:Name="EnterpriseEditionCheckBox" Content="Windows 11 Enterprise" />
                   </StackPanel>
+                  <TextBlock x:Name="WindowsEditionErrorText" Classes="validationError" IsVisible="False" />
                   <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
                     <StackPanel Spacing="6">
                       <StackPanel Orientation="Horizontal">
@@ -229,19 +244,23 @@
                     </ComboBox>
                     <TextBlock Text="Выберите единый режим для служб геолокации, рекламы и персонализации. «Не настраивать» ничего не меняет." TextWrapping="Wrap" FontSize="12" Foreground="#7F93B4" />
                   </StackPanel>
+                  <TextBlock x:Name="WindowsSettingsErrorText" Classes="validationError" IsVisible="False" />
                 </StackPanel>
                 </Border>
               </StackPanel>
               <StackPanel>
                 <Button Classes="profileSectionButton" Click="ToggleNetworkSection_Click" HorizontalAlignment="Stretch">
-                  <Grid ColumnDefinitions="*,Auto">
+                  <Grid ColumnDefinitions="*,Auto,Auto">
                     <StackPanel Orientation="Horizontal">
                       <TextBlock Text="2. Сеть и доступ" FontSize="16" FontWeight="SemiBold" />
                       <Border Classes="helpBadge" ToolTip.Tip="Профиль может хранить статические сетевые параметры и правила WinHTTP-прокси. Адаптер и адрес прокси выбираются перед применением.">
                         <TextBlock Classes="helpBadgeText" Text="!" />
                       </Border>
                     </StackPanel>
-                    <TextBlock x:Name="NetworkSectionChevron" Grid.Column="1" Text="⌄" FontSize="18" Foreground="#8FA4C4" VerticalAlignment="Center" />
+                    <Border Grid.Column="1" Classes="sectionStatusBadge">
+                      <TextBlock x:Name="NetworkSectionStatusText" Text="Готово" Classes="sectionStatusText" />
+                    </Border>
+                    <TextBlock x:Name="NetworkSectionChevron" Grid.Column="2" Text="⌄" FontSize="18" Foreground="#8FA4C4" VerticalAlignment="Center" />
                   </Grid>
                 </Button>
                 <Border x:Name="NetworkSectionContent" IsVisible="False" Background="#1A283B" CornerRadius="14" Margin="0,6,0,0" Padding="16">
@@ -250,6 +269,7 @@
                   <StackPanel Spacing="6">
                     <TextBlock Text="Префикс имени компьютера" FontSize="12" Foreground="#A9B7CD" />
                     <TextBox x:Name="ComputerNamePrefixTextBox" PlaceholderText="Необязательно, например OFFICE" />
+                    <TextBlock x:Name="ComputerNamePrefixErrorText" Classes="validationError" IsVisible="False" />
                     <TextBlock Text="Подсказка для имени. Окончательное имя каждого компьютера вводится перед применением." TextWrapping="Wrap" FontSize="12" Foreground="#7F93B4" />
                   </StackPanel>
                   <Border Background="#1D2A3E" CornerRadius="16" Padding="14">
@@ -272,20 +292,24 @@
                         <StackPanel Spacing="6">
                           <TextBlock Text="IPv4-адрес" FontSize="12" Foreground="#A9B7CD" />
                           <TextBox x:Name="StaticIpv4AddressTextBox" PlaceholderText="Заполняется только для статической сети" />
+                          <TextBlock x:Name="StaticIpv4AddressErrorText" Classes="validationError" IsVisible="False" />
                         </StackPanel>
                         <StackPanel Grid.Column="1" Spacing="6">
                           <TextBlock Text="Маска подсети" FontSize="12" Foreground="#A9B7CD" />
                           <TextBox x:Name="StaticIpv4SubnetMaskTextBox" PlaceholderText="Например, 255.255.255.0" />
+                          <TextBlock x:Name="StaticIpv4SubnetMaskErrorText" Classes="validationError" IsVisible="False" />
                         </StackPanel>
                       </Grid>
                       <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
                         <StackPanel Spacing="6">
                           <TextBlock Text="Шлюз по умолчанию" FontSize="12" Foreground="#A9B7CD" />
                           <TextBox x:Name="StaticIpv4DefaultGatewayTextBox" PlaceholderText="Заполняется только для статической сети" />
+                          <TextBlock x:Name="StaticIpv4DefaultGatewayErrorText" Classes="validationError" IsVisible="False" />
                         </StackPanel>
                         <StackPanel Grid.Column="1" Spacing="6">
                           <TextBlock Text="DNS-серверы" FontSize="12" Foreground="#A9B7CD" />
                           <TextBox x:Name="StaticIpv4DnsServersTextBox" PlaceholderText="От одного до трёх адресов через запятую" />
+                          <TextBlock x:Name="StaticIpv4DnsServersErrorText" Classes="validationError" IsVisible="False" />
                         </StackPanel>
                       </Grid>
                       <TextBlock Text="Адрес, маска, шлюз и DNS применяются только к выбранному адаптеру после ввода APPLY. Wi-Fi-пароли и VPN-параметры не сохраняются." TextWrapping="Wrap" FontSize="12" Foreground="#93C5FD" />
@@ -315,6 +339,7 @@
                           </Border>
                         </StackPanel>
                         <TextBox x:Name="ProxyBypassListTextBox" PlaceholderText="Необязательно: *.example.test, &lt;local&gt;, 192.0.2.53" />
+                        <TextBlock x:Name="ProxyBypassListErrorText" Classes="validationError" IsVisible="False" />
                         <TextBlock Text="Адреса и шаблоны, которые должны подключаться без прокси. Введите через запятую. Это работает для WinHTTP, а не автоматически для всех браузеров." TextWrapping="Wrap" FontSize="12" Foreground="#7F93B4" />
                       </StackPanel>
                     </StackPanel>
@@ -324,14 +349,17 @@
               </StackPanel>
               <StackPanel>
                 <Button Classes="profileSectionButton" Click="ToggleDomainSection_Click" HorizontalAlignment="Stretch">
-                  <Grid ColumnDefinitions="*,Auto">
+                  <Grid ColumnDefinitions="*,Auto,Auto">
                     <StackPanel Orientation="Horizontal">
                       <TextBlock Text="3. Домен и запуск настройки" FontSize="16" FontWeight="SemiBold" />
                       <Border Classes="helpBadge" ToolTip.Tip="Правила для домена и запуска Easyaller. Пароль домена никогда не сохраняется в профиле.">
                         <TextBlock Classes="helpBadgeText" Text="!" />
                       </Border>
                     </StackPanel>
-                    <TextBlock x:Name="DomainSectionChevron" Grid.Column="1" Text="⌄" FontSize="18" Foreground="#8FA4C4" VerticalAlignment="Center" />
+                    <Border Grid.Column="1" Classes="sectionStatusBadge">
+                      <TextBlock x:Name="DomainSectionStatusText" Text="Необязательно" Classes="sectionStatusText" />
+                    </Border>
+                    <TextBlock x:Name="DomainSectionChevron" Grid.Column="2" Text="⌄" FontSize="18" Foreground="#8FA4C4" VerticalAlignment="Center" />
                   </Grid>
                 </Button>
                 <Border x:Name="DomainSectionContent" IsVisible="False" Background="#1A283B" CornerRadius="14" Margin="0,6,0,0" Padding="16">
@@ -382,19 +410,23 @@
               </StackPanel>
               <StackPanel>
                 <Button Classes="profileSectionButton" Click="ToggleApplicationsSection_Click" HorizontalAlignment="Stretch">
-                  <Grid ColumnDefinitions="*,Auto">
+                  <Grid ColumnDefinitions="*,Auto,Auto">
                     <StackPanel Orientation="Horizontal">
                       <TextBlock Text="4. Приложения и ручные инструкции" FontSize="16" FontWeight="SemiBold" />
                       <Border Classes="helpBadge" ToolTip.Tip="Приложение описывает установку из пакета или ручной источник. Инструкция хранит текст для оператора и никогда не исполняется как команда.">
                         <TextBlock Classes="helpBadgeText" Text="!" />
                       </Border>
                     </StackPanel>
-                    <TextBlock x:Name="ApplicationsSectionChevron" Grid.Column="1" Text="⌄" FontSize="18" Foreground="#8FA4C4" VerticalAlignment="Center" />
+                    <Border Grid.Column="1" Classes="sectionStatusBadge">
+                      <TextBlock x:Name="ApplicationsSectionStatusText" Text="Необязательно" Classes="sectionStatusText" />
+                    </Border>
+                    <TextBlock x:Name="ApplicationsSectionChevron" Grid.Column="2" Text="⌄" FontSize="18" Foreground="#8FA4C4" VerticalAlignment="Center" />
                   </Grid>
                 </Button>
                 <Border x:Name="ApplicationsSectionContent" IsVisible="False" Background="#1A283B" CornerRadius="14" Margin="0,6,0,0" Padding="16">
                 <StackPanel Spacing="12">
                   <TextBlock Text="Добавляйте только то, что нужно повторять для каждого компьютера. Инструкция описывает ручной шаг и не исполняется как команда." TextWrapping="Wrap" FontSize="12" Foreground="#93C5FD" />
+                  <TextBlock x:Name="ApplicationsErrorText" Classes="validationError" IsVisible="False" />
                   <TextBlock Text="Приложения" FontWeight="SemiBold" Foreground="#EAF0FA" />
                   <ListBox x:Name="ApplicationsList" Height="96" Background="#1D2A3E" BorderThickness="0">
                     <ListBox.ItemTemplate>
@@ -480,9 +512,9 @@
             <Border Grid.Row="3" Background="#1D2A3E" CornerRadius="16" Padding="12">
               <StackPanel Spacing="10">
                 <WrapPanel Orientation="Horizontal" ItemHeight="40" HorizontalAlignment="Left">
-                  <Button Content="Сохранить" Click="SaveProfile_Click" IsEnabled="{Binding HasSelectedProfile}" Background="#2D6CDF" Foreground="White" ToolTip.Tip="Сохранить все изменения в текущем локальном профиле." />
-                  <Button Content="Сбросить" Click="ResetProfile_Click" IsEnabled="{Binding HasSelectedProfile}" ToolTip.Tip="Отменить несохранённые изменения и вернуть сохранённую версию профиля." Margin="8,0,0,0" />
-                  <Button Content="Создать копию" Click="CloneProfile_Click" IsEnabled="{Binding HasSelectedProfile}" ToolTip.Tip="Создать независимую копию текущего профиля." Margin="8,0,0,0" />
+                  <Button Content="Сохранить" Click="SaveProfile_Click" IsEnabled="{Binding CanSaveProfile}" Background="#2D6CDF" Foreground="White" ToolTip.Tip="Сохранить все изменения в текущем локальном профиле." />
+                  <Button Content="Сбросить" Click="ResetProfile_Click" IsEnabled="{Binding CanSaveProfile}" ToolTip.Tip="Отменить несохранённые изменения и вернуть сохранённую версию профиля." Margin="8,0,0,0" />
+                  <Button Content="Создать копию" Click="CloneProfile_Click" IsEnabled="{Binding CanUseSavedProfileActions}" ToolTip.Tip="Создать независимую копию текущего профиля." Margin="8,0,0,0" />
                 </WrapPanel>
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
                   <CheckBox x:Name="ConfirmDeleteCheckBox" Content="Подтверждаю удаление профиля" IsCheckedChanged="ConfirmDeleteCheckBox_IsCheckedChanged" VerticalAlignment="Center" Foreground="#A9B7CD" />
