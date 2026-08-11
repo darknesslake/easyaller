@@ -132,7 +132,7 @@ public sealed class FileProfileRepository : IProfileRepository
     public string RootDirectory => _rootDirectory;
 
     public static string GetDefaultRootDirectory() => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "Easyaller",
         "Profiles");
 

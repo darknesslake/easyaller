@@ -97,11 +97,19 @@ public sealed class ProfileEditorController(IProfileRepository repository)
                 },
                 Network = CreateNetworkSettings(settings),
                 Proxy = new ProxySettings(
-                    settings.ProxyMode,
+                    string.IsNullOrWhiteSpace(settings.ProxyAddress)
+                        ? settings.ProxyMode
+                        : ProxyConfigurationMode.PromptAtRuntime,
                     (settings.ProxyBypassList ?? string.Empty)
-                        .Split([',', ';', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)),
+                        .Split([',', ';', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
+                    settings.ProxyAddress?.Trim()),
             },
-            Domain = original.Domain with { Mode = settings.DomainMode },
+            Domain = original.Domain with
+            {
+                Mode = settings.DomainMode,
+                DomainName = settings.DomainName?.Trim(),
+                UserName = settings.DomainUserName?.Trim(),
+            },
             Deployment = new DeploymentSettings(settings.LaunchMode),
             Cleanup = new CleanupSettings(settings.CleanupMode),
             Applications = applications.ToArray(),
@@ -119,7 +127,8 @@ public sealed class ProfileEditorController(IProfileRepository repository)
                 settings.StaticIpv4SubnetMask?.Trim() ?? string.Empty,
                 settings.StaticIpv4DefaultGateway?.Trim() ?? string.Empty,
                 (settings.StaticIpv4DnsServers ?? string.Empty)
-                    .Split([',', ';', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))),
+                    .Split([',', ';', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
+                settings.StaticIpv4AdapterId?.Trim())),
         _ => new NetworkSettings(settings.NetworkMode),
     };
 }
@@ -147,4 +156,8 @@ public sealed record ProfileSettingsEdit(
     string? StaticIpv4SubnetMask = null,
     string? StaticIpv4DefaultGateway = null,
     string? StaticIpv4DnsServers = null,
-    string? ProxyBypassList = null);
+    string? StaticIpv4AdapterId = null,
+    string? ProxyBypassList = null,
+    string? ProxyAddress = null,
+    string? DomainName = null,
+    string? DomainUserName = null);

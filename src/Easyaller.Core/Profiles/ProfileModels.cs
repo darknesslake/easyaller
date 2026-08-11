@@ -117,11 +117,13 @@ public sealed record StaticIpv4Configuration(
     [property: JsonRequired] string Address,
     [property: JsonRequired] string SubnetMask,
     [property: JsonRequired] string DefaultGateway,
-    [property: JsonRequired] IReadOnlyList<string> DnsServers);
+    [property: JsonRequired] IReadOnlyList<string> DnsServers,
+    string? AdapterId = null);
 
 public sealed record ProxySettings(
     [property: JsonRequired] ProxyConfigurationMode Mode,
-    IReadOnlyList<string>? BypassList = null);
+    IReadOnlyList<string>? BypassList = null,
+    string? Address = null);
 
 public enum ProxyConfigurationMode
 {
@@ -131,7 +133,9 @@ public enum ProxyConfigurationMode
 
 public sealed record DomainSettings(
     [property: JsonRequired] DomainMode Mode,
-    [property: JsonRequired] CredentialHandling Credentials);
+    [property: JsonRequired] CredentialHandling Credentials,
+    string? DomainName = null,
+    string? UserName = null);
 
 public enum DomainMode
 {

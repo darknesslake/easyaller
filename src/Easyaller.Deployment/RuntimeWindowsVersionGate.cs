@@ -208,7 +208,11 @@ public sealed class RuntimeWindowsVersionGate(
         }
     }
 
-    private static IRuntimeWindowsInfoProvider CreateDefaultRuntimeInfoProvider() =>
+    /// <summary>
+    /// Creates the detector for the current platform. Shared so every runtime check reads Windows
+    /// the same way instead of each caller reimplementing the platform guard.
+    /// </summary>
+    public static IRuntimeWindowsInfoProvider CreateDefaultRuntimeInfoProvider() =>
         OperatingSystem.IsWindows()
             ? CreateWindowsRuntimeInfoProvider()
             : new UnsupportedRuntimeInfoProvider();

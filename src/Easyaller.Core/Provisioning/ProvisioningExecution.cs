@@ -13,6 +13,7 @@ public enum ProvisioningExecutionStatus
 
 public enum ProvisioningExecutionOperationKind
 {
+    SetTimeZone,
     VerifyNetworkAdapter,
     ConfigureStaticIpv4,
     SetWinHttpProxy,
@@ -54,6 +55,8 @@ public sealed record ProvisioningSystemOperationResult(bool IsSuccess, bool Requ
 
 public interface IProvisioningSystemAdapter
 {
+    ProvisioningSystemOperationResult SetTimeZone(string timeZone);
+
     ProvisioningSystemOperationResult VerifyNetworkAdapter(string adapterId);
 
     ProvisioningSystemOperationResult ConfigureStaticIpv4(string adapterId, StaticIpv4Configuration configuration);
@@ -123,6 +126,29 @@ public sealed class ProvisioningExecutionService(
         var operations = new List<ProvisioningExecutionOperation>();
         var warnings = new List<ProvisioningExecutionMessage>();
         var requiresRestart = false;
+
+        // The time zone runs first: it is the least disruptive step and needs no restart,
+        // so a later failure never leaves it half-applied.
+        if (inputs.ApplyTimeZone)
+        {
+            if (string.IsNullOrWhiteSpace(plan.TimeZone))
+            {
+                return Blocked("execution.timeZone.notConfigured", "This profile does not contain a Windows time zone.");
+            }
+
+            var timeZoneResult = _systemAdapter.SetTimeZone(plan.TimeZone);
+            if (!timeZoneResult.IsSuccess)
+            {
+                return Failed(operations, timeZoneResult, "execution.timeZone.failed");
+            }
+
+            operations.Add(new ProvisioningExecutionOperation(
+                ProvisioningExecutionOperationKind.SetTimeZone,
+                true,
+                timeZoneResult.RequiresRestart));
+            requiresRestart |= timeZoneResult.RequiresRestart;
+        }
+
         if (HasPrompt(plan, RuntimePromptKind.NetworkConfiguration))
         {
             var networkResult = _systemAdapter.VerifyNetworkAdapter(inputs.NetworkAdapterId!);
@@ -164,17 +190,29 @@ public sealed class ProvisioningExecutionService(
             requiresRestart |= proxyResult.RequiresRestart;
         }
 
-        var renameResult = _systemAdapter.RenameComputer(inputs.ComputerName!);
-        if (!renameResult.IsSuccess)
+        // Renaming always costs a restart, so a machine that already carries the expected name
+        // is left alone and the operation is reported as verified rather than applied.
+        if (_systemAdapter.VerifyComputerName(inputs.ComputerName!).IsSuccess)
         {
-            return Failed(operations, renameResult, "execution.computerName.failed");
+            operations.Add(new ProvisioningExecutionOperation(
+                ProvisioningExecutionOperationKind.RenameComputer,
+                false,
+                false));
         }
+        else
+        {
+            var renameResult = _systemAdapter.RenameComputer(inputs.ComputerName!);
+            if (!renameResult.IsSuccess)
+            {
+                return Failed(operations, renameResult, "execution.computerName.failed");
+            }
 
-        operations.Add(new ProvisioningExecutionOperation(
-            ProvisioningExecutionOperationKind.RenameComputer,
-            true,
-            renameResult.RequiresRestart));
-        requiresRestart |= renameResult.RequiresRestart;
+            operations.Add(new ProvisioningExecutionOperation(
+                ProvisioningExecutionOperationKind.RenameComputer,
+                true,
+                renameResult.RequiresRestart));
+            requiresRestart |= renameResult.RequiresRestart;
+        }
 
         var domainJoinRequested = !string.IsNullOrWhiteSpace(inputs.DomainName);
         if (domainJoinRequested)
@@ -214,6 +252,34 @@ public sealed class ProvisioningExecutionService(
             operations,
             [],
             warnings);
+    }
+
+    public ProvisioningExecutionResult ExecuteTimeZone(ProvisioningPlan plan, string? confirmationPhrase)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+
+        if (!string.Equals(confirmationPhrase, ConfirmationPhrase, StringComparison.Ordinal))
+        {
+            return Blocked("execution.confirmation.required", $"Type {ConfirmationPhrase} exactly before applying Windows changes.");
+        }
+
+        if (string.IsNullOrWhiteSpace(plan.TimeZone))
+        {
+            return Blocked("execution.timeZone.notConfigured", "This profile does not contain a Windows time zone.");
+        }
+
+        var result = _systemAdapter.SetTimeZone(plan.TimeZone);
+        if (!result.IsSuccess)
+        {
+            return Failed([], result, "execution.timeZone.failed");
+        }
+
+        return new ProvisioningExecutionResult(
+            result.RequiresRestart ? ProvisioningExecutionStatus.RestartRequired : ProvisioningExecutionStatus.Completed,
+            null,
+            [new ProvisioningExecutionOperation(ProvisioningExecutionOperationKind.SetTimeZone, true, result.RequiresRestart)],
+            [],
+            []);
     }
 
     public ProvisioningExecutionResult Resume()

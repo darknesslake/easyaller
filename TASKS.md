@@ -362,3 +362,76 @@ Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easy
 Added local profile search across name, description, Windows edition, interface language, and time zone, with a result counter and an explicit empty state. Filtering preserves the selected profile when possible and clears an incompatible search after a renamed, imported, cloned, or newly created profile must remain selected. Search remains available after zero results but is temporarily locked while the current profile has unsaved changes. Profile cards now show human-readable edition, language, time zone, and a compact revision badge, while an explicit Easyaller selection style replaces the platform accent highlight.
 
 Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 144 passing tests. The final visual review remains part of the Windows 11 pass.
+
+### [x] WP-082: Windows 11 visual pass, scenario modes, and machine import
+
+Completed the pending Windows 11 visual review on real hardware using rendered window captures instead of XAML inspection alone. Reworked the shell around the two operator scenarios: a top-level switch chooses between configuring the running PC and preparing a Windows installation, and the shared profile editor now hides answer-file-only settings while the running-PC scenario is active. The former separate setup window became a tab, the USB creator moved into the preparation scenario, and every footer carries a single emphasized action.
+
+Made `defaultGateway` and `dnsServers` optional across the validator, the published schema, the Windows adapter, and the editor, because an isolated subnet may have no gateway and a static address may keep the adapter's existing DNS. The static-IPv4 comparison also no longer skips the network/broadcast address check when no gateway is supplied. Added `adapterId` to the published schema, which the application already wrote.
+
+Added a read-only `CurrentMachineInspector` that reports the live computer name, domain, time zone, active adapter, IPv4 configuration, and WinHTTP proxy through one non-elevated PowerShell query, plus buttons that copy those values into a profile, copy profile values into the runtime fields, and copy runtime fields back into the profile. The apply tab now calls the full `ProvisioningExecutionService.Execute` instead of the time-zone-only path and reports each executed operation.
+
+Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx --no-build` with 149 passing tests. Live application launches and window captures were taken on Windows 11; the apply and take-from-PC buttons themselves were not pressed on this domain-joined workstation.
+
+### [x] WP-083: Profile compliance check and report
+
+Added `ProfileComplianceChecker` in the core, a Verify tab, and an exportable text report that answer whether a running machine currently matches its profile. The checker compares computer name against the stored template rather than literally, keeps DNS order significant, and distinguishes four verdicts: match, mismatch, unreadable, and not described by the profile. Treating the last two as separate states prevents a profile that intentionally omits DNS or a gateway from being reported as non-compliant.
+
+Verified: `dotnet build Easyaller.slnx` with zero warnings and `dotnet test Easyaller.slnx` with 155 passing tests. The comparison is covered by unit tests; the button itself has not been pressed on a workstation.
+
+## Phase 7: closing the provisioning loop
+
+The product goal is one import plus one apply producing a ready workstation. These tasks close the gap between what a profile describes and what the application actually executes.
+
+### [ ] WP-090: Ship the application payload inside a deployment package
+
+`DeploymentPreparationController` builds `DeploymentPreparationRequest` with only a profile and a target, so `TemporaryLocalAccount` stays `null` and `EnableFirstLogonBootstrap` stays `false`. No `Easyaller.App.exe` reaches `$OEM$/$1/ProgramData/Easyaller`, so an installed machine has a profile on disk and nothing to apply it.
+
+Acceptance criteria:
+
+- The package UI can opt in to the first-logon bootstrapper and shows the generated temporary-account password exactly once.
+- The exporter copies a published application payload below the configuration-set path and records it in `payload-manifest.json`.
+- `FirstLogonBootstrapper` validation passes against the produced package.
+- Exporting without the opt-in keeps the current file-only behaviour unchanged.
+- Blocked from being called complete until WP-041 provides VM evidence.
+
+### [ ] WP-091: Application installer executor
+
+`ApplicationProfile` describes an installer, the exporter copies it, and no code installs it. This is the most repeated manual step during workstation setup.
+
+Acceptance criteria:
+
+- Execute package-relative installers in declared order with declared arguments and expected exit codes.
+- Verify each installer hash before running it; a mismatch blocks execution.
+- External manual applications are surfaced as operator instructions, never executed.
+- Every result is reported per application; a failure stops the sequence without leaving a partial success claim.
+
+### [ ] WP-092: Show instructions to the operator
+
+Instruction profiles are stored, exported, and never displayed. Render them as read-only text at apply time so a documented manual step cannot be silently skipped.
+
+### [ ] WP-093: Complete the apply sequence
+
+`Execute` covers adapter, static IPv4, proxy, rename, and domain join. Time zone runs through a separate call, `PrivacyConfigurationService` is never invoked by the UI, and `RuntimeWindowsVersionGate` never gates an action.
+
+Acceptance criteria:
+
+- One confirmed apply covers every operation the profile describes, in a documented order.
+- The version gate runs before any validated action and blocks on mismatch, warns on an unknown build.
+- Privacy policies apply through the existing service, keeping `notConfigured` a no-op.
+
+### [ ] WP-094: Idempotent re-apply
+
+`RenameComputer` is called unconditionally, so re-applying a profile to an already correct machine performs avoidable work and forces a restart. Reuse the compliance checker to skip operations that already match and report them as unchanged.
+
+### [ ] WP-095: Operation journal
+
+A single status line is the only record of what happened. Write an append-only local journal entry per apply: profile id and revision, operations attempted, results, timestamps, and machine identity. It must contain no passwords, no proxy address, and no domain credentials, matching the existing resume-state boundary.
+
+### [ ] WP-096: Confirmation for in-editor quick actions
+
+The quick actions inside the profile editor change the live machine on a single click, while the apply tab requires an exact `APPLY`. Bring the destructive editor actions - rename, static IPv4, domain join - under the same confirmation rule.
+
+### [ ] WP-097: Inspector parsing tests
+
+`CurrentMachineInspector` parses localized `netsh` output by address shape and handles `ConvertTo-Json` collapsing a single-element array into a scalar. Both behaviours are currently unverified. Extract the parsing from the process call and cover it with unit tests.

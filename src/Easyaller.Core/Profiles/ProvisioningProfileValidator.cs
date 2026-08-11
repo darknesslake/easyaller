@@ -353,7 +353,10 @@ public sealed class ProvisioningProfileValidator
     {
         var address = ParseUsableIpv4(configuration.Address, "machine.network.staticIpv4.address", errors);
         var subnetMask = ParseIpv4(configuration.SubnetMask, "machine.network.staticIpv4.subnetMask", errors);
-        var gateway = ParseUsableIpv4(configuration.DefaultGateway, "machine.network.staticIpv4.defaultGateway", errors);
+        // The default gateway is optional: an isolated subnet does not need one.
+        var gateway = string.IsNullOrWhiteSpace(configuration.DefaultGateway)
+            ? null
+            : ParseUsableIpv4(configuration.DefaultGateway, "machine.network.staticIpv4.defaultGateway", errors);
 
         var prefixLength = subnetMask is null ? null : GetPrefixLength(subnetMask);
         if (subnetMask is not null && prefixLength is null)
@@ -372,21 +375,12 @@ public sealed class ProvisioningProfileValidator
                 "Subnet mask must describe a usable IPv4 host range."));
         }
 
-        if (address is not null && gateway is not null && prefixLength is > 0 and < 31)
+        if (address is not null && prefixLength is > 0 and < 31)
         {
             var mask = ToUInt32(subnetMask!);
             var addressValue = ToUInt32(address);
-            var gatewayValue = ToUInt32(gateway);
             var network = addressValue & mask;
             var broadcast = network | ~mask;
-            if ((gatewayValue & mask) != network)
-            {
-                errors.Add(new ProfileValidationError(
-                    "machine.network.staticIpv4.gateway.outsideSubnet",
-                    "machine.network.staticIpv4.defaultGateway",
-                    "Default gateway must be in the same IPv4 subnet as the address."));
-            }
-
             if (addressValue == network || addressValue == broadcast)
             {
                 errors.Add(new ProfileValidationError(
@@ -395,21 +389,39 @@ public sealed class ProvisioningProfileValidator
                     "IPv4 address cannot be the network or broadcast address."));
             }
 
-            if (gatewayValue == network || gatewayValue == broadcast || gatewayValue == addressValue)
+            if (gateway is not null)
             {
-                errors.Add(new ProfileValidationError(
-                    "machine.network.staticIpv4.gateway.host.invalid",
-                    "machine.network.staticIpv4.defaultGateway",
-                    "Default gateway must be a different usable IPv4 host address."));
+                var gatewayValue = ToUInt32(gateway);
+                if ((gatewayValue & mask) != network)
+                {
+                    errors.Add(new ProfileValidationError(
+                        "machine.network.staticIpv4.gateway.outsideSubnet",
+                        "machine.network.staticIpv4.defaultGateway",
+                        "Default gateway must be in the same IPv4 subnet as the address."));
+                }
+
+                if (gatewayValue == network || gatewayValue == broadcast || gatewayValue == addressValue)
+                {
+                    errors.Add(new ProfileValidationError(
+                        "machine.network.staticIpv4.gateway.host.invalid",
+                        "machine.network.staticIpv4.defaultGateway",
+                        "Default gateway must be a different usable IPv4 host address."));
+                }
             }
         }
 
-        if (configuration.DnsServers is null || configuration.DnsServers.Count is < 1 or > 3)
+        // DNS servers are optional: an empty list keeps the adapter's current DNS untouched.
+        if (configuration.DnsServers is null)
+        {
+            return;
+        }
+
+        if (configuration.DnsServers.Count > 3)
         {
             errors.Add(new ProfileValidationError(
                 "machine.network.staticIpv4.dnsServers.count.invalid",
                 "machine.network.staticIpv4.dnsServers",
-                "Provide between one and three DNS server addresses."));
+                "Provide no more than three DNS server addresses."));
             return;
         }
 

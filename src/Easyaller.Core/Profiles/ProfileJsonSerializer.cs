@@ -16,6 +16,7 @@ public sealed class ProfileJsonSerializer
         UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
         WriteIndented = true,
+        NewLine = "\n",
         TypeInfoResolver = TypeInfoResolver,
         Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false) },
     };

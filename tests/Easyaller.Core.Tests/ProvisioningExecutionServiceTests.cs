@@ -29,7 +29,7 @@ public sealed class ProvisioningExecutionServiceTests
             Domain = defaultProfile.Domain with { Mode = DomainMode.NotConfigured },
             Machine = defaultProfile.Machine with { Proxy = new ProxySettings(ProxyConfigurationMode.NotConfigured) },
         };
-        var adapter = new FakeSystemAdapter();
+        var adapter = new FakeSystemAdapter { CurrentComputerName = "OLD-NAME" };
         var service = CreateService(adapter, out var stateStore, out var launcher);
         using var inputs = new RuntimeProvisioningInputs
         {
@@ -130,7 +130,7 @@ public sealed class ProvisioningExecutionServiceTests
                 Proxy = new ProxySettings(ProxyConfigurationMode.NotConfigured),
             },
         };
-        var adapter = new FakeSystemAdapter();
+        var adapter = new FakeSystemAdapter { CurrentComputerName = "OLD-NAME" };
         var service = CreateService(adapter, out _, out _);
         using var inputs = new RuntimeProvisioningInputs
         {
@@ -141,7 +141,7 @@ public sealed class ProvisioningExecutionServiceTests
         var result = service.Execute(CreatePlan(profile), inputs, ProvisioningExecutionService.ConfirmationPhrase);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(["VerifyNetworkAdapter", "ConfigureStaticIpv4", "RenameComputer"], adapter.Calls);
+        Assert.Equal(["VerifyNetworkAdapter", "ConfigureStaticIpv4", "VerifyComputerName", "RenameComputer"], adapter.Calls);
         Assert.Contains(result.Operations, operation => operation.Kind == ProvisioningExecutionOperationKind.ConfigureStaticIpv4 && operation.WasApplied);
         Assert.Equal("adapter-1", adapter.StaticIpv4AdapterId);
     }
@@ -174,6 +174,21 @@ public sealed class ProvisioningExecutionServiceTests
         Assert.Equal(["*.example.test", "<local>"], adapter.ProxyBypassList);
     }
 
+    [Fact]
+    public void ExecuteTimeZone_AppliesOnlyTheSavedTimeZone()
+    {
+        var adapter = new FakeSystemAdapter();
+        var service = CreateService(adapter, out var stateStore, out var launcher);
+
+        var result = service.ExecuteTimeZone(CreatePlan(), ProvisioningExecutionService.ConfirmationPhrase);
+
+        Assert.Equal(ProvisioningExecutionStatus.Completed, result.Status);
+        Assert.Equal(["SetTimeZone"], adapter.Calls);
+        Assert.Equal("UTC", adapter.TimeZone);
+        Assert.Null(stateStore.Pending);
+        Assert.Equal(0, launcher.RegisterCount);
+    }
+
     private static ProvisioningExecutionService CreateService(
         FakeSystemAdapter adapter,
         out InMemoryStateStore stateStore,
@@ -184,10 +199,89 @@ public sealed class ProvisioningExecutionServiceTests
         return new ProvisioningExecutionService(adapter, stateStore, launcher);
     }
 
+    [Fact]
+    public void Execute_WhenComputerNameAlreadyMatches_SkipsTheRenameAndTheRestart()
+    {
+        var defaultProfile = ProvisioningProfileFactory.CreateDefault();
+        var profile = defaultProfile with
+        {
+            Domain = defaultProfile.Domain with { Mode = DomainMode.NotConfigured },
+            Machine = defaultProfile.Machine with { Proxy = new ProxySettings(ProxyConfigurationMode.NotConfigured) },
+        };
+        var adapter = new FakeSystemAdapter { CurrentComputerName = "LAB-WS-01" };
+        var service = CreateService(adapter, out var stateStore, out var launcher);
+        using var inputs = new RuntimeProvisioningInputs
+        {
+            ComputerName = "LAB-WS-01",
+            NetworkAdapterId = "adapter-1",
+        };
+
+        var result = service.Execute(CreatePlan(profile), inputs, ProvisioningExecutionService.ConfirmationPhrase);
+
+        Assert.Equal(ProvisioningExecutionStatus.Completed, result.Status);
+        Assert.DoesNotContain("RenameComputer", adapter.Calls);
+        Assert.Contains(
+            result.Operations,
+            static operation => operation.Kind == ProvisioningExecutionOperationKind.RenameComputer && !operation.WasApplied);
+        Assert.Null(stateStore.Pending);
+        Assert.Equal(0, launcher.RegisterCount);
+    }
+
+    [Fact]
+    public void Execute_WithoutTimeZoneOptIn_LeavesTheClockAlone()
+    {
+        var adapter = new FakeSystemAdapter();
+        var service = CreateService(adapter, out _, out _);
+        using var inputs = CreateInputs();
+
+        var result = service.Execute(CreatePlan(), inputs, ProvisioningExecutionService.ConfirmationPhrase);
+
+        Assert.True(result.IsSuccess);
+        Assert.DoesNotContain(nameof(FakeSystemAdapter.SetTimeZone), adapter.Calls);
+        Assert.Null(adapter.TimeZone);
+    }
+
+    [Fact]
+    public void Execute_WithTimeZoneOptIn_AppliesItBeforeEverythingElse()
+    {
+        var adapter = new FakeSystemAdapter();
+        var service = CreateService(adapter, out _, out _);
+        using var inputs = CreateInputs(applyTimeZone: true);
+        var plan = CreatePlan();
+
+        var result = service.Execute(plan, inputs, ProvisioningExecutionService.ConfirmationPhrase);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(nameof(FakeSystemAdapter.SetTimeZone), adapter.Calls[0]);
+        Assert.Equal(plan.TimeZone, adapter.TimeZone);
+        Assert.Contains(
+            result.Operations,
+            static operation => operation.Kind == ProvisioningExecutionOperationKind.SetTimeZone && operation.WasApplied);
+    }
+
+    [Fact]
+    public void Execute_TimeZoneOptInWithoutPlanValue_BlocksBeforeAnyChange()
+    {
+        // A valid profile always carries a time zone, so the empty case is built directly
+        // to prove the executor still refuses rather than calling Windows with an empty value.
+        var plan = CreatePlan() with { TimeZone = string.Empty };
+        var adapter = new FakeSystemAdapter();
+        var service = CreateService(adapter, out _, out _);
+        using var inputs = CreateInputs(applyTimeZone: true);
+
+        var result = service.Execute(plan, inputs, ProvisioningExecutionService.ConfirmationPhrase);
+
+        Assert.Equal(ProvisioningExecutionStatus.Blocked, result.Status);
+        Assert.Empty(adapter.Calls);
+    }
+
     private static ProvisioningPlan CreatePlan(ProvisioningProfile? profile = null) =>
         new ProvisioningPlanBuilder().Create(profile ?? ProvisioningProfileFactory.CreateDefault()).Plan!;
 
-    private static RuntimeProvisioningInputs CreateInputs(string? domainName = null, bool includeCredential = false)
+    private static RuntimeProvisioningInputs CreateInputs(
+        string? domainName = null,
+        bool includeCredential = false,
+        bool applyTimeZone = false)
     {
         RuntimeDomainCredential? credential = includeCredential
             ? new RuntimeDomainCredential("EXAMPLE\\JoinUser", "temporary-password".AsSpan())
@@ -198,6 +292,7 @@ public sealed class ProvisioningExecutionServiceTests
             NetworkAdapterId = "adapter-1",
             DomainName = domainName,
             DomainCredential = credential,
+            ApplyTimeZone = applyTimeZone,
         };
     }
 
@@ -208,6 +303,15 @@ public sealed class ProvisioningExecutionServiceTests
         public ProvisioningSystemOperationResult VerifyNameResult { get; init; } = ProvisioningSystemOperationResult.Success();
 
         public ProvisioningSystemOperationResult JoinDomainResult { get; init; } = ProvisioningSystemOperationResult.Success(requiresRestart: true);
+
+        public string? TimeZone { get; private set; }
+
+        public ProvisioningSystemOperationResult SetTimeZone(string timeZone)
+        {
+            Calls.Add(nameof(SetTimeZone));
+            TimeZone = timeZone;
+            return ProvisioningSystemOperationResult.Success();
+        }
 
         public ProvisioningSystemOperationResult VerifyNetworkAdapter(string adapterId)
         {
@@ -247,10 +351,17 @@ public sealed class ProvisioningExecutionServiceTests
             return JoinDomainResult;
         }
 
+        /// <summary>The name the machine already carries, when a test needs to model that.</summary>
+        public string? CurrentComputerName { get; init; }
+
         public ProvisioningSystemOperationResult VerifyComputerName(string expectedComputerName)
         {
             Calls.Add(nameof(VerifyComputerName));
-            return VerifyNameResult;
+            return CurrentComputerName is null
+                ? VerifyNameResult
+                : string.Equals(CurrentComputerName, expectedComputerName, StringComparison.OrdinalIgnoreCase)
+                    ? ProvisioningSystemOperationResult.Success()
+                    : ProvisioningSystemOperationResult.Failure("execution.resume.computerName.unverified");
         }
 
         public ProvisioningSystemOperationResult VerifyDomainJoin()

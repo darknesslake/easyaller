@@ -24,3 +24,6 @@
 [Bb]in/
 [Oo]bj/
 .vs/
+
+# macOS AppleDouble metadata copied to non-Apple filesystems.
+._*

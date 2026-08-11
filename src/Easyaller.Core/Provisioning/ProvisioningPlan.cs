@@ -42,7 +42,8 @@ public sealed record ProvisioningPlan(
     IReadOnlyList<ProvisioningStep> Steps,
     IReadOnlyList<RuntimePrompt> RuntimePrompts,
     StaticIpv4Configuration? StaticIpv4 = null,
-    IReadOnlyList<string>? ProxyBypassList = null);
+    IReadOnlyList<string>? ProxyBypassList = null,
+    string? TimeZone = null);
 
 public sealed record ProvisioningPlanResult(
     ProvisioningPlan? Plan,
@@ -168,7 +169,8 @@ public sealed class ProvisioningPlanBuilder(ProvisioningProfileValidator? valida
                 steps,
                 prompts,
                 profile.Machine.Network.StaticIpv4,
-                profile.Machine.Proxy.BypassList?.ToArray() ?? []),
+                profile.Machine.Proxy.BypassList?.ToArray() ?? [],
+                profile.Windows.TimeZone),
             []);
     }
 
@@ -218,6 +220,12 @@ public sealed class RuntimeProvisioningInputs : IDisposable
     public string? ProxyAddress { get; init; }
 
     public string? DomainName { get; init; }
+
+    /// <summary>
+    /// Opt-in for the profile's Windows time zone. It stays a choice because a machine can be
+    /// deliberately kept in a different zone from the rest of the profile's target sites.
+    /// </summary>
+    public bool ApplyTimeZone { get; init; }
 
     public RuntimeDomainCredential? DomainCredential
     {

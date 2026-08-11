@@ -2,73 +2,442 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="Easyaller.App.App"
              RequestedThemeVariant="Dark">
+  <Application.Resources>
+    <ResourceDictionary>
+      <!-- macOS-style dark palette, modelled on System Settings.
+           Accent color drives FluentTheme's own checkbox/selection/focus visuals. -->
+      <Color x:Key="SystemAccentColor">#0A84FF</Color>
+
+      <!-- Surfaces (darkest to lightest), following the macOS grouped-content model -->
+      <SolidColorBrush x:Key="AppBackgroundBrush" Color="#1C1C1E" />
+      <SolidColorBrush x:Key="SidebarBrush" Color="#242426" />
+      <SolidColorBrush x:Key="SurfaceBrush" Color="#2C2C2E" />
+      <SolidColorBrush x:Key="SurfaceRaisedBrush" Color="#3A3A3C" />
+      <SolidColorBrush x:Key="SurfaceHoverBrush" Color="#48484A" />
+      <SolidColorBrush x:Key="SurfaceSunkenBrush" Color="#1A1A1C" />
+
+      <!-- Hairline separators rather than heavy frames -->
+      <SolidColorBrush x:Key="BorderBrush1" Color="#3F3F41" />
+      <SolidColorBrush x:Key="BorderSubtleBrush" Color="#2F2F31" />
+
+      <!-- Text -->
+      <SolidColorBrush x:Key="TextPrimaryBrush" Color="#F5F5F7" />
+      <SolidColorBrush x:Key="TextSecondaryBrush" Color="#A1A1A6" />
+      <SolidColorBrush x:Key="TextMutedBrush" Color="#77777C" />
+
+      <!-- Accent (primary actions, links, category badges) -->
+      <SolidColorBrush x:Key="AccentBrush" Color="#0A84FF" />
+      <SolidColorBrush x:Key="AccentHoverBrush" Color="#3D9BFF" />
+      <SolidColorBrush x:Key="AccentSoftBrush" Color="#1B3350" />
+      <SolidColorBrush x:Key="AccentTextBrush" Color="#6FB6FF" />
+
+      <!-- Status: system hues, darkened where white text sits on top -->
+      <SolidColorBrush x:Key="SuccessBrush" Color="#32D74B" />
+      <SolidColorBrush x:Key="SuccessTextBrush" Color="#7DE08F" />
+      <SolidColorBrush x:Key="WarningBrush" Color="#C77A00" />
+      <SolidColorBrush x:Key="WarningHoverBrush" Color="#DC8B08" />
+      <SolidColorBrush x:Key="WarningSoftBrush" Color="#2E2413" />
+      <SolidColorBrush x:Key="WarningBorderBrush" Color="#5E4A1C" />
+      <SolidColorBrush x:Key="WarningTextBrush" Color="#FFC960" />
+      <SolidColorBrush x:Key="DangerBrush" Color="#D0362C" />
+      <SolidColorBrush x:Key="DangerHoverBrush" Color="#E24A3F" />
+      <SolidColorBrush x:Key="DangerSoftBrush" Color="#2E1A19" />
+      <SolidColorBrush x:Key="DangerBorderBrush" Color="#6B3630" />
+      <SolidColorBrush x:Key="DangerTextBrush" Color="#FF7B70" />
+    </ResourceDictionary>
+  </Application.Resources>
+
   <Application.Styles>
     <FluentTheme />
+
+    <!-- macOS uses one interface face everywhere; Segoe UI Variable is the closest Windows analogue. -->
+    <Style Selector="Window">
+      <Setter Property="FontFamily" Value="Segoe UI Variable Text, Segoe UI, sans-serif" />
+    </Style>
+
+    <!-- Base control density: small radii on controls, generous radii on containers -->
     <Style Selector="Button">
-      <Setter Property="CornerRadius" Value="12" />
-      <Setter Property="Padding" Value="14,9" />
+      <Setter Property="Background" Value="{StaticResource SurfaceRaisedBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource BorderBrush1}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="11,6" />
+      <Setter Property="FontSize" Value="12.5" />
+    </Style>
+    <Style Selector="Button:pointerover">
+      <Setter Property="Background" Value="{StaticResource SurfaceHoverBrush}" />
     </Style>
     <Style Selector="TextBox">
-      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="CornerRadius" Value="6" />
     </Style>
     <Style Selector="ComboBox">
+      <Setter Property="CornerRadius" Value="6" />
+    </Style>
+    <Style Selector="ListBox">
+      <Setter Property="CornerRadius" Value="8" />
+    </Style>
+
+    <!-- Button variants -->
+    <Style Selector="Button.primary">
+      <Setter Property="Background" Value="{StaticResource AccentBrush}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.primary:pointerover">
+      <Setter Property="Background" Value="{StaticResource AccentHoverBrush}" />
+    </Style>
+    <Style Selector="Button.warningAction">
+      <Setter Property="Background" Value="{StaticResource WarningBrush}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.warningAction:pointerover">
+      <Setter Property="Background" Value="{StaticResource WarningHoverBrush}" />
+    </Style>
+    <Style Selector="Button.danger">
+      <Setter Property="Background" Value="{StaticResource DangerBrush}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.danger:pointerover">
+      <Setter Property="Background" Value="{StaticResource DangerHoverBrush}" />
+    </Style>
+    <Style Selector="Button.ghost">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="{StaticResource BorderBrush1}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+    </Style>
+
+    <!-- Sidebar navigation -->
+    <Style Selector="Button.navItem">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Left" />
+      <Setter Property="Padding" Value="10,8" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="CornerRadius" Value="6" />
+    </Style>
+    <Style Selector="Button.navItem:pointerover">
+      <Setter Property="Background" Value="{StaticResource SurfaceHoverBrush}" />
+    </Style>
+    <Style Selector="Border.navItemActive">
+      <Setter Property="Background" Value="{StaticResource AccentSoftBrush}" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="10,8" />
+    </Style>
+    <Style Selector="Button.navItem.active">
+      <Setter Property="Background" Value="{StaticResource AccentSoftBrush}" />
+    </Style>
+    <Style Selector="Button.navItem.active TextBlock">
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+    </Style>
+
+    <!-- Top-level scenario switcher: configure this PC vs prepare new installation media -->
+    <Style Selector="Border.segmentGroup">
+      <Setter Property="Background" Value="{StaticResource SurfaceSunkenBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource BorderBrush1}" />
+      <Setter Property="BorderThickness" Value="1" />
       <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="4" />
     </Style>
-    <Style Selector="Border.helpBadge">
-      <Setter Property="Width" Value="18" />
-      <Setter Property="Height" Value="18" />
-      <Setter Property="CornerRadius" Value="999" />
-      <Setter Property="Background" Value="#284564" />
-      <Setter Property="Margin" Value="6,0,0,0" />
+    <Style Selector="Button.segment">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="7" />
+      <Setter Property="Padding" Value="13,7" />
+      <Setter Property="HorizontalContentAlignment" Value="Left" />
     </Style>
-    <Style Selector="TextBlock.helpBadgeText">
+    <Style Selector="Button.segment:pointerover">
+      <Setter Property="Background" Value="{StaticResource SurfaceHoverBrush}" />
+    </Style>
+    <Style Selector="Button.segment.active">
+      <Setter Property="Background" Value="{StaticResource SurfaceRaisedBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+    </Style>
+    <Style Selector="Button.segment TextBlock.segmentTitle">
+      <Setter Property="FontSize" Value="12.5" />
+      <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+    </Style>
+    <Style Selector="Button.segment.active TextBlock.segmentTitle">
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+    </Style>
+    <Style Selector="Button.segment TextBlock.segmentHint">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}" />
+    </Style>
+    <Style Selector="Button.segment TextBlock.segmentIcon">
+      <Setter Property="FontSize" Value="15" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}" />
+    </Style>
+    <Style Selector="Button.segment.active TextBlock.segmentIcon">
+      <Setter Property="Foreground" Value="{StaticResource AccentTextBrush}" />
+    </Style>
+
+    <!-- In-page tab switcher (Editing / Apply to this PC) -->
+    <Style Selector="Button.tabPill">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="{StaticResource BorderBrush1}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+      <Setter Property="Padding" Value="12,6" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="FontSize" Value="12.5" />
+    </Style>
+    <Style Selector="Button.tabPill:pointerover">
+      <Setter Property="Background" Value="{StaticResource SurfaceHoverBrush}" />
+    </Style>
+    <Style Selector="Button.tabPill.active">
+      <Setter Property="Background" Value="{StaticResource AccentBrush}" />
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="Button.tabPill.active:pointerover">
+      <Setter Property="Background" Value="{StaticResource AccentHoverBrush}" />
+    </Style>
+
+    <!-- Emphasized primary action at the bottom of a page: the one thing a user is meant to click -->
+    <Style Selector="Button.primaryLarge">
+      <Setter Property="Padding" Value="18,10" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="CornerRadius" Value="7" />
+    </Style>
+
+    <!-- Sidebar nav icon badge: keeps every destination visually consistent -->
+    <Style Selector="Border.navIcon">
+      <Setter Property="Width" Value="24" />
+      <Setter Property="Height" Value="24" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Background" Value="{StaticResource SurfaceRaisedBrush}" />
+      <Setter Property="Margin" Value="0,0,10,0" />
+    </Style>
+    <Style Selector="TextBlock.navIconText">
+      <Setter Property="HorizontalAlignment" Value="Center" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+    </Style>
+    <Style Selector="Border.navItemActive Border.navIcon, Button.navItem.active Border.navIcon">
+      <Setter Property="Background" Value="{StaticResource AccentBrush}" />
+    </Style>
+    <Style Selector="Border.navItemActive TextBlock.navIconText, Button.navItem.active TextBlock.navIconText">
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <!-- Typography -->
+    <Style Selector="TextBlock.pageTitle">
+      <Setter Property="FontSize" Value="18" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+    </Style>
+    <Style Selector="TextBlock.pageSubtitle">
+      <Setter Property="FontSize" Value="11.5" />
+      <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style Selector="TextBlock.panelTitle">
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+    </Style>
+    <Style Selector="TextBlock.cardTitle">
+      <Setter Property="FontSize" Value="12.5" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+    </Style>
+    <Style Selector="TextBlock.fieldLabel">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="Medium" />
+      <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+    </Style>
+    <Style Selector="TextBlock.helperText">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style Selector="TextBlock.noteText">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Foreground" Value="{StaticResource AccentTextBrush}" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style Selector="TextBlock.validationError">
+      <Setter Property="FontSize" Value="11.5" />
+      <Setter Property="Foreground" Value="{StaticResource DangerTextBrush}" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
+    <!-- Cards -->
+    <Style Selector="Border.panelCard">
+      <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource BorderSubtleBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="12" />
+    </Style>
+    <Style Selector="Border.innerCard">
+      <Setter Property="Background" Value="{StaticResource SurfaceRaisedBrush}" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="13" />
+    </Style>
+
+    <!-- Footer action bar: a hairline separates it from the scrolled content above -->
+    <Style Selector="Border.bottomBar">
+      <Setter Property="Background" Value="{StaticResource SurfaceRaisedBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource BorderBrush1}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="13" />
+    </Style>
+    <Style Selector="Border.calloutInfo">
+      <Setter Property="Background" Value="{StaticResource AccentSoftBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource BorderSubtleBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="13" />
+    </Style>
+    <Style Selector="Border.calloutWarning">
+      <Setter Property="Background" Value="{StaticResource WarningSoftBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource WarningBorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="13" />
+    </Style>
+    <Style Selector="Border.calloutDanger">
+      <Setter Property="Background" Value="{StaticResource DangerSoftBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource DangerBorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="13" />
+    </Style>
+
+    <!-- Category step badge (numbered squares used to group settings into sections) -->
+    <Style Selector="Border.stepBadge">
+      <Setter Property="Width" Value="20" />
+      <Setter Property="Height" Value="20" />
+      <Setter Property="CornerRadius" Value="5" />
+      <Setter Property="Background" Value="{StaticResource AccentSoftBrush}" />
+      <Setter Property="Margin" Value="0,0,8,0" />
+    </Style>
+    <Style Selector="TextBlock.stepBadgeText">
       <Setter Property="HorizontalAlignment" Value="Center" />
       <Setter Property="VerticalAlignment" Value="Center" />
       <Setter Property="FontSize" Value="11" />
       <Setter Property="FontWeight" Value="Bold" />
-      <Setter Property="Foreground" Value="#C8E3FF" />
+      <Setter Property="Foreground" Value="{StaticResource AccentTextBrush}" />
     </Style>
-    <Style Selector="Button.profileSectionButton">
-      <Setter Property="Background" Value="#1D2A3E" />
-      <Setter Property="BorderBrush" Value="#2A3B55" />
+
+    <!-- Quick action on the current PC: visually separated from reusable profile fields -->
+    <Style Selector="Border.quickActionOnPc">
+      <Setter Property="Background" Value="{StaticResource SurfaceSunkenBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource WarningBorderBrush}" />
       <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="CornerRadius" Value="14" />
-      <Setter Property="Padding" Value="16,11" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="12,10" />
+      <Setter Property="Margin" Value="0,2,0,0" />
+    </Style>
+    <Style Selector="TextBlock.quickActionLabel">
+      <Setter Property="FontSize" Value="10" />
+      <Setter Property="FontWeight" Value="Bold" />
+      <Setter Property="Foreground" Value="{StaticResource WarningTextBrush}" />
+      <Setter Property="LetterSpacing" Value="0.4" />
+    </Style>
+
+    <!-- Compact removable-entry list (DNS servers, etc.) -->
+    <Style Selector="ListBox.compactList > ListBoxItem">
+      <Setter Property="Padding" Value="8,5" />
+      <Setter Property="Margin" Value="0,1" />
+      <Setter Property="CornerRadius" Value="4" />
+    </Style>
+
+    <!-- Tags / badges -->
+    <Style Selector="Border.tag">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="{StaticResource BorderBrush1}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Padding" Value="6,1" />
+    </Style>
+    <Style Selector="TextBlock.tagText">
+      <Setter Property="FontSize" Value="10.5" />
+      <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}" />
+    </Style>
+    <Style Selector="Border.tagAccent">
+      <Setter Property="Background" Value="{StaticResource AccentSoftBrush}" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Padding" Value="5,1" />
+    </Style>
+    <Style Selector="TextBlock.tagAccentText">
+      <Setter Property="FontSize" Value="10.5" />
+      <Setter Property="Foreground" Value="{StaticResource AccentTextBrush}" />
+    </Style>
+
+    <!-- Discreet help affordance: quiet by default, only lights up on hover -->
+    <Style Selector="Border.helpBadge">
+      <Setter Property="Width" Value="16" />
+      <Setter Property="Height" Value="16" />
+      <Setter Property="CornerRadius" Value="999" />
+      <Setter Property="Background" Value="{StaticResource SurfaceRaisedBrush}" />
+      <Setter Property="Margin" Value="6,0,0,0" />
+    </Style>
+    <Style Selector="Border.helpBadge:pointerover">
+      <Setter Property="Background" Value="{StaticResource AccentSoftBrush}" />
+    </Style>
+    <Style Selector="TextBlock.helpBadgeText">
+      <Setter Property="HorizontalAlignment" Value="Center" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="FontSize" Value="10" />
+      <Setter Property="FontWeight" Value="Bold" />
+      <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}" />
+    </Style>
+    <Style Selector="Border.helpBadge:pointerover TextBlock.helpBadgeText">
+      <Setter Property="Foreground" Value="{StaticResource AccentTextBrush}" />
+    </Style>
+
+    <!-- Collapsible category headers -->
+    <Style Selector="Button.profileSectionButton">
+      <Setter Property="Background" Value="{StaticResource SurfaceRaisedBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource BorderBrush1}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="12,8" />
       <Setter Property="HorizontalContentAlignment" Value="Stretch" />
     </Style>
-    <Style Selector="Button.profileSectionButton:pointerover">
-      <Setter Property="Background" Value="#22344D" />
-      <Setter Property="BorderBrush" Value="#3A5A81" />
+    <Style Selector="Button.profileSectionButton:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource SurfaceHoverBrush}" />
     </Style>
     <Style Selector="Border.sectionStatusBadge">
-      <Setter Property="Background" Value="#263A51" />
-      <Setter Property="CornerRadius" Value="999" />
-      <Setter Property="Padding" Value="9,4" />
-      <Setter Property="Margin" Value="0,0,10,0" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="{StaticResource BorderBrush1}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Padding" Value="6,1" />
+      <Setter Property="Margin" Value="0,0,8,0" />
       <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
     <Style Selector="TextBlock.sectionStatusText">
-      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontSize" Value="10.5" />
       <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Foreground" Value="#AFC4DF" />
+      <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}" />
     </Style>
-    <Style Selector="TextBlock.validationError">
-      <Setter Property="FontSize" Value="12" />
-      <Setter Property="Foreground" Value="#FCA5A5" />
-      <Setter Property="TextWrapping" Value="Wrap" />
-    </Style>
+
+    <!-- Saved-profiles list -->
     <Style Selector="ListBox#ProfilesList > ListBoxItem">
       <Setter Property="Padding" Value="0" />
       <Setter Property="Margin" Value="0,2" />
-      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="CornerRadius" Value="6" />
       <Setter Property="Background" Value="Transparent" />
     </Style>
     <Style Selector="ListBox#ProfilesList > ListBoxItem:pointerover">
-      <Setter Property="Background" Value="#1F3047" />
+      <Setter Property="Background" Value="{StaticResource SurfaceHoverBrush}" />
     </Style>
     <Style Selector="ListBox#ProfilesList > ListBoxItem:selected">
-      <Setter Property="Background" Value="#29415F" />
-      <Setter Property="BorderBrush" Value="#40658D" />
+      <Setter Property="Background" Value="{StaticResource AccentSoftBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
       <Setter Property="BorderThickness" Value="1" />
     </Style>
   </Application.Styles>

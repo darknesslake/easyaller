@@ -131,16 +131,29 @@ public sealed class WindowsProvisioningSystemAdapter : IProvisioningSystemAdapte
             Get-NetIPAddress -InterfaceIndex $interfaceIndex -AddressFamily IPv4 -ErrorAction Stop |
                 Where-Object { $_.PrefixOrigin -ne 'WellKnown' } |
                 Remove-NetIPAddress -Confirm:$false -ErrorAction Stop
-            New-NetIPAddress -InterfaceIndex $interfaceIndex -IPAddress $env:EASYALLER_STATIC_IPV4_ADDRESS -PrefixLength ([int]$env:EASYALLER_STATIC_IPV4_PREFIX_LENGTH) -DefaultGateway $env:EASYALLER_STATIC_IPV4_GATEWAY -ErrorAction Stop | Out-Null
-            Set-DnsClientServerAddress -InterfaceIndex $interfaceIndex -ServerAddresses ($env:EASYALLER_STATIC_IPV4_DNS -split ';') -ErrorAction Stop
+            # A default gateway is optional: an isolated subnet may not have one.
+            $addressParameters = @{ InterfaceIndex = $interfaceIndex; IPAddress = $env:EASYALLER_STATIC_IPV4_ADDRESS; PrefixLength = ([int]$env:EASYALLER_STATIC_IPV4_PREFIX_LENGTH); ErrorAction = 'Stop' }
+            if ($env:EASYALLER_STATIC_IPV4_GATEWAY) { $addressParameters.DefaultGateway = $env:EASYALLER_STATIC_IPV4_GATEWAY }
+            New-NetIPAddress @addressParameters | Out-Null
+
+            # No DNS servers configured means the adapter keeps the DNS it already uses.
+            $expectedDns = @($env:EASYALLER_STATIC_IPV4_DNS -split ';' | Where-Object { $_ })
+            if ($expectedDns.Count -gt 0) {
+                Set-DnsClientServerAddress -InterfaceIndex $interfaceIndex -ServerAddresses $expectedDns -ErrorAction Stop
+            }
 
             $configuredAddress = @(Get-NetIPAddress -InterfaceIndex $interfaceIndex -AddressFamily IPv4 -ErrorAction Stop | Where-Object {
                 $_.IPAddress -eq $env:EASYALLER_STATIC_IPV4_ADDRESS -and $_.PrefixLength -eq ([int]$env:EASYALLER_STATIC_IPV4_PREFIX_LENGTH)
             })
-            $configuredDns = @((Get-DnsClientServerAddress -InterfaceIndex $interfaceIndex -AddressFamily IPv4 -ErrorAction Stop).ServerAddresses)
-            $expectedDns = @($env:EASYALLER_STATIC_IPV4_DNS -split ';')
-            if ($configuredAddress.Count -ne 1 -or @($configuredDns | Where-Object { $_ -in $expectedDns }).Count -ne $expectedDns.Count) {
+            if ($configuredAddress.Count -ne 1) {
                 throw 'Static IPv4 verification failed.'
+            }
+
+            if ($expectedDns.Count -gt 0) {
+                $configuredDns = @((Get-DnsClientServerAddress -InterfaceIndex $interfaceIndex -AddressFamily IPv4 -ErrorAction Stop).ServerAddresses)
+                if (@($configuredDns | Where-Object { $_ -in $expectedDns }).Count -ne $expectedDns.Count) {
+                    throw 'Static IPv4 verification failed.'
+                }
             }
         }
         catch {
@@ -171,6 +184,12 @@ public sealed class WindowsProvisioningSystemAdapter : IProvisioningSystemAdapte
             exit 1
         }
         """;
+
+    private const string SetTimeZoneScript = """
+        $expected = $env:EASYALLER_TIME_ZONE
+        Set-TimeZone -Id $expected -ErrorAction Stop
+        if ((Get-TimeZone -ErrorAction Stop).Id -ne $expected) { exit 2 }
+        """;
     private const string RenameComputerScript = "Rename-Computer -NewName $env:EASYALLER_COMPUTER_NAME -Force -ErrorAction Stop";
     private const string JoinDomainScript = """
         $password = [Console]::In.ReadToEnd()
@@ -193,6 +212,19 @@ public sealed class WindowsProvisioningSystemAdapter : IProvisioningSystemAdapte
         ArgumentException.ThrowIfNullOrWhiteSpace(adapterId);
         return RunPowerShell(VerifyNetworkAdapterScript, startInfo =>
             startInfo.Environment["EASYALLER_NETWORK_ADAPTER_ID"] = adapterId);
+    }
+
+    public ProvisioningSystemOperationResult SetTimeZone(string timeZone)
+    {
+        if (string.IsNullOrWhiteSpace(timeZone))
+        {
+            return ProvisioningSystemOperationResult.Failure("execution.timeZone.invalid");
+        }
+
+        return RunPowerShell(SetTimeZoneScript, startInfo =>
+        {
+            startInfo.Environment["EASYALLER_TIME_ZONE"] = timeZone;
+        }, requiresAdministrator: false);
     }
 
     public ProvisioningSystemOperationResult SetWinHttpProxy(string proxyAddress, IReadOnlyList<string> bypassList)
@@ -286,14 +318,15 @@ public sealed class WindowsProvisioningSystemAdapter : IProvisioningSystemAdapte
     private static ProvisioningSystemOperationResult RunPowerShell(
         string script,
         Action<ProcessStartInfo>? configure = null,
-        ReadOnlySpan<char> standardInput = default)
+        ReadOnlySpan<char> standardInput = default,
+        bool requiresAdministrator = true)
     {
         if (!OperatingSystem.IsWindows())
         {
             return ProvisioningSystemOperationResult.Failure("execution.windows.required");
         }
 
-        if (!IsAdministrator())
+        if (requiresAdministrator && !IsAdministrator())
         {
             return ProvisioningSystemOperationResult.Failure("execution.administrator.required");
         }

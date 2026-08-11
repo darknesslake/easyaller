@@ -1,27 +1,60 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Net;
+using System.Net.Sockets;
 using System.Runtime.CompilerServices;
+using System.Text;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Easyaller.Core.Profiles;
+using Easyaller.Core.Provisioning;
+using Easyaller.Deployment;
 
 namespace Easyaller.App;
+
+public enum EditorTab
+{
+    Profile,
+    Action,
+    Verify,
+}
 
 public sealed partial class MainWindow : Window, INotifyPropertyChanged
 {
     private readonly FileProfileRepository _repository;
     private readonly ProfileImportExportService _profileImportExportService;
     private readonly ProfileEditorController _profileEditorController;
+    private readonly ProvisioningPlanBuilder _planBuilder = new();
+    private readonly RuntimeProvisioningInputValidator _inputValidator = new();
+    private readonly DeploymentPreparationController _deploymentController = new();
+    private readonly ProvisioningExecutionService _executionService = new(
+        new WindowsProvisioningSystemAdapter(),
+        new FileProvisioningExecutionStateStore(),
+        new WindowsProvisioningResumeLauncher());
     private readonly List<ProfileListItem> _allProfiles = [];
     private readonly ObservableCollection<ProfileListItem> _profiles = [];
     private readonly ObservableCollection<ApplicationListItem> _applications = [];
     private readonly ObservableCollection<InstructionListItem> _instructions = [];
+    private readonly ObservableCollection<string> _dnsServers = [];
+    private readonly ObservableCollection<RuntimePromptListItem> _prompts = [];
     private ProfileListItem? _selectedProfile;
     private byte[]? _pendingImportSource;
     private ProvisioningProfile? _pendingExportProfile;
+    private ProvisioningPlan? _plan;
+    private DeploymentDryRun? _deploymentDryRun;
+    private const string ComputerNameSitePrefix = "URA01";
+    private readonly CurrentMachineInspector _machineInspector = new();
+    private readonly ObservableCollection<ComplianceCheckListItem> _complianceChecks = [];
+    private readonly ProfileComplianceChecker _complianceChecker = new();
+    private readonly ProvisioningJournal _journal = new();
+    private readonly RuntimeProfileEligibilityService _eligibilityService = new();
+    private readonly PrivacyConfigurationService _privacyService = new();
+    private ComplianceReport? _complianceReport;
+    private EditorTab _activeTab = EditorTab.Profile;
+    private bool _isPrepareInstallMode;
     private string _selectedProfileName = "Выберите профиль";
     private string _selectedProfileDescription = "Выберите сохранённый профиль, чтобы посмотреть его локальное состояние.";
     private string _selectedProfileRevision = "Профиль не выбран";
@@ -36,13 +69,20 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         InitializeComponent();
         DataContext = this;
         _repository = new FileProfileRepository(GetLocalProfileDirectory());
+        MigrateLegacyMachineWideProfiles(_repository.RootDirectory);
         _profileImportExportService = new ProfileImportExportService(_repository);
         _profileEditorController = new ProfileEditorController(_repository);
         ProfilesList.ItemsSource = _profiles;
         ApplicationsList.ItemsSource = _applications;
         InstructionsList.ItemsSource = _instructions;
+        DnsServersList.ItemsSource = _dnsServers;
+        RuntimePromptsList.ItemsSource = _prompts;
+        ComplianceList.ItemsSource = _complianceChecks;
+        DeploymentEditionComboBox.SelectedIndex = 0;
+        DeploymentVersionComboBox.SelectedIndex = 0;
         StoragePathText.Text = _repository.RootDirectory;
         AttachEditorChangeHandlers();
+        SetMode(prepareInstallMode: false);
         RefreshProfiles();
     }
 
@@ -82,6 +122,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     public bool CanUseSavedProfileActions => HasSelectedProfile && !HasUnsavedChanges;
     public bool CanSearchProfiles => _allProfiles.Count > 0 && !HasUnsavedChanges;
     public bool HasNoVisibleProfiles => _profiles.Count == 0;
+    public bool HasNoDnsServers => _dnsServers.Count == 0;
 
     private void MainWindow_Closing(object? sender, WindowClosingEventArgs e)
     {
@@ -117,11 +158,79 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         SetStatus($"Профиль «{profile.Metadata.Name}» создан.");
     }
 
-    private void OpenSetup_Click(object? sender, RoutedEventArgs e)
+    private void SelectThisPcMode_Click(object? sender, RoutedEventArgs e) => SetMode(prepareInstallMode: false);
+
+    private void SelectNewInstallMode_Click(object? sender, RoutedEventArgs e) => SetMode(prepareInstallMode: true);
+
+    private void SetMode(bool prepareInstallMode)
     {
-        if (CanLeaveCurrentProfile())
+        _isPrepareInstallMode = prepareInstallMode;
+        SetActiveNavClass(ThisPcModeButton, !prepareInstallMode);
+        SetActiveNavClass(NewInstallModeButton, prepareInstallMode);
+        ApplyTabButton.Content = prepareInstallMode ? "Подготовка установки" : "Применить на этом ПК";
+        ModeSubtitleText.Text = prepareInstallMode
+            ? "Профиль превращается в пакет файлов для Windows, которую только предстоит установить. Этот компьютер не изменяется."
+            : "Профиль применяется к уже установленной Windows на этом компьютере. Пароли и учётные данные не сохраняются.";
+
+        // Answer-file settings only reach a Windows Setup run, so they stay hidden while configuring a live PC.
+        InstallOnlyWindowsSettings.IsVisible = prepareInstallMode;
+        InstallOnlyLaunchSettings.IsVisible = prepareInstallMode;
+        InstallOnlyCleanupSettings.IsVisible = prepareInstallMode;
+        InstallOnlyApplicationsSection.IsVisible = prepareInstallMode;
+        WindowsSectionTitleText.Text = prepareInstallMode ? "Windows и первый запуск" : "Часовой пояс Windows";
+        WindowsSectionNoteText.Text = prepareInstallMode
+            ? "Это стандарт для устанавливаемой Windows. Он не меняет уже работающий компьютер."
+            : "К уже установленной Windows из этого раздела применяется только часовой пояс. Языки, редакции и экраны первичной настройки задаются файлом ответов и видны в режиме подготовки установки.";
+        SetActiveTab(_activeTab);
+    }
+
+    private void ShowEditTab_Click(object? sender, RoutedEventArgs e) => SetActiveTab(EditorTab.Profile);
+
+    private void ShowApplyTab_Click(object? sender, RoutedEventArgs e) => SetActiveTab(EditorTab.Action);
+
+    private void ShowVerifyTab_Click(object? sender, RoutedEventArgs e) => SetActiveTab(EditorTab.Verify);
+
+    private void SetActiveTab(EditorTab tab)
+    {
+        // Verification only makes sense for a running Windows, so it disappears in install-preparation mode.
+        if (tab == EditorTab.Verify && _isPrepareInstallMode)
         {
-            new SetupWindow(_repository).Show(this);
+            tab = EditorTab.Action;
+        }
+
+        _activeTab = tab;
+        SetActiveNavClass(EditTabButton, tab == EditorTab.Profile);
+        SetActiveNavClass(ApplyTabButton, tab == EditorTab.Action);
+        SetActiveNavClass(VerifyTabButton, tab == EditorTab.Verify);
+        VerifyTabButton.IsVisible = !_isPrepareInstallMode;
+
+        var showEditor = tab == EditorTab.Profile;
+        var showPrepare = tab == EditorTab.Action && _isPrepareInstallMode;
+        var showApply = tab == EditorTab.Action && !_isPrepareInstallMode;
+        var showVerify = tab == EditorTab.Verify;
+
+        ProfileEditorScrollViewer.IsVisible = showEditor;
+        PrepareInstallScrollViewer.IsVisible = showPrepare;
+        ApplyTabScrollViewer.IsVisible = showApply;
+        VerifyTabScrollViewer.IsVisible = showVerify;
+        EditorBottomBar.IsVisible = showEditor;
+        PrepareBottomBar.IsVisible = showPrepare;
+        ApplyBottomBar.IsVisible = showApply;
+        VerifyBottomBar.IsVisible = showVerify;
+    }
+
+    private static void SetActiveNavClass(Button button, bool isActive)
+    {
+        if (isActive)
+        {
+            if (!button.Classes.Contains("active"))
+            {
+                button.Classes.Add("active");
+            }
+        }
+        else
+        {
+            button.Classes.Remove("active");
         }
     }
 
@@ -168,6 +277,576 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         SetHasUnsavedChanges(false);
         RefreshProfiles(result.Profile!.ProfileId);
         SetStatus("Изменения профиля сохранены.");
+    }
+
+    private async void ApplyTimeZoneToCurrentPc_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_selectedProfile is null)
+        {
+            SetStatus("Сначала выберите профиль.");
+            return;
+        }
+
+        var timeZone = GetSelectedTag(TimeZoneComboBox, _selectedProfile.Profile.Windows.TimeZone);
+        ApplyTimeZoneToCurrentPcButton.IsEnabled = false;
+        try
+        {
+            SetStatus($"Применяется только часовой пояс Windows: {timeZone}.");
+            var result = await Task.Run(() => new WindowsProvisioningSystemAdapter().SetTimeZone(timeZone));
+            SetStatus(result.IsSuccess
+                ? $"Часовой пояс Windows установлен и проверен: {timeZone}. Другие настройки не изменялись."
+                : "Не удалось применить часовой пояс Windows: " + (result.ErrorCode ?? "неизвестная ошибка") + ".");
+        }
+        finally
+        {
+            ApplyTimeZoneToCurrentPcButton.IsEnabled = true;
+        }
+    }
+
+    private async void ApplyComputerNameToCurrentPc_Click(object? sender, RoutedEventArgs e)
+    {
+        var number = ComputerNameNumberTextBox.Text?.Trim() ?? string.Empty;
+        var computerName = GetComputerNamePrefix() + number;
+        if (number.Length is < 2 or > 3 || !number.All(char.IsAsciiDigit) || computerName.Length > 15)
+        {
+            SetStatus("Введите 2 или 3 цифры; итоговое имя не должно превышать 15 символов.");
+            return;
+        }
+
+        if (!await ConfirmActionWindow.AskAsync(
+            this,
+            "Переименовать этот компьютер?",
+            $"Текущее имя «{Environment.MachineName}» будет заменено на «{computerName}».",
+            "Потребуется перезагрузка Windows. Если компьютер состоит в домене, переименование может нарушить доверительные отношения.",
+            "Переименовать"))
+        {
+            SetStatus("Переименование отменено. Компьютер не изменён.");
+            return;
+        }
+
+        ApplyComputerNameToCurrentPcButton.IsEnabled = false;
+        try
+        {
+            var result = await Task.Run(() => new WindowsProvisioningSystemAdapter().RenameComputer(computerName));
+            SetStatus(result.IsSuccess ? $"Имя компьютера изменено на {computerName}. Перезагрузите Windows для завершения." : "Не удалось изменить имя компьютера: " + (result.ErrorCode ?? "неизвестная ошибка") + ".");
+            WriteJournalEntry("Быстрое действие: имя компьютера", result.IsSuccess ? "Применено" : "Ошибка", [computerName]);
+        }
+        finally { ApplyComputerNameToCurrentPcButton.IsEnabled = true; }
+    }
+
+    private async void ApplyProxyToCurrentPc_Click(object? sender, RoutedEventArgs e)
+    {
+        var address = ProxyAddressTextBox.Text?.Trim();
+        if (string.IsNullOrWhiteSpace(address))
+        {
+            SetStatus("Введите адрес WinHTTP-прокси перед применением.");
+            return;
+        }
+
+        var bypassList = (ProxyBypassListTextBox.Text ?? string.Empty)
+            .Split([',', ';', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        ApplyProxyToCurrentPcButton.IsEnabled = false;
+        try
+        {
+            var result = await Task.Run(() => new WindowsProvisioningSystemAdapter().SetWinHttpProxy(address, bypassList));
+            SetStatus(result.IsSuccess
+                ? "WinHTTP-прокси применён только на этом ПК."
+                : "Не удалось применить WinHTTP-прокси: " + (result.ErrorCode ?? "неизвестная ошибка") + ".");
+        }
+        finally
+        {
+            ApplyProxyToCurrentPcButton.IsEnabled = true;
+        }
+    }
+
+    private async void ApplyStaticIpv4ToCurrentPc_Click(object? sender, RoutedEventArgs e)
+    {
+        var adapterId = StaticIpv4AdapterIdTextBox.Text?.Trim();
+        var configuration = new StaticIpv4Configuration(
+            StaticIpv4AddressTextBox.Text?.Trim() ?? string.Empty,
+            StaticIpv4SubnetMaskTextBox.Text?.Trim() ?? string.Empty,
+            StaticIpv4DefaultGatewayTextBox.Text?.Trim() ?? string.Empty,
+            _dnsServers.ToArray(),
+            adapterId);
+        if (string.IsNullOrWhiteSpace(adapterId))
+        {
+            SetStatus("Укажите сетевой адаптер, к которому применить настройки.");
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(configuration.Address)
+            || ProvisioningProfileValidator.GetPrefixLength(configuration.SubnetMask) is null)
+        {
+            SetStatus("Укажите корректные IPv4-адрес и маску подсети. Шлюз и DNS-серверы указывать необязательно.");
+            return;
+        }
+
+        if (!await ConfirmActionWindow.AskAsync(
+            this,
+            "Изменить сеть этого компьютера?",
+            $"Адаптеру «{adapterId}» будет назначен адрес {configuration.Address} с маской {configuration.SubnetMask}.",
+            "DHCP на этом адаптере будет отключён, а его текущие адреса заменены. Если вы подключены удалённо через этот адаптер, соединение оборвётся.",
+            "Применить сеть"))
+        {
+            SetStatus("Изменение сети отменено. Адаптер не изменён.");
+            return;
+        }
+
+        ApplyStaticIpv4ToCurrentPcButton.IsEnabled = false;
+        try
+        {
+            var result = await Task.Run(() => new WindowsProvisioningSystemAdapter().ConfigureStaticIpv4(adapterId, configuration));
+            SetStatus(result.IsSuccess
+                ? "Сеть применена к выбранному адаптеру."
+                    + (string.IsNullOrWhiteSpace(configuration.DefaultGateway) ? " Шлюз не задавался." : string.Empty)
+                    + (configuration.DnsServers.Count == 0 ? " DNS-серверы адаптера не изменялись." : string.Empty)
+                : "Не удалось применить сеть: " + (result.ErrorCode ?? "неизвестная ошибка") + ".");
+            WriteJournalEntry(
+                "Быстрое действие: статический IPv4",
+                result.IsSuccess ? "Применено" : "Ошибка",
+                [$"{adapterId}: {configuration.Address}/{configuration.SubnetMask}"]);
+        }
+        finally { ApplyStaticIpv4ToCurrentPcButton.IsEnabled = true; }
+    }
+
+    private async void RunComplianceCheck_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_selectedProfile is null)
+        {
+            SetStatus("Сначала выберите профиль, с которым нужно сверить компьютер.");
+            return;
+        }
+
+        RunComplianceCheckButton.IsEnabled = false;
+        try
+        {
+            if (await ReadCurrentMachineAsync() is not { } snapshot)
+            {
+                return;
+            }
+
+            var report = _complianceChecker.Check(
+                _selectedProfile.Profile,
+                snapshot.ToMachineState(),
+                DateTimeOffset.Now);
+            ShowComplianceReport(report);
+        }
+        finally
+        {
+            RunComplianceCheckButton.IsEnabled = true;
+        }
+    }
+
+    /// <summary>
+    /// Records what happened locally. Runtime-only values - passwords, the proxy address, and
+    /// domain credentials - never reach the journal.
+    /// </summary>
+    private void WriteJournalEntry(string action, string outcome, IReadOnlyList<string> details)
+    {
+        if (_selectedProfile is null)
+        {
+            return;
+        }
+
+        try
+        {
+            _journal.Append(new JournalEntry(
+                DateTimeOffset.Now,
+                Environment.MachineName,
+                _selectedProfile.Profile.ProfileId,
+                _selectedProfile.Profile.Revision,
+                _selectedProfile.Profile.Metadata.Name,
+                action,
+                outcome,
+                details));
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // A journal failure must never hide or block the operation the operator just ran.
+            SetStatus(StatusText.Text + " Журнал записать не удалось.");
+        }
+    }
+
+    private void ShowComplianceReport(ComplianceReport report)
+    {
+        _complianceReport = report;
+        _complianceChecks.Clear();
+        foreach (var check in report.Checks)
+        {
+            _complianceChecks.Add(new ComplianceCheckListItem(check));
+        }
+
+        ComplianceSummaryPanel.IsVisible = true;
+        ComplianceEmptyText.IsVisible = false;
+        SaveComplianceReportButton.IsEnabled = true;
+
+        ComplianceSummaryText.Text = report.IsCompliant
+            ? "Компьютер соответствует профилю."
+            : report.MismatchCount > 0
+                ? $"Расхождений с профилем: {report.MismatchCount}."
+                : "Часть значений прочитать не удалось.";
+        ComplianceSummaryText.Foreground = report.IsCompliant
+            ? Brushes.LightGreen
+            : report.MismatchCount > 0
+                ? Brushes.Salmon
+                : Brushes.Khaki;
+        ComplianceSummaryDetailText.Text =
+            $"Совпало: {report.MatchCount} · Расходится: {report.MismatchCount} · Не прочитано: {report.UnknownCount} · "
+            + $"Профиль «{report.ProfileName}», версия {report.ProfileRevision}, проверено {report.CheckedUtc:dd.MM.yyyy HH:mm}.";
+
+        SetStatus(report.IsCompliant
+            ? "Сверка завершена: расхождений нет. Windows не изменялась."
+            : $"Сверка завершена: расхождений {report.MismatchCount}. Windows не изменялась.");
+        WriteJournalEntry(
+            "Проверка соответствия",
+            report.IsCompliant ? "Соответствует" : "Расхождения",
+            report.Checks
+                .Where(static check => check.Status == ComplianceStatus.Mismatch)
+                .Select(static check => $"{check.Title}: ожидалось {check.Expected}, фактически {check.Actual}")
+                .ToArray());
+    }
+
+    private async void SaveComplianceReport_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_complianceReport is not { } report)
+        {
+            SetStatus("Сначала выполните проверку.");
+            return;
+        }
+
+        if (!StorageProvider.CanSave)
+        {
+            SetStatus("Сохранение файлов недоступно на этой платформе.");
+            return;
+        }
+
+        var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Сохранить отчёт проверки",
+            SuggestedFileName = $"easyaller-check-{DateTime.Now:yyyyMMdd-HHmm}.txt",
+            DefaultExtension = "txt",
+        });
+        if (file is null)
+        {
+            SetStatus("Сохранение отчёта отменено.");
+            return;
+        }
+
+        try
+        {
+            await File.WriteAllTextAsync(file.Path.LocalPath, BuildComplianceReportText(report));
+            SetStatus($"Отчёт сохранён: {file.Path.LocalPath}");
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            SetStatus("Не удалось сохранить отчёт: " + exception.Message);
+        }
+    }
+
+    private static string BuildComplianceReportText(ComplianceReport report)
+    {
+        var text = new StringBuilder();
+        text.AppendLine("Easyaller — отчёт проверки соответствия профилю");
+        text.AppendLine($"Профиль: {report.ProfileName} (версия {report.ProfileRevision})");
+        text.AppendLine($"Идентификатор профиля: {report.ProfileId}");
+        text.AppendLine($"Проверено: {report.CheckedUtc:yyyy-MM-dd HH:mm:ss zzz}");
+        text.AppendLine($"Итог: совпало {report.MatchCount}, расходится {report.MismatchCount}, не прочитано {report.UnknownCount}");
+        text.AppendLine();
+        foreach (var check in report.Checks)
+        {
+            text.AppendLine($"[{DescribeComplianceStatus(check.Status)}] {check.Title}");
+            text.AppendLine($"    ожидается: {check.Expected}");
+            text.AppendLine($"    фактически: {check.Actual}");
+        }
+
+        text.AppendLine();
+        text.AppendLine("Проверка выполняется только чтением. Windows не изменялась. Пароли не читаются и не сохраняются.");
+        return text.ToString();
+    }
+
+    private static string DescribeComplianceStatus(ComplianceStatus status) => status switch
+    {
+        ComplianceStatus.Match => "СОВПАДАЕТ",
+        ComplianceStatus.Mismatch => "РАСХОЖДЕНИЕ",
+        ComplianceStatus.Unknown => "НЕ ПРОЧИТАНО",
+        _ => "НЕ ЗАДАНО",
+    };
+
+    private async Task<CurrentMachineSnapshot?> ReadCurrentMachineAsync()
+    {
+        SetStatus("Чтение текущих настроек Windows…");
+        var snapshot = await Task.Run(_machineInspector.Read);
+        if (snapshot is null)
+        {
+            SetStatus("Не удалось прочитать настройки этого компьютера. На не-Windows платформе это ожидаемо.");
+        }
+
+        return snapshot;
+    }
+
+    private async void TakeNetworkFromCurrentPc_Click(object? sender, RoutedEventArgs e)
+    {
+        if (await ReadCurrentMachineAsync() is not { } snapshot)
+        {
+            return;
+        }
+
+        SetStatus(TakeNetworkFromSnapshot(snapshot)
+            ? $"Сеть взята с этого ПК — {snapshot.DescribeNetwork()}. Проверьте значения и сохраните профиль."
+            : "Активный адаптер с IPv4-адресом не найден, брать нечего.");
+    }
+
+    private async void TakeComputerNameFromCurrentPc_Click(object? sender, RoutedEventArgs e)
+    {
+        if (await ReadCurrentMachineAsync() is not { } snapshot)
+        {
+            return;
+        }
+
+        if (!TakeComputerNameFromSnapshot(snapshot))
+        {
+            SetStatus("Имя этого компьютера прочитать не удалось.");
+            return;
+        }
+
+        var name = snapshot.ComputerName.Trim();
+        SetStatus(name.StartsWith(ComputerNameSitePrefix, StringComparison.OrdinalIgnoreCase)
+            ? $"Имя взято с этого ПК: {name}. Проверьте шаблон и сохраните профиль."
+            : $"Имя взято с этого ПК: {name}. Оно не начинается с {ComputerNameSitePrefix}, поэтому записано как свой вариант.");
+    }
+
+    private async void TakeDomainFromCurrentPc_Click(object? sender, RoutedEventArgs e)
+    {
+        if (await ReadCurrentMachineAsync() is not { } snapshot)
+        {
+            return;
+        }
+
+        SetStatus(TakeDomainFromSnapshot(snapshot)
+            ? $"Домен взят с этого ПК: {snapshot.Domain}. Учётные данные не читались и не сохраняются."
+            : "Этот компьютер не состоит в домене, брать нечего.");
+    }
+
+    private async void TakeProxyFromCurrentPc_Click(object? sender, RoutedEventArgs e)
+    {
+        if (await ReadCurrentMachineAsync() is not { } snapshot)
+        {
+            return;
+        }
+
+        SetStatus(TakeProxyFromSnapshot(snapshot)
+            ? $"WinHTTP-прокси взят с этого ПК: {snapshot.ProxyAddress}. Проверьте значения и сохраните профиль."
+            : "WinHTTP-прокси на этом ПК не настроен, брать нечего.");
+    }
+
+    private async void TakeEverythingFromCurrentPc_Click(object? sender, RoutedEventArgs e)
+    {
+        if (await ReadCurrentMachineAsync() is not { } snapshot)
+        {
+            return;
+        }
+
+        var taken = new List<string>();
+        if (TakeComputerNameFromSnapshot(snapshot)) taken.Add("имя компьютера");
+        if (TakeNetworkFromSnapshot(snapshot)) taken.Add("сеть");
+        if (TakeDomainFromSnapshot(snapshot)) taken.Add("домен");
+        if (TakeProxyFromSnapshot(snapshot)) taken.Add("прокси");
+
+        SetStatus(taken.Count == 0
+            ? "С этого компьютера нечего взять: активная сеть, домен и прокси не найдены."
+            : $"Перенесено в профиль: {string.Join(", ", taken)}. Проверьте разделы и сохраните профиль.");
+    }
+
+    private bool TakeNetworkFromSnapshot(CurrentMachineSnapshot snapshot)
+    {
+        if (!snapshot.HasNetwork)
+        {
+            return false;
+        }
+
+        SetSelectedEnum<NetworkConfigurationMode>(NetworkModeComboBox, NetworkConfigurationMode.StaticIpv4);
+        StaticIpv4AdapterIdTextBox.Text = snapshot.AdapterId;
+        StaticIpv4AddressTextBox.Text = snapshot.Address;
+        StaticIpv4SubnetMaskTextBox.Text = snapshot.SubnetMask;
+        StaticIpv4DefaultGatewayTextBox.Text = snapshot.DefaultGateway;
+        _dnsServers.Clear();
+        foreach (var dnsServer in snapshot.DnsServers)
+        {
+            _dnsServers.Add(dnsServer);
+        }
+
+        return true;
+    }
+
+    private bool TakeComputerNameFromSnapshot(CurrentMachineSnapshot snapshot)
+    {
+        if (string.IsNullOrWhiteSpace(snapshot.ComputerName))
+        {
+            return false;
+        }
+
+        SetComputerNameTemplateFromFullName(snapshot.ComputerName.Trim());
+        return true;
+    }
+
+    private bool TakeDomainFromSnapshot(CurrentMachineSnapshot snapshot)
+    {
+        if (string.IsNullOrWhiteSpace(snapshot.Domain))
+        {
+            return false;
+        }
+
+        DomainNameTextBox.Text = snapshot.Domain;
+        if (GetSelectedEnum(DomainModeComboBox, DomainMode.NotConfigured) == DomainMode.NotConfigured)
+        {
+            SetSelectedEnum<DomainMode>(DomainModeComboBox, DomainMode.Optional);
+        }
+
+        return true;
+    }
+
+    private bool TakeProxyFromSnapshot(CurrentMachineSnapshot snapshot)
+    {
+        if (string.IsNullOrWhiteSpace(snapshot.ProxyAddress))
+        {
+            return false;
+        }
+
+        SetSelectedEnum<ProxyConfigurationMode>(ProxyModeComboBox, ProxyConfigurationMode.PromptAtRuntime);
+        ProxyAddressTextBox.Text = snapshot.ProxyAddress;
+        ProxyBypassListTextBox.Text = snapshot.ProxyBypassList;
+        return true;
+    }
+
+    /// <summary>Splits a full Windows computer name into the profile's template prefix and its trailing number.</summary>
+    private void SetComputerNameTemplateFromFullName(string computerName)
+    {
+        var prefixLength = computerName.Length;
+        while (prefixLength > 0 && char.IsAsciiDigit(computerName[prefixLength - 1]))
+        {
+            prefixLength--;
+        }
+
+        PopulateComputerNameTemplate(computerName[..prefixLength]);
+        ComputerNameNumberTextBox.Text = computerName[prefixLength..];
+    }
+
+    /// <summary>
+    /// Copies the values typed for this PC back into the shared profile, so the same settings
+    /// can be reused when preparing a new Windows installation.
+    /// </summary>
+    private void PushRuntimeToProfile_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_selectedProfile is null)
+        {
+            SetStatus("Сначала выберите профиль.");
+            return;
+        }
+
+        var moved = new List<string>();
+
+        if (RuntimeComputerNameTextBox.Text?.Trim() is { Length: > 0 } computerName)
+        {
+            SetComputerNameTemplateFromFullName(computerName);
+            moved.Add("имя компьютера");
+        }
+
+        if (RuntimeNetworkAdapterTextBox.Text?.Trim() is { Length: > 0 } adapterId)
+        {
+            StaticIpv4AdapterIdTextBox.Text = adapterId;
+            moved.Add("сетевой адаптер");
+        }
+
+        if (RuntimeProxyAddressTextBox.Text?.Trim() is { Length: > 0 } proxyAddress)
+        {
+            SetSelectedEnum<ProxyConfigurationMode>(ProxyModeComboBox, ProxyConfigurationMode.PromptAtRuntime);
+            ProxyAddressTextBox.Text = proxyAddress;
+            moved.Add("прокси");
+        }
+
+        if (RuntimeDomainNameTextBox.Text?.Trim() is { Length: > 0 } domainName)
+        {
+            DomainNameTextBox.Text = domainName;
+            if (GetSelectedEnum(DomainModeComboBox, DomainMode.NotConfigured) == DomainMode.NotConfigured)
+            {
+                SetSelectedEnum<DomainMode>(DomainModeComboBox, DomainMode.Optional);
+            }
+
+            moved.Add("домен");
+        }
+
+        if (RuntimeDomainUserNameTextBox.Text?.Trim() is { Length: > 0 } domainUserName)
+        {
+            DomainUserNameTextBox.Text = domainUserName;
+        }
+
+        SetStatus(moved.Count == 0
+            ? "Заполните поля выше, тогда их можно будет перенести в профиль."
+            : $"Перенесено в профиль: {string.Join(", ", moved)}. Откройте вкладку «Профиль» и сохраните. Пароль не переносится.");
+    }
+
+    private async void FillRuntimeFromCurrentPc_Click(object? sender, RoutedEventArgs e)
+    {
+        if (await ReadCurrentMachineAsync() is not { } snapshot)
+        {
+            return;
+        }
+
+        RuntimeComputerNameTextBox.Text = snapshot.ComputerName;
+        RuntimeNetworkAdapterTextBox.Text = snapshot.AdapterId;
+        RuntimeProxyAddressTextBox.Text = snapshot.ProxyAddress;
+        RuntimeDomainNameTextBox.Text = snapshot.Domain;
+        SetStatus("Поля заполнены текущими значениями этого ПК. Пароль домена нужно ввести вручную.");
+    }
+
+    private void FillRuntimeFromProfile_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_selectedProfile is null)
+        {
+            SetStatus("Сначала выберите профиль.");
+            return;
+        }
+
+        var profile = _selectedProfile.Profile;
+        RuntimeNetworkAdapterTextBox.Text = profile.Machine.Network.StaticIpv4?.AdapterId ?? string.Empty;
+        RuntimeProxyAddressTextBox.Text = profile.Machine.Proxy.Address ?? string.Empty;
+        RuntimeDomainNameTextBox.Text = profile.Domain.DomainName ?? string.Empty;
+        RuntimeDomainUserNameTextBox.Text = profile.Domain.UserName ?? string.Empty;
+        SetStatus("Поля заполнены значениями профиля. Имя компьютера и пароль домена всегда вводятся вручную.");
+    }
+
+    private async void ApplyDomainToCurrentPc_Click(object? sender, RoutedEventArgs e)
+    {
+        var domainName = DomainNameTextBox.Text?.Trim();
+        var userName = DomainUserNameTextBox.Text?.Trim();
+        var password = DomainPasswordTextBox.Text;
+        if (string.IsNullOrWhiteSpace(domainName) || string.IsNullOrWhiteSpace(userName) || string.IsNullOrWhiteSpace(password))
+        {
+            SetStatus("Для домена укажите имя домена, учётную запись и пароль.");
+            return;
+        }
+
+        if (!await ConfirmActionWindow.AskAsync(
+            this,
+            "Присоединить этот компьютер к домену?",
+            $"Компьютер «{Environment.MachineName}» будет присоединён к домену «{domainName}» под учётной записью «{userName}».",
+            "Членство в домене меняет вход, политики и права на этой машине. Для завершения потребуется перезагрузка. Пароль используется только для этой операции и не сохраняется.",
+            "Присоединить"))
+        {
+            SetStatus("Присоединение к домену отменено. Компьютер не изменён.");
+            return;
+        }
+
+        using var credential = new RuntimeDomainCredential(userName, password.AsSpan());
+        DomainPasswordTextBox.Text = string.Empty;
+        ApplyDomainToCurrentPcButton.IsEnabled = false;
+        try
+        {
+            var result = await Task.Run(() => new WindowsProvisioningSystemAdapter().JoinDomain(domainName, credential));
+            SetStatus(result.IsSuccess ? "Компьютер присоединён к домену. Для завершения потребуется перезагрузка." : "Не удалось присоединить к домену: " + (result.ErrorCode ?? "неизвестная ошибка") + ".");
+            WriteJournalEntry("Быстрое действие: домен", result.IsSuccess ? "Применено" : "Ошибка", [domainName]);
+        }
+        finally { ApplyDomainToCurrentPcButton.IsEnabled = true; }
     }
 
     private void ResetProfile_Click(object? sender, RoutedEventArgs e)
@@ -398,6 +1077,65 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         SetStatus("Приложение удалено. Сохраните изменения профиля.");
     }
 
+    private void AddDnsServer_Click(object? sender, RoutedEventArgs e) => AddDnsServerFromInput();
+
+    private void DnsServerInputTextBox_KeyDown(object? sender, Avalonia.Input.KeyEventArgs e)
+    {
+        if (e.Key == Avalonia.Input.Key.Enter)
+        {
+            AddDnsServerFromInput();
+            e.Handled = true;
+        }
+    }
+
+    private void AddDnsServerFromInput()
+    {
+        var input = DnsServerInputTextBox.Text?.Trim();
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return;
+        }
+
+        if (_dnsServers.Count >= 3)
+        {
+            SetStatus("Можно указать не более трёх DNS-серверов.");
+            return;
+        }
+
+        if (!IPAddress.TryParse(input, out var parsed) || parsed.AddressFamily != AddressFamily.InterNetwork)
+        {
+            SetStatus("Введите корректный IPv4-адрес DNS, например 10.0.0.1.");
+            return;
+        }
+
+        var address = parsed.ToString();
+        if (_dnsServers.Contains(address, StringComparer.OrdinalIgnoreCase))
+        {
+            SetStatus("Такой DNS-адрес уже есть в списке.");
+            return;
+        }
+
+        _dnsServers.Add(address);
+        DnsServersList.SelectedItem = address;
+        DnsServerInputTextBox.Text = string.Empty;
+        SetStatus($"DNS-адрес добавлен ({_dnsServers.Count} из 3). Сохраните изменения профиля.");
+    }
+
+    private void DnsServersList_SelectionChanged(object? sender, SelectionChangedEventArgs e) =>
+        RemoveDnsServerButton.IsEnabled = DnsServersList.IsEnabled && DnsServersList.SelectedItem is not null;
+
+    private void RemoveDnsServer_Click(object? sender, RoutedEventArgs e)
+    {
+        if (DnsServersList.SelectedItem is not string selected)
+        {
+            SetStatus("Выберите DNS-адрес для удаления.");
+            return;
+        }
+
+        _dnsServers.Remove(selected);
+        SetStatus("DNS-адрес удалён. Сохраните изменения профиля.");
+    }
+
     private void AddInstruction_Click(object? sender, RoutedEventArgs e)
     {
         var instruction = new InstructionProfile(
@@ -422,6 +1160,505 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
         _instructions.Remove(selected);
         SetStatus("Инструкция удалена. Сохраните изменения профиля.");
+    }
+
+    private void RefreshApplyTab()
+    {
+        ClearDeploymentDryRun();
+        if (_selectedProfile is null)
+        {
+            _plan = null;
+            PlanSummaryText.Text = "Выберите профиль в списке слева.";
+            TimeZoneActionText.Text = "Выберите профиль, чтобы увидеть его часовой пояс.";
+            _prompts.Clear();
+            ManualInstructionsPanel.IsVisible = false;
+            UpdateApplyPlanSummary();
+            return;
+        }
+
+        var result = _planBuilder.Create(_selectedProfile.Profile);
+        if (!result.IsValid)
+        {
+            _plan = null;
+            PlanSummaryText.Text = "Выбранный профиль содержит ошибки.";
+            _prompts.Clear();
+            UpdateApplyPlanSummary();
+            return;
+        }
+
+        _plan = result.Plan;
+        ApplyTimeZoneCheckBox.IsChecked = false;
+        TimeZoneActionText.Text = $"Часовой пояс профиля: {result.Plan!.TimeZone}. Без флажка он не меняется.";
+        PlanSummaryText.Text = $"Запланировано шагов: {_plan!.Steps.Count}. Запросов при настройке: {_plan.RuntimePrompts.Count}.";
+        _prompts.Clear();
+        foreach (var prompt in _plan.RuntimePrompts)
+        {
+            _prompts.Add(new RuntimePromptListItem(prompt));
+        }
+
+        var instructions = _selectedProfile.Profile.Instructions
+            .Select(static instruction => new InstructionListItem(instruction))
+            .ToArray();
+        ManualInstructionsList.ItemsSource = instructions;
+        ManualInstructionsPanel.IsVisible = instructions.Length > 0;
+
+        UpdateApplyPlanSummary();
+    }
+
+    private void DeploymentEdition_SelectionChanged(object? sender, SelectionChangedEventArgs e) => ClearDeploymentDryRun();
+
+    private void DeploymentVersion_SelectionChanged(object? sender, SelectionChangedEventArgs e) => ClearDeploymentDryRun();
+
+    private void DeploymentBuild_TextChanged(object? sender, TextChangedEventArgs e) => ClearDeploymentDryRun();
+
+    private void PreviewDeployment_Click(object? sender, RoutedEventArgs e)
+    {
+        if (!TryGetDeploymentContext(out var profile, out var target))
+        {
+            return;
+        }
+
+        var result = _deploymentController.CreatePreview(profile, target);
+        if (!result.IsValid)
+        {
+            DeploymentPreviewTextBox.Text = "Проверка заблокирована: " + GetMessage(result.Errors);
+            SetStatus(DeploymentPreviewTextBox.Text);
+            return;
+        }
+
+        DeploymentPreviewTextBox.Text = DescribePreview(result.Preview!, result.Warnings);
+        SetStatus("Совместимость проверена. Windows и файлы не изменены.");
+    }
+
+    private void CreateDryRun_Click(object? sender, RoutedEventArgs e)
+    {
+        if (!TryGetDeploymentContext(out var profile, out var target))
+        {
+            return;
+        }
+
+        var result = _deploymentController.CreateDryRun(profile, target);
+        if (!result.IsValid)
+        {
+            ClearDeploymentDryRun();
+            DeploymentPreviewTextBox.Text = "Dry run заблокирован: " + GetMessage(result.Errors);
+            SetStatus(DeploymentPreviewTextBox.Text);
+            return;
+        }
+
+        _deploymentDryRun = result.DryRun;
+        ExportDeploymentButton.IsEnabled = true;
+        DeploymentPreviewTextBox.Text = DescribeDryRun(result.DryRun!, result.Warnings);
+        SetStatus("Dry run готов в памяти. Файлы и Windows не изменены.");
+    }
+
+    private async void ExportDeploymentPackage_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_deploymentDryRun is null || _selectedProfile is null)
+        {
+            SetStatus("Сначала создайте dry run для выбранного профиля.");
+            return;
+        }
+
+        if (!StorageProvider.CanOpen)
+        {
+            SetStatus("Выбор папки недоступен на этой платформе.");
+            return;
+        }
+
+        var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = "Выберите папку для нового пакета Easyaller",
+            AllowMultiple = false,
+        });
+        var folder = folders.FirstOrDefault();
+        if (folder is null)
+        {
+            SetStatus("Экспорт пакета отменён.");
+            return;
+        }
+
+        var destination = Path.Combine(folder.Path.LocalPath, ToPackageDirectoryName(_selectedProfile.Name));
+        var result = await _deploymentController.ExportAsync(_deploymentDryRun, destination);
+        if (!result.IsSuccess)
+        {
+            SetStatus("Не удалось экспортировать пакет: " + GetMessage(result.Errors));
+            return;
+        }
+
+        DeploymentPreviewTextBox.Text += $"\n\nПакет экспортирован: {result.DestinationDirectory}\nПроверено файлов: {result.Manifest!.Files.Count}.";
+        SetStatus("Файловый пакет экспортирован. Перед использованием проверьте manifest и Windows SIM.");
+    }
+
+    private void ValidateRuntimeInputs_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_plan is null)
+        {
+            SetStatus("Сначала выберите корректный профиль.");
+            return;
+        }
+
+        if (ApplyTimeZoneCheckBox.IsChecked == true && string.IsNullOrWhiteSpace(_plan.TimeZone))
+        {
+            SetStatus("В профиле не задан часовой пояс Windows. Снимите флажок или задайте пояс в профиле.");
+            return;
+        }
+
+        if (!TryCreateRuntimeInputs(out var inputs))
+        {
+            return;
+        }
+
+        using (inputs)
+        {
+            var validation = _inputValidator.Validate(_plan, inputs);
+            SetStatus(validation.IsValid
+                ? $"Введённые значения корректны. Ничего не изменено. Для применения введите {ProvisioningExecutionService.ConfirmationPhrase}."
+                : validation.Errors.First().Message);
+        }
+    }
+
+    private async void ApplyRuntimeInputs_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_plan is null)
+        {
+            SetStatus("Сначала выберите корректный профиль.");
+            return;
+        }
+
+        var confirmation = ApplyConfirmationTextBox.Text;
+        if (!string.Equals(confirmation, ProvisioningExecutionService.ConfirmationPhrase, StringComparison.Ordinal))
+        {
+            SetStatus($"Введите {ProvisioningExecutionService.ConfirmationPhrase} заглавными буквами, чтобы разрешить изменения Windows.");
+            return;
+        }
+
+        // Refuse a profile that targets a different Windows before touching the machine.
+        var eligibility = await Task.Run(() => _eligibilityService.Evaluate(_selectedProfile!.Profile));
+        if (!eligibility.CanApply)
+        {
+            ApplyResultTextBox.Text = $"Применение заблокировано.\n{eligibility.Summary}\n{eligibility.Reason}";
+            SetStatus("Профиль не подходит этой Windows: " + eligibility.Reason);
+            WriteJournalEntry("Применение профиля", "Заблокировано", [eligibility.Summary, eligibility.Reason]);
+            return;
+        }
+
+        if (eligibility.State == ProfileEligibilityState.Warning && !await ConfirmActionWindow.AskAsync(
+            this,
+            "Совместимость не подтверждена",
+            $"{eligibility.Summary}. {eligibility.Reason}",
+            "Профиль всё равно будет применён к этому компьютеру. Продолжайте только если уверены, что настройки подходят.",
+            "Всё равно применить"))
+        {
+            SetStatus("Применение отменено. Компьютер не изменён.");
+            return;
+        }
+
+        if (!TryCreateRuntimeInputs(out var inputs))
+        {
+            return;
+        }
+
+        var plan = _plan;
+        ApplyRuntimeInputsButton.IsEnabled = false;
+        try
+        {
+            using (inputs)
+            {
+                SetStatus("Применение выполняется. Не закрывайте программу.");
+                var report = new StringBuilder();
+                var result = await Task.Run(() => _executionService.Execute(plan, inputs, confirmation));
+                report.AppendLine(DescribeOperations(result.Operations));
+                if (result.IsSuccess && eligibility.Runtime is { } runtime)
+                {
+                    report.AppendLine(await ApplyPrivacyPoliciesAsync(_selectedProfile!.Profile, runtime));
+                }
+
+                report.AppendLine();
+                report.Append(DescribeExecution(result));
+                ApplyResultTextBox.Text = report.ToString();
+                SetStatus(DescribeExecution(result));
+                WriteJournalEntry(
+                    "Применение профиля",
+                    result.Status.ToString(),
+                    result.Operations
+                        .Select(static operation => DescribeOperationKind(operation.Kind)
+                            + (operation.WasApplied ? ": применено" : ": проверено"))
+                        .Concat(result.Errors.Select(static error => "ошибка: " + error.Code))
+                        .ToArray());
+            }
+        }
+        finally
+        {
+            ApplyRuntimeInputsButton.IsEnabled = true;
+            ApplyConfirmationTextBox.Text = string.Empty;
+            RuntimeDomainPasswordTextBox.Text = string.Empty;
+        }
+    }
+
+    /// <summary>
+    /// Applies the documented privacy policies after the main sequence. It is deliberately separate:
+    /// hiding an OOBE page is not the same as setting a policy, and `notConfigured` must stay a no-op.
+    /// </summary>
+    private async Task<string> ApplyPrivacyPoliciesAsync(ProvisioningProfile profile, RuntimeWindowsInfo runtime)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return "Параметры конфиденциальности: доступны только в Windows.";
+        }
+
+        var target = new WindowsDeploymentTarget(
+            runtime.Edition == RuntimeWindowsEdition.Enterprise ? WindowsEdition.Enterprise : WindowsEdition.Professional,
+            WindowsArchitecture.Amd64,
+            runtime.DisplayVersion,
+            runtime.Build);
+
+        var plan = _privacyService.CreatePlan(profile.Windows.Privacy, target);
+        if (plan.Assignments.Count == 0)
+        {
+            return plan.Errors.Count > 0
+                ? "Параметры конфиденциальности пропущены: " + plan.Errors[0].Message
+                : "Параметры конфиденциальности: профиль ничего не меняет.";
+        }
+
+        // Created outside the lambda so the platform guard above stays visible to the analyzer.
+        IPrivacyPolicyStore policyStore = new WindowsRegistryPrivacyPolicyStore();
+        var result = await Task.Run(() => _privacyService.Apply(plan, policyStore));
+        var verified = result.Verification.Count(static verification => verification.IsVerified);
+        return result.IsApplied
+            ? $"Параметры конфиденциальности применены и перечитаны: {verified} из {plan.Assignments.Count}."
+            : "Параметры конфиденциальности не применены: " + (result.Errors.FirstOrDefault()?.Message ?? "неизвестная ошибка");
+    }
+
+    private void ApplyTimeZoneCheckBox_IsCheckedChanged(object? sender, RoutedEventArgs e) => UpdateApplyPlanSummary();
+
+    private void UpdateApplyPlanSummary()
+    {
+        if (_plan is null)
+        {
+            ApplyPlanStepsText.Text = "Выберите профиль, чтобы увидеть список операций.";
+            ApplyNotAutomatedText.Text = string.Empty;
+            return;
+        }
+
+        var operations = new List<string>();
+        if (ApplyTimeZoneCheckBox.IsChecked == true)
+        {
+            operations.Add("часовой пояс Windows");
+        }
+
+        if (_plan.RuntimePrompts.Any(static prompt => prompt.Kind == RuntimePromptKind.NetworkConfiguration))
+        {
+            operations.Add("проверка выбранного сетевого адаптера");
+        }
+
+        if (_plan.StaticIpv4 is not null)
+        {
+            operations.Add("статический IPv4 из профиля");
+        }
+
+        if (_plan.RuntimePrompts.Any(static prompt => prompt.Kind == RuntimePromptKind.ProxyConfiguration))
+        {
+            operations.Add("WinHTTP-прокси");
+        }
+
+        operations.Add("переименование компьютера, если текущее имя отличается");
+        operations.Add("присоединение к домену, если заполнено имя домена");
+
+        if (_selectedProfile is not null && HasPrivacyIntent(_selectedProfile.Profile.Windows.Privacy))
+        {
+            operations.Add("параметры конфиденциальности из профиля");
+        }
+
+        ApplyPlanStepsText.Text = string.Join("\n", operations.Select(static operation => "• " + operation));
+        ApplyNotAutomatedText.Text = _plan.Steps.Any(static step => step.Kind == ProvisioningStepKind.InstallApplication)
+            ? "Приложения из профиля пока не устанавливаются автоматически — их нужно установить вручную. Инструкции показаны ниже."
+            : string.Empty;
+    }
+
+    /// <summary>A profile only touches privacy policies when at least one value is an explicit choice.</summary>
+    private static bool HasPrivacyIntent(PrivacySettings privacy) => new[]
+    {
+        privacy.LocationServices,
+        privacy.AdvertisingId,
+        privacy.OnlineSpeechRecognition,
+    }.Any(static preference => preference is PrivacyPreference.Enabled or PrivacyPreference.Disabled);
+
+    private static string DescribeOperations(IReadOnlyList<ProvisioningExecutionOperation> operations) =>
+        operations.Count == 0
+            ? "Ни одна операция не была выполнена."
+            : string.Join("\n", operations.Select(static operation =>
+                (operation.WasApplied ? "Применено: " : "Проверено: ")
+                + DescribeOperationKind(operation.Kind)
+                + (operation.RequiresRestart ? " (требуется перезагрузка)" : string.Empty)));
+
+    private static string DescribeOperationKind(ProvisioningExecutionOperationKind kind) => kind switch
+    {
+        ProvisioningExecutionOperationKind.SetTimeZone => "часовой пояс",
+        ProvisioningExecutionOperationKind.VerifyNetworkAdapter => "сетевой адаптер",
+        ProvisioningExecutionOperationKind.ConfigureStaticIpv4 => "статический IPv4",
+        ProvisioningExecutionOperationKind.SetWinHttpProxy => "WinHTTP-прокси",
+        ProvisioningExecutionOperationKind.RenameComputer => "имя компьютера",
+        ProvisioningExecutionOperationKind.JoinDomain => "присоединение к домену",
+        _ => "операция",
+    };
+
+    private bool TryCreateRuntimeInputs(out RuntimeProvisioningInputs inputs)
+    {
+        RuntimeDomainCredential? credential = null;
+        if (!string.IsNullOrWhiteSpace(RuntimeDomainUserNameTextBox.Text) || !string.IsNullOrWhiteSpace(RuntimeDomainPasswordTextBox.Text))
+        {
+            if (string.IsNullOrWhiteSpace(RuntimeDomainUserNameTextBox.Text) || string.IsNullOrWhiteSpace(RuntimeDomainPasswordTextBox.Text))
+            {
+                SetStatus("Введите имя и пароль доменного пользователя либо оставьте оба поля пустыми.");
+                inputs = null!;
+                return false;
+            }
+
+            credential = new RuntimeDomainCredential(RuntimeDomainUserNameTextBox.Text.Trim(), RuntimeDomainPasswordTextBox.Text.AsSpan());
+        }
+
+        inputs = new RuntimeProvisioningInputs
+        {
+            ComputerName = RuntimeComputerNameTextBox.Text?.Trim(),
+            NetworkAdapterId = RuntimeNetworkAdapterTextBox.Text?.Trim(),
+            ProxyAddress = RuntimeProxyAddressTextBox.Text?.Trim(),
+            DomainName = RuntimeDomainNameTextBox.Text?.Trim(),
+            DomainCredential = credential,
+            ApplyTimeZone = ApplyTimeZoneCheckBox.IsChecked == true,
+        };
+        return true;
+    }
+
+    private bool TryGetDeploymentContext(out ProvisioningProfile profile, out WindowsDeploymentTarget target)
+    {
+        if (_selectedProfile is null)
+        {
+            profile = null!;
+            target = null!;
+            SetStatus("Сначала выберите профиль.");
+            return false;
+        }
+
+        profile = _selectedProfile.Profile;
+        var version = (DeploymentVersionComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+        if (!Enum.TryParse<WindowsEdition>((DeploymentEditionComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString(), out var edition) ||
+            string.IsNullOrWhiteSpace(version) ||
+            !int.TryParse(DeploymentBuildTextBox.Text, out var build) || build < 1)
+        {
+            target = null!;
+            SetStatus("Укажите поддерживаемые редакцию, версию и положительный номер сборки Windows 11.");
+            return false;
+        }
+
+        target = new WindowsDeploymentTarget(edition, WindowsArchitecture.Amd64, version, build);
+        return true;
+    }
+
+    private void ClearDeploymentDryRun()
+    {
+        _deploymentDryRun = null;
+        if (ExportDeploymentButton is not null)
+        {
+            ExportDeploymentButton.IsEnabled = false;
+        }
+    }
+
+    private static string DescribePreview(DeploymentPreview preview, IReadOnlyList<DeploymentValidationError> warnings) =>
+        $"Цель: Windows 11 {preview.Target.Edition}, {preview.Target.DisplayVersion}, сборка {preview.Target.Build}, {preview.Target.Architecture}.\n" +
+        $"Совместимость: {DescribeCompatibility(preview.CompatibilityState)}.\n" +
+        $"Шагов: {preview.ProvisioningSteps.Count}. Запросов при настройке: {preview.RuntimePrompts.Count}.\n" +
+        DescribeWarnings(warnings);
+
+    private static string DescribeDryRun(DeploymentDryRun dryRun, IReadOnlyList<DeploymentValidationError> warnings) =>
+        DescribePreview(dryRun.Preview, warnings) +
+        $"OOBE: {DescribeOobe(dryRun.Oobe)}.\n" +
+        $"Конфиденциальность: {DescribePrivacy(dryRun.Privacy)}.\n" +
+        $"Файл ответов в памяти: {dryRun.AnswerFile.Length} байт.\n" +
+        string.Join("\n", dryRun.SensitiveMaterialWarnings.Select(static warning => "Внимание: " + warning.Message));
+
+    private static string DescribeCompatibility(DeploymentCompatibilityState state) => state switch
+    {
+        DeploymentCompatibilityState.Documented => "документирована",
+        DeploymentCompatibilityState.SchemaValidated => "проверена Windows SIM",
+        DeploymentCompatibilityState.VmValidated => "проверена в виртуальной машине",
+        DeploymentCompatibilityState.Warning => "есть предупреждения",
+        _ => "не поддерживается",
+    };
+
+    private static string DescribeOobe(OobeSettings oobe)
+    {
+        var settings = new List<string>();
+        if (oobe.HideEula is not null) settings.Add(oobe.HideEula.Value ? "скрыть лицензию" : "показать лицензию");
+        if (oobe.HideWirelessSetup is not null) settings.Add(oobe.HideWirelessSetup.Value ? "скрыть настройку сети" : "показать настройку сети");
+        if (oobe.HideOnlineAccountScreens is not null) settings.Add(oobe.HideOnlineAccountScreens.Value ? "скрыть вход в онлайн-учётную запись" : "показать вход в онлайн-учётную запись");
+        if (oobe.ProtectYourPc is not null) settings.Add($"ProtectYourPC={oobe.ProtectYourPc}");
+        return settings.Count == 0 ? "явные параметры не заданы" : string.Join(", ", settings);
+    }
+
+    private static string DescribePrivacy(PrivacySettings privacy)
+    {
+        var values = new[]
+        {
+            privacy.LocationServices,
+            privacy.AdvertisingId,
+            privacy.DiagnosticData,
+            privacy.TailoredExperiences,
+            privacy.OnlineSpeechRecognition,
+            privacy.FindMyDevice,
+            privacy.InkingAndTypingPersonalization,
+        };
+        return values.Distinct().Count() == 1
+            ? DescribePrivacyPreference(values[0])
+            : "используются разные настройки";
+    }
+
+    private static string DescribePrivacyPreference(PrivacyPreference preference) => preference switch
+    {
+        PrivacyPreference.NotConfigured => "не настраивается",
+        PrivacyPreference.UserChoice => "выбор пользователя",
+        PrivacyPreference.Enabled => "включено",
+        PrivacyPreference.Disabled => "отключено",
+        _ => "некорректное значение",
+    };
+
+    private static string DescribeWarnings(IReadOnlyList<DeploymentValidationError> warnings) => warnings.Count == 0
+        ? "Предупреждений нет."
+        : "Предупреждения: " + string.Join("; ", warnings.Select(static warning => warning.Message));
+
+    private static string GetMessage(IReadOnlyList<DeploymentValidationError> errors) =>
+        errors.FirstOrDefault()?.Message ?? "Повторите попытку.";
+
+    private static string DescribeExecution(ProvisioningExecutionResult result)
+    {
+        var error = result.Errors.FirstOrDefault()?.Message;
+        if (!string.IsNullOrWhiteSpace(error))
+        {
+            var restartWarning = result.Warnings.FirstOrDefault()?.Message;
+            return "Применение остановлено: " + error +
+                (string.IsNullOrWhiteSpace(restartWarning) ? string.Empty : " " + restartWarning);
+        }
+
+        var warning = result.Warnings.FirstOrDefault()?.Message;
+        return result.Status switch
+        {
+            ProvisioningExecutionStatus.Completed => "Подтверждённые параметры применены. Перезагрузка не требуется.",
+            ProvisioningExecutionStatus.RestartRequired => string.IsNullOrWhiteSpace(warning)
+                ? "Подтверждённые параметры применены. Перезагрузите Windows для завершения и не удаляйте созданное состояние resume."
+                : "Подтверждённые параметры применены. " + warning,
+            ProvisioningExecutionStatus.Resumed => "Возобновление после перезагрузки проверено.",
+            _ => "Применение не завершено.",
+        };
+    }
+
+    private static string ToPackageDirectoryName(string name)
+    {
+        var invalidCharacters = Path.GetInvalidFileNameChars();
+        var normalizedName = new string(name
+            .Select(character => invalidCharacters.Contains(character) ? '-' : character)
+            .ToArray())
+            .Trim();
+        return (string.IsNullOrEmpty(normalizedName) ? "easyaller" : normalizedName) + "-deployment-package";
     }
 
     private void Refresh_Click(object? sender, RoutedEventArgs e)
@@ -593,6 +1830,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
         SetHasUnsavedChanges(false);
         RefreshEditorFeedback();
+        RefreshApplyTab();
         UpdateDeleteButtonState();
         ProfileEditorScrollViewer.Offset = default;
         Dispatcher.UIThread.Post(
@@ -611,12 +1849,48 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         ? "Новый профиль компьютера"
         : $"Новый профиль компьютера {_profiles.Count + 1}";
 
-    private static string GetLocalProfileDirectory() => OperatingSystem.IsWindows()
-        ? FileProfileRepository.GetDefaultRootDirectory()
-        : Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+    private static string GetLocalProfileDirectory() => FileProfileRepository.GetDefaultRootDirectory();
+
+    private static void MigrateLegacyMachineWideProfiles(string destinationDirectory)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var legacyDirectory = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
             "Easyaller",
             "Profiles");
+        if (!Directory.Exists(legacyDirectory) || string.Equals(legacyDirectory, destinationDirectory, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        try
+        {
+            Directory.CreateDirectory(destinationDirectory);
+            foreach (var sourcePath in Directory.EnumerateFiles(legacyDirectory, $"*{FileProfileRepository.ProfileExtension}", SearchOption.TopDirectoryOnly))
+            {
+                var fileName = Path.GetFileName(sourcePath);
+                var profileIdText = fileName[..^FileProfileRepository.ProfileExtension.Length];
+                if (!Guid.TryParse(profileIdText, out _) || File.Exists(Path.Combine(destinationDirectory, fileName)))
+                {
+                    continue;
+                }
+
+                File.Copy(sourcePath, Path.Combine(destinationDirectory, fileName));
+            }
+        }
+        catch (IOException)
+        {
+            // Legacy files remain untouched; the new per-user repository still opens.
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Some managed installations prohibit reading ProgramData.
+        }
+    }
 
     private static string GetMessage(IReadOnlyList<ProfileValidationError> errors) =>
         errors.FirstOrDefault() is { } error ? GetValidationMessage(error) : "Повторите попытку.";
@@ -629,12 +1903,15 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         {
             ProfileNameTextBox,
             ProfileDescriptionTextBox,
-            ComputerNamePrefixTextBox,
+            ComputerNameCustomTypeTextBox,
             StaticIpv4AddressTextBox,
             StaticIpv4SubnetMaskTextBox,
             StaticIpv4DefaultGatewayTextBox,
-            StaticIpv4DnsServersTextBox,
+            StaticIpv4AdapterIdTextBox,
+            ProxyAddressTextBox,
             ProxyBypassListTextBox,
+            DomainNameTextBox,
+            DomainUserNameTextBox,
         })
         {
             textBox.TextChanged += (_, _) => EditorValueChanged();
@@ -646,6 +1923,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             SystemLocaleComboBox,
             UserLocaleComboBox,
             TimeZoneComboBox,
+            ComputerNameTypeComboBox,
             HideWirelessSetupComboBox,
             HideOnlineAccountComboBox,
             PrivacyPreferenceComboBox,
@@ -671,6 +1949,11 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
         _applications.CollectionChanged += (_, _) => EditorValueChanged();
         _instructions.CollectionChanged += (_, _) => EditorValueChanged();
+        _dnsServers.CollectionChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(HasNoDnsServers));
+            EditorValueChanged();
+        };
     }
 
     private void EditorValueChanged()
@@ -734,7 +2017,10 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         StaticIpv4AddressTextBox.IsEnabled = staticNetworkEnabled;
         StaticIpv4SubnetMaskTextBox.IsEnabled = staticNetworkEnabled;
         StaticIpv4DefaultGatewayTextBox.IsEnabled = staticNetworkEnabled;
-        StaticIpv4DnsServersTextBox.IsEnabled = staticNetworkEnabled;
+        DnsServerInputTextBox.IsEnabled = staticNetworkEnabled && _dnsServers.Count < 3;
+        AddDnsServerButton.IsEnabled = staticNetworkEnabled && _dnsServers.Count < 3;
+        RemoveDnsServerButton.IsEnabled = staticNetworkEnabled && DnsServersList.SelectedItem is not null;
+        DnsServersList.IsEnabled = staticNetworkEnabled;
         ProxyBypassListTextBox.IsEnabled = GetSelectedEnum(ProxyModeComboBox, original.Machine.Proxy.Mode)
             == ProxyConfigurationMode.PromptAtRuntime;
         var validation = _profileEditorController.ValidateComplete(
@@ -770,7 +2056,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             errors.Any(error => error.FieldPath.StartsWith("machine.", StringComparison.Ordinal)),
             GetSelectedEnum(NetworkModeComboBox, original.Machine.Network.Mode) == NetworkConfigurationMode.PromptAtRuntime
                 && GetSelectedEnum(ProxyModeComboBox, original.Machine.Proxy.Mode) == ProxyConfigurationMode.NotConfigured
-                && string.IsNullOrWhiteSpace(ComputerNamePrefixTextBox.Text));
+                && string.IsNullOrWhiteSpace(GetComputerNamePrefix()));
         SetSectionStatus(
             DomainSectionStatusText,
             errors.Any(error => error.FieldPath.StartsWith("domain.", StringComparison.Ordinal)),
@@ -804,11 +2090,13 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             var value => value,
         };
         var network = GetSelectedEnum(NetworkModeComboBox, original.Machine.Network.Mode) == NetworkConfigurationMode.StaticIpv4
-            ? "Статический IPv4"
+            ? _dnsServers.Count == 0
+                ? "Статический IPv4, DNS без изменений"
+                : $"Статический IPv4, DNS: {_dnsServers.Count}"
             : "Сеть при применении";
         var proxy = GetSelectedEnum(ProxyModeComboBox, original.Machine.Proxy.Mode) == ProxyConfigurationMode.PromptAtRuntime
-            ? "Прокси при применении"
-            : "Без настройки прокси";
+            ? "WinHTTP-прокси при применении"
+            : "Без настройки WinHTTP-прокси";
         var domain = GetSelectedEnum(DomainModeComboBox, original.Domain.Mode) switch
         {
             DomainMode.Required => "Домен обязателен",
@@ -857,7 +2145,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     private static void SetSectionStatus(TextBlock textBlock, bool hasErrors, bool isOptional)
     {
         textBlock.Text = hasErrors ? "Ошибка" : isOptional ? "Необязательно" : "Готово";
-        textBlock.Foreground = Brush.Parse(hasErrors ? "#FCA5A5" : isOptional ? "#AFC4DF" : "#86E1B5");
+        textBlock.Foreground = Brush.Parse(hasErrors ? "#FCA5A5" : isOptional ? "#98A6B8" : "#7EE2A8");
     }
 
     private static string GetValidationMessage(ProfileValidationError error) => error.Code switch
@@ -877,7 +2165,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         "machine.network.staticIpv4.gateway.outsideSubnet" => "Шлюз должен находиться в той же подсети.",
         "machine.network.staticIpv4.address.host.invalid" => "Укажите адрес компьютера, а не адрес сети или broadcast.",
         "machine.network.staticIpv4.gateway.host.invalid" => "Укажите отдельный допустимый адрес шлюза.",
-        "machine.network.staticIpv4.dnsServers.count.invalid" => "Укажите от одного до трёх DNS-серверов.",
+        "machine.network.staticIpv4.dnsServers.count.invalid" => "Можно указать не более трёх DNS-серверов.",
         "machine.network.staticIpv4.dnsServers.duplicate" => "DNS-серверы не должны повторяться.",
         "machine.proxy.bypassList.unexpected" => "Исключения доступны только когда прокси запрашивается при применении.",
         "machine.proxy.bypassList.entry.invalid" => "Проверьте формат исключения прокси.",
@@ -904,7 +2192,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         GetOptionalBoolean(HideWirelessSetupComboBox),
         GetOptionalBoolean(HideOnlineAccountComboBox),
         GetPrivacyPreference(),
-        ComputerNamePrefixTextBox.Text,
+        GetComputerNamePrefix(),
         GetSelectedEnum(ProxyModeComboBox, original.Machine.Proxy.Mode),
         GetSelectedEnum(DomainModeComboBox, original.Domain.Mode),
         GetSelectedEnum(LaunchModeComboBox, original.Deployment.LaunchMode),
@@ -913,8 +2201,12 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         StaticIpv4AddressTextBox.Text,
         StaticIpv4SubnetMaskTextBox.Text,
         StaticIpv4DefaultGatewayTextBox.Text,
-        StaticIpv4DnsServersTextBox.Text,
-        ProxyBypassListTextBox.Text);
+        string.Join(", ", _dnsServers),
+        StaticIpv4AdapterIdTextBox.Text,
+        ProxyBypassListTextBox.Text,
+        ProxyAddressTextBox.Text,
+        DomainNameTextBox.Text,
+        DomainUserNameTextBox.Text);
 
     private IReadOnlyList<WindowsEdition> GetSelectedEditions()
     {
@@ -945,14 +2237,24 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         SetOptionalBoolean(HideWirelessSetupComboBox, windows?.Oobe.HideWirelessSetup);
         SetOptionalBoolean(HideOnlineAccountComboBox, windows?.Oobe.HideOnlineAccountScreens);
         SetPrivacyPreference(windows?.Privacy);
-        ComputerNamePrefixTextBox.Text = profile?.Machine.ComputerName.Prefix ?? string.Empty;
+        PopulateComputerNameTemplate(profile?.Machine.ComputerName.Prefix);
         SetSelectedEnum(NetworkModeComboBox, profile?.Machine.Network.Mode);
         StaticIpv4AddressTextBox.Text = profile?.Machine.Network.StaticIpv4?.Address ?? string.Empty;
         StaticIpv4SubnetMaskTextBox.Text = profile?.Machine.Network.StaticIpv4?.SubnetMask ?? string.Empty;
         StaticIpv4DefaultGatewayTextBox.Text = profile?.Machine.Network.StaticIpv4?.DefaultGateway ?? string.Empty;
-        StaticIpv4DnsServersTextBox.Text = profile?.Machine.Network.StaticIpv4 is { } staticIpv4
-            ? string.Join(", ", staticIpv4.DnsServers)
-            : string.Empty;
+        _dnsServers.Clear();
+        if (profile?.Machine.Network.StaticIpv4 is { } staticIpv4)
+        {
+            foreach (var dnsServer in staticIpv4.DnsServers)
+            {
+                _dnsServers.Add(dnsServer);
+            }
+        }
+
+        StaticIpv4AdapterIdTextBox.Text = profile?.Machine.Network.StaticIpv4?.AdapterId ?? string.Empty;
+        ProxyAddressTextBox.Text = profile?.Machine.Proxy.Address ?? string.Empty;
+        DomainNameTextBox.Text = profile?.Domain.DomainName ?? string.Empty;
+        DomainUserNameTextBox.Text = profile?.Domain.UserName ?? string.Empty;
         SetSelectedEnum(ProxyModeComboBox, profile?.Machine.Proxy.Mode);
         ProxyBypassListTextBox.Text = profile is null
             ? string.Empty
@@ -1000,6 +2302,30 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
     private static string GetSelectedTag(ComboBox comboBox, string fallback) =>
         (comboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? fallback;
+
+    private string GetComputerNamePrefix()
+    {
+        var type = GetSelectedTag(ComputerNameTypeComboBox, "NOMAD");
+        var suffix = type == "Custom" ? ComputerNameCustomTypeTextBox.Text?.Trim() : type;
+        return ComputerNameSitePrefix + (suffix ?? string.Empty);
+    }
+
+    private void PopulateComputerNameTemplate(string? prefix)
+    {
+        var suffix = prefix?.StartsWith(ComputerNameSitePrefix, StringComparison.OrdinalIgnoreCase) == true
+            ? prefix[ComputerNameSitePrefix.Length..]
+            : prefix ?? string.Empty;
+        if (string.Equals(suffix, "NOMAD", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(suffix, "THINK", StringComparison.OrdinalIgnoreCase))
+        {
+            SetSelectedTag(ComputerNameTypeComboBox, suffix.ToUpperInvariant());
+            ComputerNameCustomTypeTextBox.Text = string.Empty;
+            return;
+        }
+
+        SetSelectedTag(ComputerNameTypeComboBox, "Custom");
+        ComputerNameCustomTypeTextBox.Text = suffix;
+    }
 
     private static void SetSelectedTag(ComboBox comboBox, string? value)
     {
@@ -1178,6 +2504,31 @@ public static class ProfileListFilter
     }
 }
 
+public sealed record ComplianceCheckListItem(ComplianceCheck Check)
+{
+    public string Title => Check.Title;
+
+    public string Detail => Check.Status == ComplianceStatus.Match
+        ? Check.Actual
+        : $"ожидается: {Check.Expected}   ·   фактически: {Check.Actual}";
+
+    public string StatusLabel => Check.Status switch
+    {
+        ComplianceStatus.Match => "совпадает",
+        ComplianceStatus.Mismatch => "расхождение",
+        ComplianceStatus.Unknown => "не прочитано",
+        _ => "не задано",
+    };
+
+    public IBrush StatusBrush => Check.Status switch
+    {
+        ComplianceStatus.Match => Brushes.LightGreen,
+        ComplianceStatus.Mismatch => Brushes.Salmon,
+        ComplianceStatus.Unknown => Brushes.Khaki,
+        _ => Brushes.Gray,
+    };
+}
+
 public sealed record ApplicationListItem(ApplicationProfile Application)
 {
     public string DisplayName => Application.DisplayName;
@@ -1192,4 +2543,28 @@ public sealed record InstructionListItem(InstructionProfile Instruction)
     public string Id => Instruction.Id;
 
     public string Title => Instruction.Title;
+
+    /// <summary>Instruction text is data shown to an operator; it is never executed.</summary>
+    public string Content => Instruction.Content;
+}
+
+public sealed record RuntimePromptListItem(RuntimePrompt Prompt)
+{
+    public string Title => Prompt.Kind switch
+    {
+        RuntimePromptKind.ComputerName => Prompt.IsRequired ? "Имя компьютера обязательно" : "Имя компьютера необязательно",
+        RuntimePromptKind.NetworkConfiguration => Prompt.IsRequired ? "Настройка сети обязательна" : "Настройка сети необязательна",
+        RuntimePromptKind.ProxyConfiguration => Prompt.IsRequired ? "Настройка прокси обязательна" : "Настройка прокси необязательна",
+        RuntimePromptKind.DomainJoin => Prompt.IsRequired ? "Присоединение к домену обязательно" : "Присоединение к домену необязательно",
+        _ => "Параметр настройки",
+    };
+
+    public string Description => Prompt.Kind switch
+    {
+        RuntimePromptKind.ComputerName => "Выберите окончательное имя компьютера при настройке.",
+        RuntimePromptKind.NetworkConfiguration => "Выберите сетевой адаптер и параметры сети при настройке.",
+        RuntimePromptKind.ProxyConfiguration => "Введите параметры прокси при настройке.",
+        RuntimePromptKind.DomainJoin => "Введите параметры присоединения к домену и краткоживущие учётные данные при настройке.",
+        _ => Prompt.Description,
+    };
 }

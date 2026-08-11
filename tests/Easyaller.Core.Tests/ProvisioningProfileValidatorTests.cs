@@ -151,6 +151,84 @@ public sealed class ProvisioningProfileValidatorTests
     }
 
     [Fact]
+    public void Validate_StaticIpv4WithoutDns_IsValid()
+    {
+        var profile = ProvisioningProfileFactory.CreateDefault() with
+        {
+            Machine = ProvisioningProfileFactory.CreateDefault().Machine with
+            {
+                Network = new NetworkSettings(
+                    NetworkConfigurationMode.StaticIpv4,
+                    new StaticIpv4Configuration("192.0.2.77", "255.255.255.0", "192.0.2.254", [])),
+            },
+        };
+
+        var result = _validator.Validate(profile);
+
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void Validate_StaticIpv4WithoutGateway_IsValid()
+    {
+        var profile = ProvisioningProfileFactory.CreateDefault() with
+        {
+            Machine = ProvisioningProfileFactory.CreateDefault().Machine with
+            {
+                Network = new NetworkSettings(
+                    NetworkConfigurationMode.StaticIpv4,
+                    new StaticIpv4Configuration("192.0.2.77", "255.255.255.0", string.Empty, ["192.0.2.53"])),
+            },
+        };
+
+        var result = _validator.Validate(profile);
+
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void Validate_StaticIpv4NetworkAddressWithoutGateway_ReturnsHostError()
+    {
+        var profile = ProvisioningProfileFactory.CreateDefault() with
+        {
+            Machine = ProvisioningProfileFactory.CreateDefault().Machine with
+            {
+                Network = new NetworkSettings(
+                    NetworkConfigurationMode.StaticIpv4,
+                    new StaticIpv4Configuration("192.0.2.0", "255.255.255.0", string.Empty, [])),
+            },
+        };
+
+        var result = _validator.Validate(profile);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, error => error.Code == "machine.network.staticIpv4.address.host.invalid");
+    }
+
+    [Fact]
+    public void Validate_StaticIpv4WithFourDnsServers_ReturnsCountError()
+    {
+        var profile = ProvisioningProfileFactory.CreateDefault() with
+        {
+            Machine = ProvisioningProfileFactory.CreateDefault().Machine with
+            {
+                Network = new NetworkSettings(
+                    NetworkConfigurationMode.StaticIpv4,
+                    new StaticIpv4Configuration(
+                        "192.0.2.77",
+                        "255.255.255.0",
+                        "192.0.2.254",
+                        ["192.0.2.53", "198.51.100.53", "203.0.113.53", "192.0.2.54"])),
+            },
+        };
+
+        var result = _validator.Validate(profile);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, error => error.Code == "machine.network.staticIpv4.dnsServers.count.invalid");
+    }
+
+    [Fact]
     public void Validate_StaticIpv4WithInvalidGatewayAndDns_ReturnsFieldErrors()
     {
         var profile = ProvisioningProfileFactory.CreateDefault() with
