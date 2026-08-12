@@ -30,6 +30,7 @@ public sealed class ProvisioningProfileValidator
         ValidateWindows(profile.Windows, errors);
         ValidateMachine(profile.Machine, errors);
         ValidateDomain(profile.Domain, errors);
+        ValidateApplicationSourcePath(profile.ApplicationSourcePath, errors);
         ValidateApplications(profile.Applications, errors);
 
         return new ProfileValidationResult(errors);
@@ -299,6 +300,38 @@ public sealed class ProvisioningProfileValidator
                 "domain.credentials.forbidden",
                 "domain.credentials",
                 "Domain credentials must be prompted at runtime."));
+        }
+    }
+
+    /// <summary>
+    /// The installer folder is usually a network share, but a local folder is equally valid when
+    /// the installers were copied to the machine. Either way it must be a full path with no
+    /// traversal segments an imported profile could abuse.
+    /// </summary>
+    private static void ValidateApplicationSourcePath(
+        string? sourcePath,
+        ICollection<ProfileValidationError> errors)
+    {
+        if (string.IsNullOrWhiteSpace(sourcePath))
+        {
+            return;
+        }
+
+        if (!Path.IsPathFullyQualified(sourcePath))
+        {
+            errors.Add(new ProfileValidationError(
+                "applicationSourcePath.notFullPath",
+                "applicationSourcePath",
+                @"Application source must be a full path, for example \\server\share\installers or D:\installers."));
+            return;
+        }
+
+        if (sourcePath.Split(['/', '\\']).Any(static segment => segment is "." or ".."))
+        {
+            errors.Add(new ProfileValidationError(
+                "applicationSourcePath.unsafe",
+                "applicationSourcePath",
+                "Application source path must not contain relative segments."));
         }
     }
 

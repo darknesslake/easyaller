@@ -2,7 +2,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Net;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using Easyaller.Core.Provisioning;
 
 namespace Easyaller.App;
@@ -11,7 +10,7 @@ namespace Easyaller.App;
 /// Reads the live Windows configuration so an operator can copy it into a profile.
 /// Every operation is read-only, needs no administrator rights, and never changes Windows.
 /// </summary>
-public sealed partial class CurrentMachineInspector
+public sealed class CurrentMachineInspector
 {
     private const string ReadConfigurationScript = """
         $ErrorActionPreference = 'SilentlyContinue'
@@ -24,7 +23,8 @@ public sealed partial class CurrentMachineInspector
             prefixLength = 0
             defaultGateway = ''
             dnsServers = @()
-            proxyRaw = ''
+            proxyAddress = ''
+            proxyBypassList = ''
         }
 
         $system = Get-CimInstance -ClassName Win32_ComputerSystem
@@ -51,8 +51,12 @@ public sealed partial class CurrentMachineInspector
                     Where-Object { $_ } | Select-Object -Unique -First 3)
         }
 
-        $proxy = & netsh winhttp show proxy 2>$null | Out-String
-        if ($proxy) { $result.proxyRaw = $proxy }
+        # WinINET: the proxy shown in Параметры > Сеть > Прокси, used by the browser and most apps.
+        $inetSettings = Get-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings' -ErrorAction SilentlyContinue
+        if ($inetSettings -and $inetSettings.ProxyEnable -eq 1 -and $inetSettings.ProxyServer) {
+            $result.proxyAddress = $inetSettings.ProxyServer
+            if ($inetSettings.ProxyOverride) { $result.proxyBypassList = $inetSettings.ProxyOverride }
+        }
 
         $result | ConvertTo-Json -Compress -Depth 4
         """;
@@ -75,7 +79,6 @@ public sealed partial class CurrentMachineInspector
             using var document = JsonDocument.Parse(output);
             var root = document.RootElement;
             var prefixLength = GetInt32(root, "prefixLength");
-            var proxy = ParseProxy(GetString(root, "proxyRaw"));
             return new CurrentMachineSnapshot(
                 GetString(root, "computerName"),
                 GetString(root, "domain"),
@@ -85,33 +88,13 @@ public sealed partial class CurrentMachineInspector
                 ToSubnetMask(prefixLength),
                 GetString(root, "defaultGateway"),
                 GetStringArray(root, "dnsServers"),
-                proxy.Address,
-                proxy.BypassList);
+                GetString(root, "proxyAddress"),
+                GetString(root, "proxyBypassList"));
         }
         catch (JsonException)
         {
             return null;
         }
-    }
-
-    /// <summary>
-    /// netsh output is localized, so the address is matched by shape (host:port) rather than by label.
-    /// </summary>
-    private static (string Address, string BypassList) ParseProxy(string rawOutput)
-    {
-        if (string.IsNullOrWhiteSpace(rawOutput))
-        {
-            return (string.Empty, string.Empty);
-        }
-
-        var address = ProxyAddressPattern().Match(rawOutput);
-        if (!address.Success)
-        {
-            return (string.Empty, string.Empty);
-        }
-
-        var bypass = ProxyBypassPattern().Match(rawOutput);
-        return (address.Value, bypass.Success ? bypass.Groups[1].Value.Trim() : string.Empty);
     }
 
     private static string ToSubnetMask(int prefixLength)
@@ -208,12 +191,6 @@ public sealed partial class CurrentMachineInspector
             return string.Empty;
         }
     }
-
-    [GeneratedRegex(@"(?<![\w.:])(?:[A-Za-z0-9][A-Za-z0-9.\-]*|\d{1,3}(?:\.\d{1,3}){3}):\d{1,5}(?![\w.])")]
-    private static partial Regex ProxyAddressPattern();
-
-    [GeneratedRegex(@"(?:Bypass|обход|Обход)[^\r\n:]*:\s*(.+)", RegexOptions.IgnoreCase)]
-    private static partial Regex ProxyBypassPattern();
 }
 
 public sealed record CurrentMachineSnapshot(

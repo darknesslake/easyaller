@@ -178,10 +178,11 @@ public sealed class ProfileJsonSerializer
         "windows" or "Windows" => 5,
         "machine" or "Machine" => 6,
         "domain" or "Domain" => 7,
-        "applications" or "Applications" => 8,
-        "instructions" or "Instructions" => 9,
-        "deployment" or "Deployment" => 10,
-        "cleanup" or "Cleanup" => 11,
+        "applicationSourcePath" or "ApplicationSourcePath" => 8,
+        "applications" or "Applications" => 9,
+        "instructions" or "Instructions" => 10,
+        "deployment" or "Deployment" => 11,
+        "cleanup" or "Cleanup" => 12,
         _ => int.MaxValue,
     };
 }

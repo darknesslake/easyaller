@@ -102,11 +102,58 @@ public sealed class WindowsProvisioningSystemAdapter : IProvisioningSystemAdapte
         """;
 
     private const string SetProxyScript = """
+        # WinHTTP: the service-facing proxy used by Windows Update and other background services.
         if ([string]::IsNullOrWhiteSpace($env:EASYALLER_PROXY_BYPASS_LIST)) {
             Set-WinHttpProxy -ProxyServer $env:EASYALLER_PROXY_ADDRESS -ErrorAction Stop
         }
         else {
             Set-WinHttpProxy -ProxyServer $env:EASYALLER_PROXY_ADDRESS -BypassList $env:EASYALLER_PROXY_BYPASS_LIST -ErrorAction Stop
+        }
+
+        # WinINET: the proxy shown in Параметры > Сеть > Прокси, used by the browser and most apps.
+        # This is a separate per-user store from WinHTTP above and does not update on its own.
+        $inetSettingsPath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings'
+        $previousEnable = (Get-ItemProperty -Path $inetSettingsPath -Name ProxyEnable -ErrorAction SilentlyContinue).ProxyEnable
+        $previousServer = (Get-ItemProperty -Path $inetSettingsPath -Name ProxyServer -ErrorAction SilentlyContinue).ProxyServer
+        $previousOverride = (Get-ItemProperty -Path $inetSettingsPath -Name ProxyOverride -ErrorAction SilentlyContinue).ProxyOverride
+        $bypassList = ($env:EASYALLER_PROXY_BYPASS_LIST -split ';' | Where-Object { $_ }) -join ';'
+
+        Add-Type -Namespace EasyallerInterop -Name WinInet -MemberDefinition '
+            [System.Runtime.InteropServices.DllImport("wininet.dll", SetLastError = true)]
+            public static extern bool InternetSetOption(System.IntPtr hInternet, int dwOption, System.IntPtr lpBuffer, int dwBufferLength);
+        '
+        function Notify-WinInetProxyChanged {
+            # INTERNET_OPTION_SETTINGS_CHANGED = 39, INTERNET_OPTION_REFRESH = 37: tells running
+            # processes (browsers included) to reread proxy settings without a sign-out.
+            [void][EasyallerInterop.WinInet]::InternetSetOption([System.IntPtr]::Zero, 39, [System.IntPtr]::Zero, 0)
+            [void][EasyallerInterop.WinInet]::InternetSetOption([System.IntPtr]::Zero, 37, [System.IntPtr]::Zero, 0)
+        }
+
+        try {
+            Set-ItemProperty -Path $inetSettingsPath -Name ProxyEnable -Value 1 -Type DWord -ErrorAction Stop
+            Set-ItemProperty -Path $inetSettingsPath -Name ProxyServer -Value $env:EASYALLER_PROXY_ADDRESS -Type String -ErrorAction Stop
+            if ($bypassList) {
+                Set-ItemProperty -Path $inetSettingsPath -Name ProxyOverride -Value $bypassList -Type String -ErrorAction Stop
+            }
+            else {
+                Remove-ItemProperty -Path $inetSettingsPath -Name ProxyOverride -ErrorAction SilentlyContinue
+            }
+            Notify-WinInetProxyChanged
+
+            $configuredServer = (Get-ItemProperty -Path $inetSettingsPath -Name ProxyServer -ErrorAction Stop).ProxyServer
+            if ($configuredServer -ne $env:EASYALLER_PROXY_ADDRESS) { throw 'WinINET proxy verification failed.' }
+        }
+        catch {
+            try {
+                if ($null -ne $previousEnable) { Set-ItemProperty -Path $inetSettingsPath -Name ProxyEnable -Value $previousEnable -Type DWord -ErrorAction SilentlyContinue }
+                if ($previousServer) { Set-ItemProperty -Path $inetSettingsPath -Name ProxyServer -Value $previousServer -Type String -ErrorAction SilentlyContinue }
+                else { Remove-ItemProperty -Path $inetSettingsPath -Name ProxyServer -ErrorAction SilentlyContinue }
+                if ($previousOverride) { Set-ItemProperty -Path $inetSettingsPath -Name ProxyOverride -Value $previousOverride -Type String -ErrorAction SilentlyContinue }
+                else { Remove-ItemProperty -Path $inetSettingsPath -Name ProxyOverride -ErrorAction SilentlyContinue }
+                Notify-WinInetProxyChanged
+            }
+            catch { }
+            exit 1
         }
         """;
     private const string ConfigureStaticIpv4Script = """

@@ -9,7 +9,7 @@
         MinWidth="760"
         MinHeight="580"
         Background="{StaticResource AppBackgroundBrush}">
-  <Grid RowDefinitions="Auto,*,Auto" Margin="24,20">
+  <Grid RowDefinitions="Auto,*,Auto" Margin="20,16">
     <StackPanel Spacing="3">
       <TextBlock Text="Создать установочный USB" Classes="pageTitle" />
       <TextBlock Text="Показываются только подходящие съёмные диски. Внутренние, system и boot-диски скрыты." Classes="pageSubtitle" />
@@ -29,7 +29,7 @@
               </StackPanel>
               <Button Grid.Column="1" Content="Обновить" Click="RefreshCandidates_Click" Classes="ghost" VerticalAlignment="Top" />
             </Grid>
-            <ListBox x:Name="CandidatesList" SelectionChanged="CandidatesList_SelectionChanged" Height="140" Background="{StaticResource SurfaceSunkenBrush}" BorderThickness="0">
+            <ListBox x:Name="CandidatesList" SelectionChanged="CandidatesList_SelectionChanged" MinHeight="60" ScrollViewer.VerticalScrollBarVisibility="Disabled" Background="{StaticResource SurfaceSunkenBrush}" BorderThickness="0">
               <ListBox.ItemTemplate>
                 <DataTemplate DataType="{x:Type local:UsbCreatorCandidate}">
                   <StackPanel Spacing="1" Margin="8,5">
@@ -48,11 +48,13 @@
               <Border Classes="stepBadge"><TextBlock Classes="stepBadgeText" Text="2" /></Border>
               <TextBlock Text="Укажите источники" Classes="panelTitle" VerticalAlignment="Center" />
             </StackPanel>
-            <TextBlock Text="Распакованные установочные файлы Windows и ранее экспортированный пакет Easyaller. Оба каталога только читаются." Classes="helperText" />
-            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-              <TextBox x:Name="SetupMediaDirectoryTextBox" IsReadOnly="True" FontSize="12" Padding="8,5" PlaceholderText="Каталог Windows Setup" />
-              <Button Grid.Column="1" Content="Выбрать…" Click="ChooseSetupMedia_Click" Classes="ghost" />
+            <TextBlock Text="Установочные файлы Windows и ранее экспортированный пакет Easyaller. Источники только читаются." Classes="helperText" />
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+              <TextBox x:Name="SetupMediaDirectoryTextBox" IsReadOnly="True" FontSize="12" Padding="8,5" PlaceholderText="ISO или каталог Windows Setup" />
+              <Button Grid.Column="1" x:Name="ChooseSetupIsoButton" Content="Выбрать ISO…" Click="ChooseSetupIso_Click" Classes="ghost" ToolTip.Tip="Монтирует образ только для чтения и берёт файлы прямо из него. Распаковывать ISO вручную не нужно." />
+              <Button Grid.Column="2" Content="Каталог…" Click="ChooseSetupMedia_Click" Classes="ghost" ToolTip.Tip="Если установочные файлы Windows уже распакованы в папку." />
             </Grid>
+            <TextBlock x:Name="SetupIsoStatusText" Classes="helperText" TextWrapping="Wrap" IsVisible="False" />
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
               <TextBox x:Name="DeploymentPackageDirectoryTextBox" IsReadOnly="True" FontSize="12" Padding="8,5" PlaceholderText="Каталог пакета Easyaller" />
               <Button Grid.Column="1" Content="Выбрать…" Click="ChooseDeploymentPackage_Click" Classes="ghost" />

@@ -245,6 +245,15 @@ public sealed class WindowsIsoContentReader : IIsoContentReader
             process.WaitForExit();
             if (process.ExitCode != 0)
             {
+                // Get-WindowsImage (DISM) fails this way when the process is not elevated, even
+                // though the read-only Mount-DiskImage step right before it does not need elevation.
+                if (!string.IsNullOrWhiteSpace(error) && error.Contains("requires elevation", StringComparison.OrdinalIgnoreCase))
+                {
+                    return Failure(
+                        "usb.iso.read.administrator.required",
+                        "Reading Windows image contents from the ISO requires administrator rights. Restart Easyaller as an administrator and try again.");
+                }
+
                 return Failure("usb.iso.read.failed", string.IsNullOrWhiteSpace(error) ? "Windows ISO inspection failed." : error.Trim());
             }
 

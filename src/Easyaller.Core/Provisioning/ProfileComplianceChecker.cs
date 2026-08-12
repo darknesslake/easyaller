@@ -39,6 +39,22 @@ public sealed record ComplianceReport(
     public bool IsCompliant => MismatchCount == 0 && UnknownCount == 0 && MatchCount > 0;
 }
 
+/// <summary>One program as the running Windows reports it.</summary>
+public sealed record InstalledSoftwareEntry(
+    string DisplayName,
+    string Version,
+    string InstallLocation = "",
+    long SizeBytes = 0,
+    int FileCount = 0);
+
+/// <summary>One shortcut found on a desktop or in the Start menu.</summary>
+public sealed record InstalledShortcutEntry(string Name, string TargetPath);
+
+/// <summary>What the machine reports as installed, used to verify the profile's applications.</summary>
+public sealed record InstalledSoftwareSnapshot(
+    IReadOnlyList<InstalledSoftwareEntry> Applications,
+    IReadOnlyList<InstalledShortcutEntry> Shortcuts);
+
 /// <summary>
 /// A read-only snapshot of the values a running Windows installation reports.
 /// Every field may be empty when the value could not be read.
@@ -60,7 +76,11 @@ public sealed record MachineStateSnapshot(
 /// </summary>
 public sealed class ProfileComplianceChecker
 {
-    public ComplianceReport Check(ProvisioningProfile profile, MachineStateSnapshot machine, DateTimeOffset checkedUtc)
+    public ComplianceReport Check(
+        ProvisioningProfile profile,
+        MachineStateSnapshot machine,
+        DateTimeOffset checkedUtc,
+        InstalledSoftwareSnapshot? installedSoftware = null)
     {
         ArgumentNullException.ThrowIfNull(profile);
         ArgumentNullException.ThrowIfNull(machine);
@@ -74,6 +94,7 @@ public sealed class ProfileComplianceChecker
         checks.AddRange(CheckNetwork(profile, machine));
         checks.Add(CheckProxy(profile, machine));
         checks.Add(CheckDomain(profile, machine));
+        checks.AddRange(CheckApplications(profile, installedSoftware));
 
         return new ComplianceReport(
             profile.ProfileId,
@@ -81,6 +102,107 @@ public sealed class ProfileComplianceChecker
             profile.Metadata.Name,
             checkedUtc,
             checks);
+    }
+
+    /// <summary>
+    /// Checks each profile application against what Windows reports as installed, and whether a
+    /// shortcut for it exists. Matching is by display name because that is the only identifier a
+    /// profile and the uninstall registry reliably share.
+    /// </summary>
+    private static IEnumerable<ComplianceCheck> CheckApplications(
+        ProvisioningProfile profile,
+        InstalledSoftwareSnapshot? installed)
+    {
+        if (profile.Applications.Count == 0)
+        {
+            yield break;
+        }
+
+        if (installed is null)
+        {
+            yield return new ComplianceCheck(
+                "Приложения",
+                ComplianceStatus.Unknown,
+                $"установлено {profile.Applications.Count}",
+                "список установленных программ не прочитан");
+            yield break;
+        }
+
+        foreach (var application in profile.Applications)
+        {
+            var name = application.DisplayName;
+            var match = installed.Applications.FirstOrDefault(entry => IsSameApplication(entry.DisplayName, name));
+            if (match is null)
+            {
+                yield return new ComplianceCheck($"Приложение: {name}", ComplianceStatus.Mismatch, "установлено", "не найдено среди установленных");
+                continue;
+            }
+
+            var hasShortcut = installed.Shortcuts.Any(shortcut => IsSameApplication(shortcut.Name, name));
+            var actual = string.IsNullOrWhiteSpace(match.Version) ? "установлено" : $"установлено, версия {match.Version}";
+            yield return new ComplianceCheck(
+                $"Приложение: {name}",
+                ComplianceStatus.Match,
+                "установлено",
+                actual + (hasShortcut ? ", ярлык есть" : ", ярлыка нет"));
+
+            if (application.Footprint is { } footprint)
+            {
+                yield return CheckFootprint(name, footprint, match);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Compares the installed folder with the reference machine. The tolerance is deliberately
+    /// one-sided: a folder legitimately grows from caches, logs and updates, but shrinking means
+    /// files went missing, which is the corruption case worth reporting.
+    /// </summary>
+    private static ComplianceCheck CheckFootprint(
+        string name,
+        ApplicationFootprint expected,
+        InstalledSoftwareEntry actual)
+    {
+        var title = $"Целостность: {name}";
+        var expectedText = $"{DescribeSize(expected.SizeBytes)}, файлов {expected.FileCount}";
+
+        if (actual.SizeBytes == 0 && actual.FileCount == 0)
+        {
+            return new ComplianceCheck(title, ComplianceStatus.Unknown, expectedText, "папку установки прочитать не удалось");
+        }
+
+        var actualText = $"{DescribeSize(actual.SizeBytes)}, файлов {actual.FileCount}";
+        var missingFiles = actual.FileCount < expected.FileCount;
+        var shrankNoticeably = actual.SizeBytes < expected.SizeBytes * 0.9;
+
+        return missingFiles || shrankNoticeably
+            ? new ComplianceCheck(title, ComplianceStatus.Mismatch, expectedText, actualText + " — меньше эталона, возможно повреждена")
+            : new ComplianceCheck(title, ComplianceStatus.Match, expectedText, actualText);
+    }
+
+    private static string DescribeSize(long sizeBytes) => sizeBytes switch
+    {
+        >= 1024L * 1024 * 1024 => $"{sizeBytes / (1024.0 * 1024 * 1024):0.#} ГБ",
+        >= 1024 * 1024 => $"{sizeBytes / (1024.0 * 1024):0.#} МБ",
+        >= 1024 => $"{sizeBytes / 1024.0:0.#} КБ",
+        _ => $"{sizeBytes} Б",
+    };
+
+    /// <summary>
+    /// Installers rarely register under exactly the profile name — "7-Zip" appears as
+    /// "7-Zip 24.09 (x64)" — so a containment match in either direction is the practical rule.
+    /// </summary>
+    private static bool IsSameApplication(string candidate, string expected)
+    {
+        if (string.IsNullOrWhiteSpace(candidate) || string.IsNullOrWhiteSpace(expected))
+        {
+            return false;
+        }
+
+        var left = candidate.Trim();
+        var right = expected.Trim();
+        return left.Contains(right, StringComparison.OrdinalIgnoreCase)
+            || right.Contains(left, StringComparison.OrdinalIgnoreCase);
     }
 
     private static ComplianceCheck CheckComputerName(ProvisioningProfile profile, MachineStateSnapshot machine)
@@ -182,7 +304,7 @@ public sealed class ProfileComplianceChecker
         if (string.IsNullOrWhiteSpace(expected))
         {
             return new ComplianceCheck(
-                "WinHTTP-прокси (не общий прокси Windows)",
+                "Прокси (браузер и WinHTTP)",
                 ComplianceStatus.NotConfigured,
                 "не настраивается профилем",
                 Or(machine.ProxyAddress, "нет"));

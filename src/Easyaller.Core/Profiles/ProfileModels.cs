@@ -27,6 +27,12 @@ public sealed record ProvisioningProfile
     [JsonRequired]
     public required DomainSettings Domain { get; init; }
 
+    /// <summary>
+    /// Optional network folder that holds the installers. It is confidential but not secret:
+    /// it names an internal share, so export review shows it.
+    /// </summary>
+    public string? ApplicationSourcePath { get; init; }
+
     [JsonRequired]
     public IReadOnlyList<ApplicationProfile> Applications { get; init; } = [];
 
@@ -154,7 +160,30 @@ public sealed record ApplicationProfile(
     [property: JsonRequired] string DisplayName,
     [property: JsonRequired] ApplicationSourceKind SourceKind,
     string? PackageRelativePath,
-    [property: JsonRequired] IReadOnlyList<string> Arguments);
+    [property: JsonRequired] IReadOnlyList<string> Arguments,
+    ApplicationFootprint? Footprint = null,
+    ApplicationArchitecture Architecture = ApplicationArchitecture.Any);
+
+/// <summary>
+/// Which Windows architecture an installer is meant for. A profile can therefore carry both the
+/// 64-bit and the 32-bit build of the same product, and only the matching one is installed.
+/// </summary>
+public enum ApplicationArchitecture
+{
+    Any,
+    X64,
+    X86,
+}
+
+/// <summary>
+/// What a correct installation of this application looked like on a reference machine.
+/// It is a health indicator, not a cryptographic guarantee: it detects a folder that lost files,
+/// which is the realistic failure, and deliberately tolerates growth from caches and updates.
+/// </summary>
+public sealed record ApplicationFootprint(
+    [property: JsonRequired] string InstallLocation,
+    [property: JsonRequired] long SizeBytes,
+    [property: JsonRequired] int FileCount);
 
 public enum ApplicationSourceKind
 {

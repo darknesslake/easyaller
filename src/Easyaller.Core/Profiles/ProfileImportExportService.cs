@@ -347,6 +347,41 @@ public sealed class ProfileImportExportService
                 "Contains organization-specific proxy bypass settings."));
         }
 
+        if (!string.IsNullOrWhiteSpace(profile.Machine.Proxy.Address))
+        {
+            fields.Add(new ProfileConfidentialField(
+                "machine.proxy.address",
+                "Reveals an internal proxy server address."));
+        }
+
+        if (!string.IsNullOrWhiteSpace(profile.Machine.ComputerName.Prefix))
+        {
+            fields.Add(new ProfileConfidentialField(
+                "machine.computerName.prefix",
+                "Reveals an internal computer-naming standard."));
+        }
+
+        if (!string.IsNullOrWhiteSpace(profile.Domain.DomainName))
+        {
+            fields.Add(new ProfileConfidentialField(
+                "domain.domainName",
+                "Reveals an internal Active Directory domain name."));
+        }
+
+        if (!string.IsNullOrWhiteSpace(profile.Domain.UserName))
+        {
+            fields.Add(new ProfileConfidentialField(
+                "domain.userName",
+                "Names a domain account used for joining. The password is never stored."));
+        }
+
+        if (!string.IsNullOrWhiteSpace(profile.ApplicationSourcePath))
+        {
+            fields.Add(new ProfileConfidentialField(
+                "applicationSourcePath",
+                "Reveals an internal file server or installer share."));
+        }
+
         for (var index = 0; index < profile.Applications.Count; index++)
         {
             if (!string.IsNullOrWhiteSpace(profile.Applications[index].PackageRelativePath))

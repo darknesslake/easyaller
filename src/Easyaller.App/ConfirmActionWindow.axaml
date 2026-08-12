@@ -16,7 +16,7 @@
 
     <Border Classes="calloutWarning">
       <StackPanel Spacing="6">
-        <TextBlock Text="Это действие изменит текущий компьютер прямо сейчас." FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource WarningTextBrush}" TextWrapping="Wrap" />
+        <TextBlock x:Name="WarningHeadlineText" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource WarningTextBrush}" TextWrapping="Wrap" />
         <TextBlock x:Name="ConsequenceText" TextWrapping="Wrap" Classes="helperText" />
       </StackPanel>
     </Border>

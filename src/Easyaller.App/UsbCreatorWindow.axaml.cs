@@ -7,8 +7,15 @@ namespace Easyaller.App;
 
 public sealed partial class UsbCreatorWindow : Window
 {
+    private static readonly FilePickerFileType WindowsIsoFileType = new("Образ Windows (ISO)")
+    {
+        Patterns = ["*.iso"],
+        MimeTypes = ["application/x-iso9660-image"],
+    };
+
     private readonly UsbCreationController _controller;
     private readonly ObservableCollection<UsbCreatorCandidate> _candidates = [];
+    private readonly WindowsIsoMount _isoMount = new();
     private UsbCreatorCandidate? _selectedCandidate;
     private UsbCreatorPreparationResult? _preparation;
 
@@ -17,7 +24,7 @@ public sealed partial class UsbCreatorWindow : Window
     {
     }
 
-    public UsbCreatorWindow(UsbCreationController controller)
+    public UsbCreatorWindow(UsbCreationController controller, string? suggestedIsoPath = null)
     {
         _controller = controller ?? throw new ArgumentNullException(nameof(controller));
         InitializeComponent();
@@ -25,6 +32,63 @@ public sealed partial class UsbCreatorWindow : Window
         PrepareConfirmationButton.IsEnabled = false;
         WriteUsbButton.IsEnabled = false;
         RefreshCandidates();
+
+        if (!string.IsNullOrWhiteSpace(suggestedIsoPath))
+        {
+            UseSetupIso(suggestedIsoPath);
+        }
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        // Only an image this window mounted itself is released here.
+        _isoMount.Dispose();
+        base.OnClosed(e);
+    }
+
+    private async void ChooseSetupIso_Click(object? sender, RoutedEventArgs e)
+    {
+        if (!StorageProvider.CanOpen)
+        {
+            SetStatus("Выбор файла недоступен на этой платформе.");
+            return;
+        }
+
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Выберите ISO Windows",
+            AllowMultiple = false,
+            FileTypeFilter = [WindowsIsoFileType],
+        });
+        if (files.FirstOrDefault() is { } file)
+        {
+            UseSetupIso(file.Path.LocalPath);
+        }
+    }
+
+    private void UseSetupIso(string isoPath)
+    {
+        SetupIsoStatusText.IsVisible = true;
+        SetupIsoStatusText.Text = $"Монтируется {Path.GetFileName(isoPath)} только для чтения…";
+        ChooseSetupIsoButton.IsEnabled = false;
+        try
+        {
+            var result = _isoMount.Mount(isoPath);
+            if (!result.IsMounted)
+            {
+                SetupIsoStatusText.Text = "Не удалось смонтировать ISO: " + (result.ErrorMessage ?? "неизвестная ошибка");
+                return;
+            }
+
+            SetupMediaDirectoryTextBox.Text = result.Root;
+            SetupIsoStatusText.Text = $"{Path.GetFileName(isoPath)} смонтирован как {result.Root} только для чтения. Образ будет отключён при закрытии окна.";
+            ClearPreparation();
+            UpdatePrepareButton();
+        }
+        finally
+        {
+            ChooseSetupIsoButton.IsEnabled = true;
+        }
     }
 
     private void RefreshCandidates_Click(object? sender, RoutedEventArgs e) => RefreshCandidates();

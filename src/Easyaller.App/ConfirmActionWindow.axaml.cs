@@ -14,13 +14,16 @@ public sealed partial class ConfirmActionWindow : Window
         InitializeComponent();
     }
 
-    public ConfirmActionWindow(string title, string description, string consequence, string confirmLabel)
+    private const string DefaultWarningHeadline = "Это действие изменит текущий компьютер прямо сейчас.";
+
+    public ConfirmActionWindow(string title, string description, string consequence, string confirmLabel, string warningHeadline)
         : this()
     {
         TitleText.Text = title;
         DescriptionText.Text = description;
         ConsequenceText.Text = consequence;
         ConfirmButton.Content = confirmLabel;
+        WarningHeadlineText.Text = warningHeadline;
     }
 
     public static async Task<bool> AskAsync(
@@ -28,10 +31,11 @@ public sealed partial class ConfirmActionWindow : Window
         string title,
         string description,
         string consequence,
-        string confirmLabel = "Выполнить")
+        string confirmLabel = "Выполнить",
+        string warningHeadline = DefaultWarningHeadline)
     {
         ArgumentNullException.ThrowIfNull(owner);
-        var window = new ConfirmActionWindow(title, description, consequence, confirmLabel);
+        var window = new ConfirmActionWindow(title, description, consequence, confirmLabel, warningHeadline);
         return await window.ShowDialog<bool>(owner);
     }
 

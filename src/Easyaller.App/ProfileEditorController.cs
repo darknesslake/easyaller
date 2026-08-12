@@ -96,25 +96,43 @@ public sealed class ProfileEditorController(IProfileRepository repository)
                     Prefix = string.IsNullOrWhiteSpace(settings.ComputerNamePrefix) ? null : settings.ComputerNamePrefix.Trim(),
                 },
                 Network = CreateNetworkSettings(settings),
-                Proxy = new ProxySettings(
-                    string.IsNullOrWhiteSpace(settings.ProxyAddress)
-                        ? settings.ProxyMode
-                        : ProxyConfigurationMode.PromptAtRuntime,
-                    (settings.ProxyBypassList ?? string.Empty)
-                        .Split([',', ';', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
-                    settings.ProxyAddress?.Trim()),
+                Proxy = CreateProxySettings(settings),
             },
             Domain = original.Domain with
             {
+                // "Do not join" must not keep a stale domain name and account in the profile.
                 Mode = settings.DomainMode,
-                DomainName = settings.DomainName?.Trim(),
-                UserName = settings.DomainUserName?.Trim(),
+                DomainName = settings.DomainMode == DomainMode.NotConfigured ? null : settings.DomainName?.Trim(),
+                UserName = settings.DomainMode == DomainMode.NotConfigured ? null : settings.DomainUserName?.Trim(),
             },
+            ApplicationSourcePath = string.IsNullOrWhiteSpace(settings.ApplicationSourcePath)
+                ? null
+                : settings.ApplicationSourcePath.Trim(),
             Deployment = new DeploymentSettings(settings.LaunchMode),
             Cleanup = new CleanupSettings(settings.CleanupMode),
             Applications = applications.ToArray(),
             Instructions = instructions.ToArray(),
         };
+    }
+
+    /// <summary>
+    /// The selected mode decides what the profile keeps. Typing an address must never silently
+    /// switch the profile to a proxy mode the operator did not choose.
+    /// </summary>
+    private static ProxySettings CreateProxySettings(ProfileSettingsEdit settings)
+    {
+        if (settings.ProxyMode != ProxyConfigurationMode.PromptAtRuntime)
+        {
+            // Keep the empty-list shape the profile format already uses, so an unchanged
+            // profile still serializes identically and is not reported as edited.
+            return new ProxySettings(settings.ProxyMode, []);
+        }
+
+        return new ProxySettings(
+            ProxyConfigurationMode.PromptAtRuntime,
+            (settings.ProxyBypassList ?? string.Empty)
+                .Split([',', ';', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
+            settings.ProxyAddress?.Trim());
     }
 
     private static NetworkSettings CreateNetworkSettings(ProfileSettingsEdit settings) => settings.NetworkMode switch
@@ -160,4 +178,5 @@ public sealed record ProfileSettingsEdit(
     string? ProxyBypassList = null,
     string? ProxyAddress = null,
     string? DomainName = null,
-    string? DomainUserName = null);
+    string? DomainUserName = null,
+    string? ApplicationSourcePath = null);

@@ -8,7 +8,7 @@ public sealed class CurrentMachineInspectorTests
     public void Parse_FullConfiguration_ReadsEveryField()
     {
         const string output = """
-            {"computerName":"SITE01NOMAD69","domain":"corp.example","timeZone":"UTC","adapterId":"Ethernet","address":"192.0.2.77","prefixLength":24,"defaultGateway":"192.0.2.254","dnsServers":["192.0.2.53","198.51.100.53"],"proxyRaw":""}
+            {"computerName":"SITE01NOMAD69","domain":"corp.example","timeZone":"UTC","adapterId":"Ethernet","address":"192.0.2.77","prefixLength":24,"defaultGateway":"192.0.2.254","dnsServers":["192.0.2.53","198.51.100.53"],"proxyAddress":"","proxyBypassList":""}
             """;
 
         var snapshot = CurrentMachineInspector.Parse(output);
@@ -66,10 +66,12 @@ public sealed class CurrentMachineInspectorTests
     }
 
     [Fact]
-    public void Parse_EnglishProxyOutput_ReadsAddressAndBypassList()
+    public void Parse_ProxyFields_ReadsAddressAndBypassList()
     {
+        // These come straight from the WinINET registry values (the proxy shown in
+        // Параметры > Сеть > Прокси), so no text parsing is involved.
         const string output = """
-            {"proxyRaw":"Current WinHTTP proxy settings:\r\n\r\n    Proxy Server(s) :  proxy.example.test:8080\r\n    Bypass List     :  *.example.test;<local>\r\n"}
+            {"proxyAddress":"proxy.example.test:8080","proxyBypassList":"*.example.test;<local>"}
             """;
 
         var snapshot = CurrentMachineInspector.Parse(output);
@@ -79,26 +81,18 @@ public sealed class CurrentMachineInspectorTests
     }
 
     [Fact]
-    public void Parse_LocalizedProxyOutput_StillReadsAddress()
+    public void Parse_NoProxyConfigured_ReportsEmptyProxy()
     {
-        // The address is matched by shape because netsh labels are translated.
-        const string output = """
-            {"proxyRaw":"Текущие параметры прокси WinHTTP:\r\n\r\n    Прокси-сервер:  10.10.0.5:3128\r\n"}
-            """;
+        var snapshot = CurrentMachineInspector.Parse("""{"proxyAddress":"","proxyBypassList":""}""");
 
-        var snapshot = CurrentMachineInspector.Parse(output);
-
-        Assert.Equal("10.10.0.5:3128", snapshot!.ProxyAddress);
+        Assert.Equal(string.Empty, snapshot!.ProxyAddress);
+        Assert.Equal(string.Empty, snapshot.ProxyBypassList);
     }
 
     [Fact]
-    public void Parse_DirectAccessProxyOutput_ReportsNoProxy()
+    public void Parse_MissingProxyFields_ReportsEmptyProxy()
     {
-        const string output = """
-            {"proxyRaw":"Current WinHTTP proxy settings:\r\n\r\n    Direct access (no proxy server).\r\n"}
-            """;
-
-        var snapshot = CurrentMachineInspector.Parse(output);
+        var snapshot = CurrentMachineInspector.Parse("""{"computerName":"PC01"}""");
 
         Assert.Equal(string.Empty, snapshot!.ProxyAddress);
         Assert.Equal(string.Empty, snapshot.ProxyBypassList);
@@ -116,7 +110,7 @@ public sealed class CurrentMachineInspectorTests
     public void ToMachineState_CarriesValuesIntoTheComplianceContract()
     {
         var snapshot = CurrentMachineInspector.Parse(
-            """{"computerName":"PC01","domain":"corp.example","timeZone":"UTC","adapterId":"Ethernet","address":"192.0.2.77","prefixLength":24,"defaultGateway":"192.0.2.254","dnsServers":["192.0.2.53"],"proxyRaw":"Proxy Server(s) : proxy.example.test:8080"}""");
+            """{"computerName":"PC01","domain":"corp.example","timeZone":"UTC","adapterId":"Ethernet","address":"192.0.2.77","prefixLength":24,"defaultGateway":"192.0.2.254","dnsServers":["192.0.2.53"],"proxyAddress":"proxy.example.test:8080","proxyBypassList":""}""");
 
         var machine = snapshot!.ToMachineState();
 

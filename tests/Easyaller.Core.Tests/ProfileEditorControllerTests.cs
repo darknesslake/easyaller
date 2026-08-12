@@ -260,6 +260,52 @@ public sealed class ProfileEditorControllerTests
         Assert.Equal(["*.example.test", "<local>", "192.0.2.53"], result.Profile!.Machine.Proxy.BypassList);
     }
 
+    [Fact]
+    public void SaveSettings_ProxyAddressWithoutProxyMode_IsNotStoredAndDoesNotChangeTheMode()
+    {
+        using var directory = new TemporaryDirectory();
+        var repository = new FileProfileRepository(directory.Path);
+        var original = ProvisioningProfileFactory.CreateDefault("Original profile");
+        Assert.Equal(ProfileRepositoryStatus.Success, repository.Create(original).Status);
+        var controller = new ProfileEditorController(repository);
+        var settings = CreateSettings(original, original.Metadata.Name) with
+        {
+            ProxyMode = ProxyConfigurationMode.NotConfigured,
+            ProxyAddress = "proxy.example.test:8080",
+            ProxyBypassList = "*.example.test",
+        };
+
+        var result = controller.SaveSettings(original, settings);
+
+        Assert.Equal(ProfileRepositoryStatus.Success, result.Status);
+        Assert.Equal(ProxyConfigurationMode.NotConfigured, result.Profile!.Machine.Proxy.Mode);
+        Assert.Null(result.Profile.Machine.Proxy.Address);
+        Assert.Empty(result.Profile.Machine.Proxy.BypassList!);
+    }
+
+    [Fact]
+    public void SaveSettings_DomainValuesWithoutDomainJoin_AreNotStored()
+    {
+        using var directory = new TemporaryDirectory();
+        var repository = new FileProfileRepository(directory.Path);
+        var original = ProvisioningProfileFactory.CreateDefault("Original profile");
+        Assert.Equal(ProfileRepositoryStatus.Success, repository.Create(original).Status);
+        var controller = new ProfileEditorController(repository);
+        var settings = CreateSettings(original, original.Metadata.Name) with
+        {
+            DomainMode = DomainMode.NotConfigured,
+            DomainName = "corp.example",
+            DomainUserName = "operator",
+        };
+
+        var result = controller.SaveSettings(original, settings);
+
+        Assert.Equal(ProfileRepositoryStatus.Success, result.Status);
+        Assert.Equal(DomainMode.NotConfigured, result.Profile!.Domain.Mode);
+        Assert.Null(result.Profile.Domain.DomainName);
+        Assert.Null(result.Profile.Domain.UserName);
+    }
+
     private sealed class TemporaryDirectory : IDisposable
     {
         public TemporaryDirectory()

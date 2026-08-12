@@ -168,6 +168,23 @@ public sealed class ProvisioningProfileValidatorTests
         Assert.True(result.IsValid);
     }
 
+    [Theory]
+    [InlineData(null, true)]
+    [InlineData(@"\\server\share\installers", true)]
+    [InlineData(@"D:\installers", true)]
+    [InlineData("installers", false)]
+    [InlineData(@"\\server\share\..\other", false)]
+    public void Validate_ApplicationSourcePath_AcceptsFullPathsWithoutTraversal(string? sourcePath, bool expectedValid)
+    {
+        var profile = ProvisioningProfileFactory.CreateDefault() with { ApplicationSourcePath = sourcePath };
+
+        var result = _validator.Validate(profile);
+
+        Assert.Equal(
+            expectedValid,
+            !result.Errors.Any(static error => error.FieldPath == "applicationSourcePath"));
+    }
+
     [Fact]
     public void Validate_StaticIpv4WithoutGateway_IsValid()
     {

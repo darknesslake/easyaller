@@ -88,6 +88,56 @@ public sealed class ProvisioningPlanBuilderTests
         Assert.DoesNotContain(result.Errors, error => error.Code == "runtime.domain.required");
     }
 
+    [Theory]
+    [InlineData("SITE01NOMAD69", true)]
+    [InlineData("SITE01NOMAD01", true)]
+    [InlineData("SITE01NOMAD001", true)]
+    [InlineData("SITE01NOMAD", false)]
+    [InlineData("SITE01NOMAD1", false)]
+    [InlineData("SITE01NOMAD0001", false)]
+    [InlineData("SITE01NOMADXX", false)]
+    [InlineData("OTHER01", false)]
+    public void Validate_ComputerNameAgainstProfilePrefix_MatchesTheQuickActionRule(string computerName, bool expectedValid)
+    {
+        var defaultProfile = ProvisioningProfileFactory.CreateDefault();
+        var profile = defaultProfile with
+        {
+            Machine = defaultProfile.Machine with
+            {
+                ComputerName = defaultProfile.Machine.ComputerName with { Prefix = "SITE01NOMAD" },
+            },
+        };
+        var plan = new ProvisioningPlanBuilder().Create(profile).Plan!;
+        using var inputs = new RuntimeProvisioningInputs
+        {
+            ComputerName = computerName,
+            NetworkAdapterId = "Ethernet",
+        };
+
+        var result = new RuntimeProvisioningInputValidator().Validate(plan, inputs);
+
+        Assert.Equal(
+            expectedValid,
+            !result.Errors.Any(static error => error.FieldPath == "computerName"));
+    }
+
+    [Fact]
+    public void Validate_ComputerNameWithoutProfilePrefix_AcceptsAnyValidWindowsName()
+    {
+        var profile = ProvisioningProfileFactory.CreateDefault();
+        Assert.Null(profile.Machine.ComputerName.Prefix);
+        var plan = new ProvisioningPlanBuilder().Create(profile).Plan!;
+        using var inputs = new RuntimeProvisioningInputs
+        {
+            ComputerName = "ANY-VALID-NAME",
+            NetworkAdapterId = "Ethernet",
+        };
+
+        var result = new RuntimeProvisioningInputValidator().Validate(plan, inputs);
+
+        Assert.DoesNotContain(result.Errors, static error => error.FieldPath == "computerName");
+    }
+
     [Fact]
     public void Create_StaticIpv4Profile_KeepsAddressValuesInPlanAndRequiresAdapterChoice()
     {

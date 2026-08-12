@@ -43,7 +43,8 @@ public sealed record ProvisioningPlan(
     IReadOnlyList<RuntimePrompt> RuntimePrompts,
     StaticIpv4Configuration? StaticIpv4 = null,
     IReadOnlyList<string>? ProxyBypassList = null,
-    string? TimeZone = null);
+    string? TimeZone = null,
+    string? ComputerNamePrefix = null);
 
 public sealed record ProvisioningPlanResult(
     ProvisioningPlan? Plan,
@@ -170,7 +171,8 @@ public sealed class ProvisioningPlanBuilder(ProvisioningProfileValidator? valida
                 prompts,
                 profile.Machine.Network.StaticIpv4,
                 profile.Machine.Proxy.BypassList?.ToArray() ?? [],
-                profile.Windows.TimeZone),
+                profile.Windows.TimeZone,
+                profile.Machine.ComputerName.Prefix),
             []);
     }
 
@@ -279,6 +281,10 @@ public sealed class RuntimeProvisioningInputValidator
                             "computerName",
                             "Computer name must use 1 to 15 letters, digits, or hyphens."));
                     }
+                    else
+                    {
+                        ValidateComputerNameTemplate(plan.ComputerNamePrefix, inputs.ComputerName, errors);
+                    }
 
                     break;
 
@@ -303,6 +309,39 @@ public sealed class RuntimeProvisioningInputValidator
         }
 
         return new RuntimeInputValidationResult(errors);
+    }
+
+    /// <summary>
+    /// When a profile declares a name prefix, the runtime name must follow it. Without this the
+    /// full apply path would accept any name while the per-field quick action enforces the template.
+    /// </summary>
+    private static void ValidateComputerNameTemplate(
+        string? prefix,
+        string computerName,
+        ICollection<RuntimeInputValidationError> errors)
+    {
+        if (string.IsNullOrWhiteSpace(prefix))
+        {
+            return;
+        }
+
+        if (!computerName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            errors.Add(new RuntimeInputValidationError(
+                "runtime.computerName.prefix.mismatch",
+                "computerName",
+                $"Computer name must start with the profile prefix '{prefix}'."));
+            return;
+        }
+
+        var suffix = computerName[prefix.Length..];
+        if (suffix.Length is < 2 or > 3 || !suffix.All(char.IsAsciiDigit))
+        {
+            errors.Add(new RuntimeInputValidationError(
+                "runtime.computerName.suffix.invalid",
+                "computerName",
+                $"Computer name must be '{prefix}' followed by 2 or 3 digits."));
+        }
     }
 
     private static void ValidateDomainJoin(

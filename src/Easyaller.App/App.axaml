@@ -281,8 +281,8 @@
     </Style>
     <Style Selector="Border.innerCard">
       <Setter Property="Background" Value="{StaticResource SurfaceRaisedBrush}" />
-      <Setter Property="CornerRadius" Value="10" />
-      <Setter Property="Padding" Value="13" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="10" />
     </Style>
 
     <!-- Footer action bar: a hairline separates it from the scrolled content above -->
@@ -291,28 +291,28 @@
       <Setter Property="BorderBrush" Value="{StaticResource BorderBrush1}" />
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="CornerRadius" Value="10" />
-      <Setter Property="Padding" Value="13" />
+      <Setter Property="Padding" Value="11" />
     </Style>
     <Style Selector="Border.calloutInfo">
       <Setter Property="Background" Value="{StaticResource AccentSoftBrush}" />
       <Setter Property="BorderBrush" Value="{StaticResource BorderSubtleBrush}" />
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="CornerRadius" Value="10" />
-      <Setter Property="Padding" Value="13" />
+      <Setter Property="Padding" Value="11" />
     </Style>
     <Style Selector="Border.calloutWarning">
       <Setter Property="Background" Value="{StaticResource WarningSoftBrush}" />
       <Setter Property="BorderBrush" Value="{StaticResource WarningBorderBrush}" />
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="CornerRadius" Value="10" />
-      <Setter Property="Padding" Value="13" />
+      <Setter Property="Padding" Value="11" />
     </Style>
     <Style Selector="Border.calloutDanger">
       <Setter Property="Background" Value="{StaticResource DangerSoftBrush}" />
       <Setter Property="BorderBrush" Value="{StaticResource DangerBorderBrush}" />
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="CornerRadius" Value="10" />
-      <Setter Property="Padding" Value="13" />
+      <Setter Property="Padding" Value="11" />
     </Style>
 
     <!-- Category step badge (numbered squares used to group settings into sections) -->
@@ -336,8 +336,8 @@
       <Setter Property="Background" Value="{StaticResource SurfaceSunkenBrush}" />
       <Setter Property="BorderBrush" Value="{StaticResource WarningBorderBrush}" />
       <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="CornerRadius" Value="8" />
-      <Setter Property="Padding" Value="12,10" />
+      <Setter Property="CornerRadius" Value="7" />
+      <Setter Property="Padding" Value="10,7" />
       <Setter Property="Margin" Value="0,2,0,0" />
     </Style>
     <Style Selector="TextBlock.quickActionLabel">
@@ -365,6 +365,18 @@
     <Style Selector="TextBlock.tagText">
       <Setter Property="FontSize" Value="10.5" />
       <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}" />
+    </Style>
+    <Style Selector="Border.requiredTag">
+      <Setter Property="Background" Value="{StaticResource WarningSoftBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource WarningBorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Padding" Value="6,1" />
+    </Style>
+    <Style Selector="TextBlock.requiredTagText">
+      <Setter Property="FontSize" Value="10.5" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{StaticResource WarningTextBrush}" />
     </Style>
     <Style Selector="Border.tagAccent">
       <Setter Property="Background" Value="{StaticResource AccentSoftBrush}" />

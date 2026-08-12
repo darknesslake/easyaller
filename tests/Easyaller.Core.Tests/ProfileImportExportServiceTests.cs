@@ -29,6 +29,38 @@ public sealed class ProfileImportExportServiceTests
     }
 
     [Fact]
+    public void PreviewExport_MarksInternalIdentifiersAsConfidential()
+    {
+        using var directory = new TemporaryDirectory();
+        var service = CreateService(directory.Path);
+        var defaultProfile = ProvisioningProfileFactory.CreateDefault();
+        var profile = defaultProfile with
+        {
+            ApplicationSourcePath = @"\\fileserver\install",
+            Machine = defaultProfile.Machine with
+            {
+                ComputerName = new ComputerNameRule(ComputerNameMode.RequiredAtRuntime, "SITE01WS"),
+                Proxy = new ProxySettings(ProxyConfigurationMode.PromptAtRuntime, [], "proxy.internal.test:8080"),
+            },
+            Domain = defaultProfile.Domain with
+            {
+                Mode = DomainMode.Optional,
+                DomainName = "corp.internal.test",
+                UserName = "join-account",
+            },
+        };
+
+        var preview = service.PreviewExport(profile);
+
+        // Everything here names internal infrastructure, so the operator must see it before export.
+        Assert.Contains(preview.ConfidentialFields, field => field.FieldPath == "applicationSourcePath");
+        Assert.Contains(preview.ConfidentialFields, field => field.FieldPath == "machine.proxy.address");
+        Assert.Contains(preview.ConfidentialFields, field => field.FieldPath == "machine.computerName.prefix");
+        Assert.Contains(preview.ConfidentialFields, field => field.FieldPath == "domain.domainName");
+        Assert.Contains(preview.ConfidentialFields, field => field.FieldPath == "domain.userName");
+    }
+
+    [Fact]
     public void PreviewExport_StaticIpv4MarksNetworkSettingsAsConfidential()
     {
         using var directory = new TemporaryDirectory();
