@@ -46,6 +46,15 @@
                     </StackPanel>
                   </StackPanel>
                 </Button>
+                <Button x:Name="MaintenanceModeButton" Classes="segment" Click="SelectMaintenanceMode_Click" ToolTip.Tip="Отдельные действия для уже работающего компьютера. Профиль настройки Windows не используется.">
+                  <StackPanel Orientation="Horizontal" Spacing="10">
+                    <TextBlock Classes="segmentIcon" Text="⚙" />
+                    <StackPanel Spacing="1">
+                      <TextBlock Classes="segmentTitle" Text="Обслуживание ПК" />
+                      <TextBlock Classes="segmentHint" Text="Ярлыки и другие операции" />
+                    </StackPanel>
+                  </StackPanel>
+                </Button>
               </StackPanel>
             </Border>
           </StackPanel>
@@ -53,7 +62,7 @@
         </Grid>
       </StackPanel>
 
-      <Grid Grid.Row="1" ColumnDefinitions="224,*" ColumnSpacing="14">
+      <Grid x:Name="ProfileWorkspaceGrid" Grid.Row="1" ColumnDefinitions="224,*" ColumnSpacing="14">
         <Border Classes="panelCard" Padding="9">
           <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="7">
             <Grid ColumnDefinitions="*,Auto,Auto" Margin="4,2,4,0">
@@ -964,6 +973,120 @@
           </Grid>
         </Border>
       </Grid>
+
+      <Border x:Name="MaintenanceWorkspace" Grid.Row="1" Classes="panelCard" Padding="18" IsVisible="False">
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+          <StackPanel Spacing="16" MaxWidth="920" HorizontalAlignment="Center">
+            <StackPanel Spacing="5">
+              <TextBlock Text="Обслуживание этого компьютера" Classes="pageTitle" />
+              <TextBlock Text="Самостоятельные операции для уже настроенной Windows. Они не входят в профиль новой установки и запускаются только вручную." Classes="helperText" TextWrapping="Wrap" />
+            </StackPanel>
+
+            <Border Classes="innerCard">
+              <StackPanel Spacing="14">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Скопировать ярлыки пользователю" Classes="cardTitle" />
+                  <TextBlock Text="Выберите профиль пользователя и папку «Ярлыки». На рабочий стол копируются только файлы .lnk, .url и .website; сами программы не запускаются." Classes="noteText" TextWrapping="Wrap" />
+                </StackPanel>
+
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                  <StackPanel Spacing="6">
+                    <TextBlock Text="Пользователь Windows" Classes="fieldLabel" />
+                    <ComboBox x:Name="MaintenanceUserComboBox" MinWidth="320" SelectionChanged="MaintenanceUserComboBox_SelectionChanged">
+                      <ComboBox.ItemTemplate>
+                        <DataTemplate DataType="{x:Type local:LocalWindowsUser}">
+                          <StackPanel Spacing="1">
+                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding ProfileDirectory}" Classes="helperText" />
+                          </StackPanel>
+                        </DataTemplate>
+                      </ComboBox.ItemTemplate>
+                    </ComboBox>
+                  </StackPanel>
+                  <Button Grid.Column="1" Content="Обновить список" Click="RefreshMaintenanceUsers_Click" Classes="ghost" VerticalAlignment="Bottom" />
+                </Grid>
+
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                  <StackPanel Spacing="6">
+                    <TextBlock Text="Папка с ярлыками" Classes="fieldLabel" />
+                    <TextBox x:Name="ShortcutSourceTextBox" IsReadOnly="True" PlaceholderText="Выберите папку «Ярлыки»" />
+                  </StackPanel>
+                  <Button Grid.Column="1" Content="Выбрать папку…" Click="ChooseShortcutSource_Click" Classes="ghost" VerticalAlignment="Bottom" />
+                </Grid>
+
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="14">
+                  <StackPanel Spacing="6">
+                    <TextBlock Text="Рабочий стол назначения" Classes="fieldLabel" />
+                    <TextBox x:Name="ShortcutTargetDesktopTextBox" IsReadOnly="True" />
+                  </StackPanel>
+                  <StackPanel Grid.Column="1" Spacing="6">
+                    <TextBlock Text="Если ярлык уже существует" Classes="fieldLabel" />
+                    <ComboBox x:Name="ShortcutConflictComboBox" SelectedIndex="0">
+                      <ComboBoxItem Tag="Skip">Не заменять</ComboBoxItem>
+                      <ComboBoxItem Tag="Replace">Заменить файлом из папки</ComboBoxItem>
+                    </ComboBox>
+                  </StackPanel>
+                </Grid>
+
+                <Border Classes="calloutInfo">
+                  <StackPanel Spacing="6">
+                    <TextBlock Text="Предварительный просмотр" Classes="fieldLabel" />
+                    <TextBlock x:Name="ShortcutPreviewText" Text="Выберите пользователя и папку-источник." Classes="noteText" TextWrapping="Wrap" />
+                  </StackPanel>
+                </Border>
+
+                <WrapPanel Orientation="Horizontal" ItemHeight="42">
+                  <Button Content="Проверить список" Click="PreviewShortcuts_Click" Classes="ghost" />
+                  <Button x:Name="CopyShortcutsButton" Content="Скопировать на рабочий стол" Click="CopyShortcuts_Click" Classes="primary primaryLarge" IsEnabled="False" Margin="8,0,0,0" />
+                </WrapPanel>
+              </StackPanel>
+            </Border>
+
+            <Border Classes="innerCard">
+              <StackPanel Spacing="14">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Архивация писем Outlook" Classes="cardTitle" />
+                  <TextBlock Text="Работает с классическим Outlook текущего вошедшего пользователя. Сначала Easyaller только считает письма старше указанного срока; перенос в PST запускается отдельно после подтверждения." Classes="noteText" TextWrapping="Wrap" />
+                </StackPanel>
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                  <StackPanel Spacing="6">
+                    <TextBlock Text="Папки для архивации" Classes="fieldLabel" />
+                    <Border Classes="calloutInfo">
+                      <TextBlock x:Name="OutlookStandardFoldersText" Text="Входящие и Отправленные" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" />
+                    </Border>
+                  </StackPanel>
+                  <Button Grid.Column="1" x:Name="LoadOutlookFoldersButton" Content="Подключить Outlook" Click="LoadOutlookFolders_Click" Classes="ghost" VerticalAlignment="Bottom" />
+                </Grid>
+                <Grid ColumnDefinitions="220,*" ColumnSpacing="14">
+                  <StackPanel Spacing="6">
+                    <TextBlock Text="Архивировать письма старше" Classes="fieldLabel" />
+                    <ComboBox x:Name="OutlookAgeComboBox" SelectedIndex="0" SelectionChanged="OutlookArchiveInput_Changed">
+                      <ComboBoxItem Tag="AllTime">За всё время</ComboBoxItem>
+                      <ComboBoxItem Tag="TwoWeeks">Старше 2 недель</ComboBoxItem>
+                      <ComboBoxItem Tag="OneMonth">Старше 1 месяца</ComboBoxItem>
+                      <ComboBoxItem Tag="ThreeMonths">Старше 3 месяцев</ComboBoxItem>
+                    </ComboBox>
+                  </StackPanel>
+                  <StackPanel Grid.Column="1" Spacing="6">
+                    <TextBlock Text="Файл архива PST (по умолчанию: Документы\Файлы Outlook\сегодняшняя дата.pst)" Classes="fieldLabel" />
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                      <TextBox x:Name="OutlookArchivePathTextBox" IsReadOnly="True" PlaceholderText="Выберите новый или существующий файл .pst" />
+                      <Button Grid.Column="1" Content="Выбрать файл…" Click="ChooseOutlookArchivePath_Click" Classes="ghost" />
+                    </Grid>
+                  </StackPanel>
+                </Grid>
+                <Border Classes="calloutInfo">
+                  <TextBlock x:Name="OutlookArchivePreviewText" Text="Загрузите папки Outlook и выберите параметры архивации." Classes="noteText" TextWrapping="Wrap" />
+                </Border>
+                <WrapPanel Orientation="Horizontal" ItemHeight="42">
+                  <Button x:Name="PreviewOutlookArchiveButton" Content="Посчитать письма" Click="PreviewOutlookArchive_Click" Classes="ghost" IsEnabled="False" />
+                  <Button x:Name="RunOutlookArchiveButton" Content="Переместить письма в PST" Click="RunOutlookArchive_Click" Classes="warningAction primaryLarge" IsEnabled="False" Margin="8,0,0,0" />
+                </WrapPanel>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
 
       <StackPanel Grid.Row="2" Spacing="8" Margin="0,0,0,10">
         <Border IsVisible="{Binding HasStatusMessage}" Background="{StaticResource SurfaceSunkenBrush}" CornerRadius="6" Padding="12,8" Margin="0,8,0,0" MinHeight="92" MaxHeight="180">

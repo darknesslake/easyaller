@@ -5,6 +5,7 @@ using System.Security.Principal;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -61,11 +62,17 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     private readonly RuntimeProfileEligibilityService _eligibilityService = new();
     private readonly PrivacyConfigurationService _privacyService = new();
     private readonly ApplicationInstallationService _applicationInstaller = new();
+    private readonly DesktopShortcutService _desktopShortcutService = new();
+    private readonly MaintenanceSettingsStore _maintenanceSettingsStore = MaintenanceSettingsStore.CreateDefault();
+    private readonly OutlookArchiveService _outlookArchiveService = new();
     private ApplicationInstallPlan? _applicationInstallPlan;
     private ComplianceReport? _complianceReport;
     private string? _selectedIsoPath;
     private EditorTab _activeTab = EditorTab.Profile;
     private bool _isPrepareInstallMode;
+    private IReadOnlyList<string> _shortcutPreview = [];
+    private StandardOutlookFolders? _standardOutlookFolders;
+    private IReadOnlyList<OutlookArchivePreview>? _outlookArchivePreviews;
     private string _selectedProfileName = "Выберите профиль";
     private string _selectedProfileRevision = "Профиль не выбран";
     private string _profileListCountText = "0 профилей";
@@ -88,6 +95,9 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         InstructionsList.ItemsSource = _instructions;
         DnsServersList.ItemsSource = _dnsServers;
         ComplianceList.ItemsSource = _complianceChecks;
+        RefreshMaintenanceUsers();
+        InitializeShortcutSource();
+        InitializeOutlookArchivePath();
         InitializeDeploymentTargetDefaults();
         StoragePathText.Text = _repository.RootDirectory;
         AttachEditorChangeHandlers();
@@ -202,11 +212,31 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
     private void SelectNewInstallMode_Click(object? sender, RoutedEventArgs e) => SetMode(prepareInstallMode: true);
 
+    private void SelectMaintenanceMode_Click(object? sender, RoutedEventArgs e)
+    {
+        if (!CanLeaveCurrentProfile())
+        {
+            return;
+        }
+
+        SetActiveNavClass(ThisPcModeButton, false);
+        SetActiveNavClass(NewInstallModeButton, false);
+        SetActiveNavClass(MaintenanceModeButton, true);
+        ProfileWorkspaceGrid.IsVisible = false;
+        MaintenanceWorkspace.IsVisible = true;
+        RefreshMaintenanceUsers();
+        UpdateShortcutPreview();
+        SetStatus("Открыто обслуживание ПК. Эти действия не изменяют и не используют профиль настройки Windows.");
+    }
+
     private void SetMode(bool prepareInstallMode)
     {
         _isPrepareInstallMode = prepareInstallMode;
         SetActiveNavClass(ThisPcModeButton, !prepareInstallMode);
         SetActiveNavClass(NewInstallModeButton, prepareInstallMode);
+        SetActiveNavClass(MaintenanceModeButton, false);
+        ProfileWorkspaceGrid.IsVisible = true;
+        MaintenanceWorkspace.IsVisible = false;
         ApplyTabButton.Content = prepareInstallMode ? "USB Install" : "Применить на этом ПК";
 
         // Answer-file settings only reach a Windows Setup run, so they stay hidden while configuring a live PC.
@@ -223,6 +253,352 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             : "К уже установленной Windows из этого раздела применяются часовой пояс и параметры конфиденциальности. Языки, редакции и экраны первичной настройки задаются файлом ответов и видны в режиме «New USB Install».";
         SetActiveTab(_activeTab);
     }
+
+    private void InitializeShortcutSource()
+    {
+        var savedSource = _maintenanceSettingsStore.LoadShortcutSource();
+        ShortcutSourceTextBox.Text = savedSource ?? string.Empty;
+    }
+
+    private static string GetUsersRoot()
+    {
+        var currentProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        return Directory.GetParent(currentProfile)?.FullName
+            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System).Substring(0, 3), "Users");
+    }
+
+    private void RefreshMaintenanceUsers_Click(object? sender, RoutedEventArgs e) => RefreshMaintenanceUsers();
+
+    private void RefreshMaintenanceUsers()
+    {
+        var comboBox = MaintenanceUserComboBox;
+        if (comboBox is null)
+        {
+            return;
+        }
+
+        var currentName = (comboBox.SelectedItem as LocalWindowsUser)?.Name;
+        var users = _desktopShortcutService.GetUsers(GetUsersRoot());
+        comboBox.ItemsSource = users;
+        comboBox.SelectedItem = users.FirstOrDefault(user =>
+                string.Equals(user.Name, currentName, StringComparison.OrdinalIgnoreCase))
+            ?? users.FirstOrDefault(user =>
+                string.Equals(user.ProfileDirectory, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), StringComparison.OrdinalIgnoreCase))
+            ?? users.FirstOrDefault();
+        UpdateShortcutTarget();
+    }
+
+    private void MaintenanceUserComboBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        UpdateShortcutTarget();
+        UpdateShortcutPreview();
+    }
+
+    private void UpdateShortcutTarget()
+    {
+        ShortcutTargetDesktopTextBox.Text = (MaintenanceUserComboBox.SelectedItem as LocalWindowsUser)?.DesktopDirectory ?? string.Empty;
+    }
+
+    private async void ChooseShortcutSource_Click(object? sender, RoutedEventArgs e)
+    {
+        if (!StorageProvider.CanOpen)
+        {
+            SetStatus("Выбор папки недоступен на этой платформе.");
+            return;
+        }
+
+        var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = "Выберите папку «Ярлыки»",
+            AllowMultiple = false,
+        });
+        if (folders.Count == 0)
+        {
+            return;
+        }
+
+        ShortcutSourceTextBox.Text = folders[0].Path.LocalPath;
+        _maintenanceSettingsStore.SaveShortcutSource(folders[0].Path.LocalPath);
+        UpdateShortcutPreview();
+    }
+
+    private void PreviewShortcuts_Click(object? sender, RoutedEventArgs e) => UpdateShortcutPreview(showStatus: true);
+
+    private void UpdateShortcutPreview(bool showStatus = false)
+    {
+        var source = ShortcutSourceTextBox?.Text?.Trim() ?? string.Empty;
+        var user = MaintenanceUserComboBox?.SelectedItem as LocalWindowsUser;
+        _shortcutPreview = _desktopShortcutService.Discover(source);
+        CopyShortcutsButton.IsEnabled = user is not null && _shortcutPreview.Count > 0;
+
+        if (user is null)
+        {
+            ShortcutPreviewText.Text = "Выберите пользователя Windows.";
+        }
+        else if (!Directory.Exists(source))
+        {
+            if (ShortcutSourceTextBox is not null)
+            {
+                ShortcutSourceTextBox.Text = string.Empty;
+            }
+            _maintenanceSettingsStore.Clear();
+            ShortcutPreviewText.Text = "Выберите существующую папку «Ярлыки».";
+        }
+        else if (_shortcutPreview.Count == 0)
+        {
+            ShortcutPreviewText.Text = "Поддерживаемые ярлыки не найдены. Ожидаются файлы .lnk, .url или .website.";
+        }
+        else
+        {
+            var names = _shortcutPreview.Select(Path.GetFileName).Take(12).ToArray();
+            var remainder = _shortcutPreview.Count - names.Length;
+            ShortcutPreviewText.Text = $"Будет скопировано пользователю «{user.Name}»: {_shortcutPreview.Count}.\n"
+                + string.Join("\n", names.Select(static name => "• " + name))
+                + (remainder > 0 ? $"\n…и ещё {remainder}" : string.Empty);
+        }
+
+        if (showStatus)
+        {
+            SetStatus(ShortcutPreviewText.Text ?? string.Empty);
+        }
+    }
+
+    private async void CopyShortcuts_Click(object? sender, RoutedEventArgs e)
+    {
+        var user = MaintenanceUserComboBox.SelectedItem as LocalWindowsUser;
+        var source = ShortcutSourceTextBox.Text?.Trim() ?? string.Empty;
+        UpdateShortcutPreview();
+        if (user is null || _shortcutPreview.Count == 0)
+        {
+            SetStatus("Сначала выберите пользователя, папку и проверьте список ярлыков.");
+            return;
+        }
+
+        var replace = (ShortcutConflictComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() == "Replace";
+        var confirmed = await ConfirmActionWindow.AskAsync(
+            this,
+            "Скопировать ярлыки на рабочий стол?",
+            $"Пользователь: {user.Name}\nРабочий стол: {user.DesktopDirectory}\nЯрлыков: {_shortcutPreview.Count}",
+            replace ? "Совпадающие ярлыки будут заменены." : "Совпадающие ярлыки останутся без изменений.",
+            "Скопировать",
+            "Будут изменены файлы рабочего стола выбранного пользователя.");
+        if (!confirmed)
+        {
+            SetStatus("Копирование ярлыков отменено.");
+            return;
+        }
+
+        var result = await Task.Run(() => _desktopShortcutService.Copy(
+            source,
+            user.DesktopDirectory,
+            replace ? ShortcutConflictBehavior.Replace : ShortcutConflictBehavior.Skip));
+        var message = $"Ярлыки обработаны для «{user.Name}»: добавлено {result.Copied}, заменено {result.Replaced}, пропущено {result.Skipped}.";
+        if (result.Errors.Count > 0)
+        {
+            message += "\nОшибки:\n" + string.Join("\n", result.Errors.Select(static error => "• " + error));
+        }
+
+        SetStatus(message);
+        ShortcutPreviewText.Text = message;
+    }
+
+    private async void LoadOutlookFolders_Click(object? sender, RoutedEventArgs e)
+    {
+        if (!_outlookArchiveService.IsAvailable)
+        {
+            OutlookArchivePreviewText.Text = "Классический Microsoft Outlook не найден. Новый Outlook не предоставляет совместимый интерфейс автоматизации.";
+            SetStatus(OutlookArchivePreviewText.Text);
+            return;
+        }
+
+        LoadOutlookFoldersButton.IsEnabled = false;
+        OutlookArchivePreviewText.Text = "Outlook читает список почтовых папок…";
+        try
+        {
+            _standardOutlookFolders = await Task.Run(_outlookArchiveService.GetStandardMailFolders);
+            OutlookStandardFoldersText.Text = $"{_standardOutlookFolders.Inbox.Name} и {_standardOutlookFolders.SentItems.Name}";
+            OutlookArchivePreviewText.Text = "Стандартные папки подключены. Выберите срок, файл PST и посчитайте письма.";
+        }
+        catch (Exception exception) when (exception is COMException or InvalidOperationException or PlatformNotSupportedException)
+        {
+            OutlookArchivePreviewText.Text = "Не удалось прочитать Outlook: " + exception.Message;
+        }
+        finally
+        {
+            LoadOutlookFoldersButton.IsEnabled = true;
+            ResetOutlookArchivePreview();
+        }
+    }
+
+    private void InitializeOutlookArchivePath()
+    {
+        OutlookArchivePathTextBox.Text = OutlookArchiveService.GetDefaultArchivePath(
+            DateTime.Today,
+            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));
+    }
+
+    private async void ChooseOutlookArchivePath_Click(object? sender, RoutedEventArgs e)
+    {
+        if (!StorageProvider.CanSave)
+        {
+            SetStatus("Выбор файла недоступен на этой платформе.");
+            return;
+        }
+
+        var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Выберите файл архива Outlook",
+            SuggestedFileName = $"{DateTime.Today:dd.MM.yyyy}.pst",
+            DefaultExtension = "pst",
+            ShowOverwritePrompt = false,
+            FileTypeChoices =
+            [
+                new FilePickerFileType("Файл данных Outlook") { Patterns = ["*.pst"] },
+            ],
+        });
+        if (file is null)
+        {
+            return;
+        }
+
+        OutlookArchivePathTextBox.Text = file.Path.LocalPath;
+        ResetOutlookArchivePreview();
+    }
+
+    private void OutlookArchiveInput_Changed(object? sender, SelectionChangedEventArgs e) => ResetOutlookArchivePreview();
+
+    private void ResetOutlookArchivePreview()
+    {
+        _outlookArchivePreviews = null;
+        var archiveAge = GetOutlookArchiveAge();
+        if (RunOutlookArchiveButton is not null)
+        {
+            RunOutlookArchiveButton.IsEnabled = false;
+        }
+
+        if (PreviewOutlookArchiveButton is not null)
+        {
+            PreviewOutlookArchiveButton.IsEnabled = _standardOutlookFolders is not null;
+        }
+    }
+
+    private async void PreviewOutlookArchive_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_standardOutlookFolders is null)
+        {
+            SetStatus("Сначала подключите Outlook.");
+            return;
+        }
+
+        var cutoff = OutlookArchiveService.CalculateCutoff(DateTime.Now, GetOutlookArchiveAge());
+        PreviewOutlookArchiveButton.IsEnabled = false;
+        RunOutlookArchiveButton.IsEnabled = false;
+        OutlookArchivePreviewText.Text = "Подсчитываются письма. Outlook и почта не изменяются…";
+        try
+        {
+            var standardFolders = _standardOutlookFolders;
+            _outlookArchivePreviews = await Task.Run(() => standardFolders.All
+                .Select(folder => _outlookArchiveService.Preview(folder, cutoff))
+                .ToArray());
+            var inboxPreview = _outlookArchivePreviews[0];
+            var sentPreview = _outlookArchivePreviews[1];
+            var periodText = GetOutlookArchiveAge() == OutlookArchiveAge.AllTime
+                ? "Письма за всё время"
+                : $"Письма старше {cutoff:dd.MM.yyyy}";
+            OutlookArchivePreviewText.Text = $"{periodText}:\n"
+                + $"• {standardFolders.Inbox.Name}: {inboxPreview.MatchingMessages}\n"
+                + $"• {standardFolders.SentItems.Name}: {sentPreview.MatchingMessages}\n"
+                + $"Всего: {_outlookArchivePreviews.Sum(static preview => preview.MatchingMessages)}.";
+            RunOutlookArchiveButton.IsEnabled = _outlookArchivePreviews.Sum(static preview => preview.MatchingMessages) > 0
+                && IsValidOutlookArchivePath(OutlookArchivePathTextBox.Text);
+            SetStatus(OutlookArchivePreviewText.Text);
+        }
+        catch (Exception exception) when (exception is COMException or InvalidOperationException or PlatformNotSupportedException)
+        {
+            OutlookArchivePreviewText.Text = "Не удалось проверить Outlook: " + exception.Message;
+            SetStatus(OutlookArchivePreviewText.Text);
+        }
+        finally
+        {
+            PreviewOutlookArchiveButton.IsEnabled = true;
+        }
+    }
+
+    private async void RunOutlookArchive_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_outlookArchivePreviews is null || _standardOutlookFolders is null)
+        {
+            SetStatus("Сначала выполните актуальный подсчёт писем.");
+            return;
+        }
+
+        var archivePath = OutlookArchivePathTextBox.Text?.Trim() ?? string.Empty;
+        if (!IsValidOutlookArchivePath(archivePath))
+        {
+            SetStatus("Выберите файл архива с расширением .pst.");
+            return;
+        }
+
+        var confirmed = await ConfirmActionWindow.AskAsync(
+            this,
+            "Переместить письма в архив Outlook?",
+            $"Папки: {_standardOutlookFolders.Inbox.Name} и {_standardOutlookFolders.SentItems.Name}\n"
+                + $"Писем: {_outlookArchivePreviews.Sum(static preview => preview.MatchingMessages)}\n"
+                + $"Старше: {_outlookArchivePreviews[0].OlderThan:dd.MM.yyyy}\nАрхив: {archivePath}",
+            "Письма будут перемещены из исходной папки в PST. Операцию нельзя отменить одной кнопкой Easyaller.",
+            "Переместить в PST",
+            "Это действие изменит почтовый ящик текущего пользователя.");
+        if (!confirmed)
+        {
+            SetStatus("Архивация Outlook отменена.");
+            return;
+        }
+
+        RunOutlookArchiveButton.IsEnabled = false;
+        PreviewOutlookArchiveButton.IsEnabled = false;
+        OutlookArchivePreviewText.Text = "Outlook перемещает письма в PST. Не закрывайте Outlook и Easyaller…";
+        try
+        {
+            var previews = _outlookArchivePreviews;
+            var standardFolders = _standardOutlookFolders;
+            var results = await Task.Run(() => new[]
+            {
+                _outlookArchiveService.Archive(standardFolders.Inbox, previews[0].OlderThan, archivePath, "Входящие"),
+                _outlookArchiveService.Archive(standardFolders.SentItems, previews[0].OlderThan, archivePath, "Отправленные"),
+            });
+            var moved = results.Sum(static result => result.MovedMessages);
+            var errors = results.SelectMany(static result => result.Errors).ToArray();
+            var message = $"Архивация Outlook завершена: перемещено {moved}. PST: {archivePath}";
+            if (errors.Length > 0)
+            {
+                message += $"\nОшибок: {errors.Length}.\n" + string.Join("\n", errors.Take(10));
+            }
+
+            OutlookArchivePreviewText.Text = message;
+            SetStatus(message);
+            _outlookArchivePreviews = null;
+        }
+        catch (Exception exception) when (exception is COMException or IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            OutlookArchivePreviewText.Text = "Архивация Outlook остановлена: " + exception.Message;
+            SetStatus(OutlookArchivePreviewText.Text);
+        }
+        finally
+        {
+            PreviewOutlookArchiveButton.IsEnabled = true;
+        }
+    }
+
+    private OutlookArchiveAge GetOutlookArchiveAge() =>
+        Enum.TryParse<OutlookArchiveAge>(
+            (OutlookAgeComboBox?.SelectedItem as ComboBoxItem)?.Tag?.ToString(),
+            out var age)
+            ? age
+            : OutlookArchiveAge.AllTime;
+
+    private static bool IsValidOutlookArchivePath(string? path) =>
+        !string.IsNullOrWhiteSpace(path)
+        && string.Equals(Path.GetExtension(path), ".pst", StringComparison.OrdinalIgnoreCase);
 
     private void ShowEditTab_Click(object? sender, RoutedEventArgs e) => SetActiveTab(EditorTab.Profile);
 
