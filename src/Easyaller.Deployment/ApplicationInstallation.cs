@@ -256,11 +256,32 @@ public sealed class ApplicationInstallationService
                 return new CopyOutcome(null, "Путь установщика выходит за пределы папки копирования.");
             }
 
-            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-            await using (var source = new FileStream(step.ExecutablePath, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, useAsync: true))
-            await using (var target = new FileStream(destination, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true))
+            var relativeDirectory = Path.GetDirectoryName(relativePath);
+            if (!string.IsNullOrWhiteSpace(relativeDirectory))
             {
-                await source.CopyToAsync(target, cancellationToken).ConfigureAwait(false);
+                // Folder-based packages such as Office need every CAB/MSI beside setup.exe.
+                var segments = relativePath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                var packageRoot = Path.GetFullPath(step.ExecutablePath);
+                foreach (var _ in segments)
+                {
+                    packageRoot = Path.GetDirectoryName(packageRoot)!;
+                }
+
+                var sourcePackageDirectory = Path.Combine(packageRoot, segments[0]);
+                var destinationPackageDirectory = Path.Combine(destinationRoot, segments[0]);
+                foreach (var sourceFile in Directory.EnumerateFiles(sourcePackageDirectory, "*", SearchOption.AllDirectories))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var relativeFile = Path.GetRelativePath(sourcePackageDirectory, sourceFile);
+                    var destinationFile = Path.Combine(destinationPackageDirectory, relativeFile);
+                    Directory.CreateDirectory(Path.GetDirectoryName(destinationFile)!);
+                    await CopyFileAsync(sourceFile, destinationFile, cancellationToken).ConfigureAwait(false);
+                }
+            }
+            else
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                await CopyFileAsync(step.ExecutablePath, destination, cancellationToken).ConfigureAwait(false);
             }
 
             return new CopyOutcome(destination, null);
@@ -273,6 +294,13 @@ public sealed class ApplicationInstallationService
         {
             return new CopyOutcome(null, $"Не удалось скопировать {step.DisplayName}: {exception.Message}");
         }
+    }
+
+    private static async Task CopyFileAsync(string sourcePath, string destinationPath, CancellationToken cancellationToken)
+    {
+        await using var source = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, useAsync: true);
+        await using var target = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true);
+        await source.CopyToAsync(target, cancellationToken).ConfigureAwait(false);
     }
 
     private sealed record CopyOutcome(string? LocalPath, string? ErrorMessage);

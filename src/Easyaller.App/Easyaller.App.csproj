@@ -19,4 +19,9 @@
     <ProjectReference Include="..\Easyaller.Deployment\Easyaller.Deployment.csproj" />
   </ItemGroup>
 
+  <ItemGroup Condition="'$(EmbeddedProfilePath)' != '' and Exists('$(EmbeddedProfilePath)')">
+    <EmbeddedResource Include="$(EmbeddedProfilePath)"
+                      LogicalName="Easyaller.EmbeddedProfile.wpprofile.json" />
+  </ItemGroup>
+
 </Project>

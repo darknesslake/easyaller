@@ -80,6 +80,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         DataContext = this;
         _repository = new FileProfileRepository(GetLocalProfileDirectory());
         MigrateLegacyMachineWideProfiles(_repository.RootDirectory);
+        EmbeddedProfileInstaller.InstallIfMissing(_repository);
         _profileImportExportService = new ProfileImportExportService(_repository);
         _profileEditorController = new ProfileEditorController(_repository);
         ProfilesList.ItemsSource = _profiles;
@@ -1519,6 +1520,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
     private void ApplicationsList_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
+        RefreshApplicationQueueNumbers();
         OnPropertyChanged(nameof(HasSelectedApplication));
         if (ApplicationsList.SelectedItem is not ApplicationListItem selected)
         {
@@ -1722,6 +1724,42 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         SetStatus("Приложение удалено. Сохраните изменения профиля.");
     }
 
+    private void MoveApplicationUp_Click(object? sender, RoutedEventArgs e) => MoveSelectedApplication(-1);
+
+    private void MoveApplicationDown_Click(object? sender, RoutedEventArgs e) => MoveSelectedApplication(1);
+
+    private void MoveSelectedApplication(int offset)
+    {
+        if (ApplicationsList.SelectedItem is not ApplicationListItem selected)
+        {
+            return;
+        }
+
+        var currentIndex = _applications.IndexOf(selected);
+        var targetIndex = currentIndex + offset;
+        if (targetIndex < 0 || targetIndex >= _applications.Count)
+        {
+            SetStatus(offset < 0
+                ? "Программа уже первая в очереди."
+                : "Программа уже последняя в очереди.");
+            return;
+        }
+
+        _applications.Move(currentIndex, targetIndex);
+        RefreshApplicationQueueNumbers();
+        ApplicationsList.SelectedItem = selected;
+        ApplicationsList.ScrollIntoView(selected);
+        SetStatus($"«{selected.DisplayName}» перемещено на позицию {targetIndex + 1}. Сохраните профиль.");
+    }
+
+    private void RefreshApplicationQueueNumbers()
+    {
+        for (var index = 0; index < _applications.Count; index++)
+        {
+            _applications[index].QueueNumber = index + 1;
+        }
+    }
+
     private void AddDnsServer_Click(object? sender, RoutedEventArgs e) => AddDnsServerFromInput();
 
     private void DnsServerInputTextBox_KeyDown(object? sender, Avalonia.Input.KeyEventArgs e)
@@ -1853,6 +1891,17 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         _plan = result.Plan;
+
+        // Runtime fields that are already part of the saved profile must be ready to use
+        // immediately. Only machine-specific suffixes and secrets still require input.
+        var profile = _selectedProfile.Profile;
+        RuntimeNetworkAdapterTextBox.Text = DefaultIfBlank(
+            profile.Machine.Network.StaticIpv4?.AdapterId,
+            DefaultNetworkAdapterName);
+        RuntimeProxyAddressTextBox.Text = profile.Machine.Proxy.Address ?? string.Empty;
+        RuntimeDomainNameTextBox.Text = profile.Domain.DomainName ?? string.Empty;
+        RuntimeDomainUserNameTextBox.Text = profile.Domain.UserName ?? string.Empty;
+        RuntimeComputerNameTextBox.Text = profile.Machine.ComputerName.Prefix ?? string.Empty;
 
         // The runtime field must show the profile's own naming rule, not an unrelated example.
         var namePrefix = _selectedProfile.Profile.Machine.ComputerName.Prefix;
@@ -2168,6 +2217,12 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
                     report.AppendLine(await ApplyPrivacyPoliciesAsync(_selectedProfile!.Profile, runtime));
                 }
 
+                if (result.IsSuccess && _selectedProfile!.Profile.Applications.Any(static application =>
+                        application.SourceKind == ApplicationSourceKind.PackageRelative))
+                {
+                    report.AppendLine(await InstallProfileApplicationsAsync(_selectedProfile.Profile));
+                }
+
                 report.AppendLine();
                 report.Append(DescribeExecution(result));
                 ApplyResultTextBox.Text = report.ToString();
@@ -2187,6 +2242,40 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             ApplyRuntimeInputsButton.IsEnabled = true;
             RuntimeDomainPasswordTextBox.Text = string.Empty;
         }
+    }
+
+    private async Task<string> InstallProfileApplicationsAsync(ProvisioningProfile profile)
+    {
+        var installerRoot = ResolveInstallerRoot(profile.ApplicationSourcePath);
+        InstallerRootTextBox.Text = installerRoot;
+        var plan = _applicationInstaller.CreatePlan(profile, installerRoot);
+        if (!plan.CanRun)
+        {
+            var reason = plan.Errors.FirstOrDefault()?.Message ?? "В профиле нет доступных установщиков.";
+            return "Приложения не установлены: " + reason;
+        }
+
+        var destination = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
+            "Easyaller-Installers");
+        var progress = new Progress<string>(SetStatus);
+        var installReport = await _applicationInstaller.RunPipelinedAsync(
+            plan,
+            destination,
+            new WindowsApplicationInstallerRunner(),
+            progress);
+        var details = DescribeInstallReport(installReport);
+        ApplicationInstallResultTextBox.IsVisible = true;
+        ApplicationInstallResultTextBox.Text = details + $"\n\nФайлы скопированы в: {destination}";
+        WriteJournalEntry(
+            "Установка приложений вместе с профилем",
+            installReport.StoppedOnFailure ? "Остановлено на ошибке" : "Установлено",
+            installReport.Results.Select(static item => $"{item.Step.DisplayName}: {DescribeInstallOutcome(item)}").ToArray());
+
+        return installReport.StoppedOnFailure
+            ? $"Приложения: установка остановлена на ошибке; установлено {installReport.InstalledCount} из {installReport.Results.Count}.\n{details}"
+            : $"Приложения установлены: {installReport.InstalledCount}."
+                + (installReport.RequiresRestart ? " Требуется перезагрузка." : string.Empty);
     }
 
     /// <summary>
@@ -2290,11 +2379,43 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        InstallerRootTextBox.Text = _selectedProfile?.Profile.ApplicationSourcePath ?? string.Empty;
+        InstallerRootTextBox.Text = ResolveInstallerRoot(_selectedProfile?.Profile.ApplicationSourcePath);
         ApplicationInstallSummaryText.Text = fromPackage == 0
             ? $"В профиле только приложения с ручной установкой ({manual}). Автоматически запускать нечего."
             : $"Устанавливается по очереди: {fromPackage}. Пока один ставится, следующий уже копируется."
                 + (manual > 0 ? $" Ещё {manual} помечено как ручная установка — их нужно поставить самостоятельно." : string.Empty);
+    }
+
+    private static string ResolveInstallerRoot(string? profilePath)
+    {
+        if (!string.IsNullOrWhiteSpace(profilePath) && Directory.Exists(profilePath))
+        {
+            return profilePath;
+        }
+
+        // A portable ISO keeps its payload next to Easyaller.App.exe. This takes precedence on a
+        // new PC where the authoring-machine path stored in the profile cannot exist.
+        var portablePath = Path.Combine(AppContext.BaseDirectory, "Installers");
+        if (Directory.Exists(portablePath))
+        {
+            return portablePath;
+        }
+
+        // The application and the installer payload may be distributed as two separate ISO
+        // images. When both are mounted, find the volume that exposes an Installers directory.
+        if (OperatingSystem.IsWindows())
+        {
+            foreach (var drive in DriveInfo.GetDrives().Where(static drive => drive.IsReady))
+            {
+                var mountedInstallerPath = Path.Combine(drive.RootDirectory.FullName, "Installers");
+                if (Directory.Exists(mountedInstallerPath))
+                {
+                    return mountedInstallerPath;
+                }
+            }
+        }
+
+        return profilePath ?? string.Empty;
     }
 
     private async void ChooseInstallerRoot_Click(object? sender, RoutedEventArgs e)
@@ -2655,8 +2776,11 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         if (result.Errors.FirstOrDefault() is { } failure)
         {
             var restartWarning = result.Warnings.FirstOrDefault()?.Message;
-            return "Применение остановлено: " + GetRuntimeMessage(failure.Code, failure.Message) +
-                (string.IsNullOrWhiteSpace(restartWarning) ? string.Empty : " " + restartWarning);
+            // Detail is raw PowerShell diagnostic text — untranslated on purpose, it is the actual
+            // reason (e.g. "adapter not found") behind an otherwise generic translated sentence.
+            return "Применение остановлено: " + GetRuntimeMessage(failure.Code, failure.Message)
+                + (string.IsNullOrWhiteSpace(failure.Detail) ? string.Empty : "\nПодробности: " + failure.Detail)
+                + (string.IsNullOrWhiteSpace(restartWarning) ? string.Empty : " " + restartWarning);
         }
 
         var warning = result.Warnings.FirstOrDefault()?.Message;
@@ -3585,13 +3709,33 @@ public sealed record ComplianceCheckListItem(ComplianceCheck Check)
     };
 }
 
-public sealed record ApplicationListItem(ApplicationProfile Application)
+public sealed class ApplicationListItem(ApplicationProfile application) : INotifyPropertyChanged
 {
+    private int _queueNumber;
+
+    public ApplicationProfile Application { get; } = application;
+
+    public int QueueNumber
+    {
+        get => _queueNumber;
+        set
+        {
+            if (_queueNumber == value)
+            {
+                return;
+            }
+
+            _queueNumber = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(QueueNumber)));
+        }
+    }
+
     public string DisplayName => Application.DisplayName;
 
     public string Detail => Application.SourceKind == ApplicationSourceKind.PackageRelative
         ? "Из пакета"
         : "Внешняя ручная установка";
+    public event PropertyChangedEventHandler? PropertyChanged;
 }
 
 public sealed record InstructionListItem(InstructionProfile Instruction)

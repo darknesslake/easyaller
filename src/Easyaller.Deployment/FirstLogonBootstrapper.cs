@@ -84,6 +84,19 @@ if (-not $applicationEntryFound) {
     throw 'Easyaller application payload is not covered by the manifest.'
 }
 
+$profilePath = Join-Path $payloadRoot 'payload/selected-profile.wpprofile.json'
+if (Test-Path -LiteralPath $profilePath -PathType Leaf) {
+    $profile = Get-Content -LiteralPath $profilePath -Raw | ConvertFrom-Json
+    $profileId = [string]$profile.profileId
+    if ($profileId -notmatch '^[0-9a-fA-F-]{36}$') {
+        throw 'Easyaller profile identifier is invalid.'
+    }
+
+    $profileDirectory = Join-Path $env:LOCALAPPDATA 'Easyaller\Profiles'
+    New-Item -ItemType Directory -Path $profileDirectory -Force | Out-Null
+    Copy-Item -LiteralPath $profilePath -Destination (Join-Path $profileDirectory ($profileId + '.wpprofile.json')) -Force
+}
+
 $runOncePath = 'HKLM:\Software\Microsoft\Windows\CurrentVersion\RunOnce'
 $runOnceName = '!EasyallerBootstrapResume'
 if ($Mode -eq 'InitialBootstrap') {

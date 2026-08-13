@@ -576,6 +576,9 @@
                     <ListBox.ItemTemplate>
                       <DataTemplate DataType="{x:Type local:ApplicationListItem}">
                         <StackPanel Orientation="Horizontal" Spacing="8" Margin="6,3">
+                          <Border Classes="stepBadge" MinWidth="24" Padding="6,2">
+                            <TextBlock Text="{Binding QueueNumber}" Classes="stepBadgeText" HorizontalAlignment="Center" />
+                          </Border>
                           <TextBlock Text="{Binding DisplayName}" Foreground="{StaticResource TextPrimaryBrush}" />
                           <TextBlock Text="{Binding Detail}" FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" />
                         </StackPanel>
@@ -585,6 +588,8 @@
                   <StackPanel Orientation="Horizontal" Spacing="10">
                     <Button Content="Собрать из папки…" Click="ScanApplicationFolder_Click" Classes="primary" ToolTip.Tip="Укажите папку с софтом — программа сама найдёт установщики .exe и .msi, включая папки продуктов вроде Office, и заполнит список." />
                     <Button Content="Добавить файлы…" Click="AddApplicationFiles_Click" ToolTip.Tip="Точечное добавление: выберите конкретные .exe или .msi." />
+                    <Button Content="↑ Вверх" Click="MoveApplicationUp_Click" IsEnabled="{Binding HasSelectedApplication}" ToolTip.Tip="Переместить выбранную программу раньше в очереди установки." />
+                    <Button Content="↓ Вниз" Click="MoveApplicationDown_Click" IsEnabled="{Binding HasSelectedApplication}" ToolTip.Tip="Переместить выбранную программу позже в очереди установки." />
                     <Button Content="Удалить выбранное" Click="RemoveApplication_Click" />
                   </StackPanel>
                   <Border Classes="innerCard" IsVisible="{Binding HasSelectedApplication}">
@@ -699,7 +704,6 @@
                 <Border Classes="calloutInfo">
                   <StackPanel Spacing="4">
                     <TextBlock Text="New USB Install — Windows 11" Classes="cardTitle" />
-                    <TextBlock Text="Здесь ничего не применяется к этому компьютеру. Собирается пакет файлов для Windows, которую только предстоит установить." TextWrapping="Wrap" Foreground="{StaticResource TextPrimaryBrush}" />
                   </StackPanel>
                 </Border>
 
@@ -961,9 +965,11 @@
         </Border>
       </Grid>
 
-      <StackPanel Grid.Row="2" Spacing="8">
-        <Border IsVisible="{Binding HasStatusMessage}" Background="{StaticResource SurfaceSunkenBrush}" CornerRadius="6" Padding="10,4" Margin="0,6,0,0">
-          <TextBlock x:Name="StatusText" FontSize="11" TextWrapping="Wrap" Foreground="{StaticResource TextSecondaryBrush}" />
+      <StackPanel Grid.Row="2" Spacing="8" Margin="0,0,0,10">
+        <Border IsVisible="{Binding HasStatusMessage}" Background="{StaticResource SurfaceSunkenBrush}" CornerRadius="6" Padding="12,8" Margin="0,8,0,0" MinHeight="92" MaxHeight="180">
+          <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <TextBlock x:Name="StatusText" FontSize="11" TextWrapping="Wrap" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,8,0" />
+          </ScrollViewer>
         </Border>
         <Border x:Name="ImportConflictPanel" IsVisible="False" Classes="calloutWarning">
           <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="10">

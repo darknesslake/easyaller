@@ -21,7 +21,7 @@ public enum ProvisioningExecutionOperationKind
     JoinDomain,
 }
 
-public sealed record ProvisioningExecutionMessage(string Code, string Message);
+public sealed record ProvisioningExecutionMessage(string Code, string Message, string? Detail = null);
 
 public sealed record ProvisioningExecutionOperation(
     ProvisioningExecutionOperationKind Kind,
@@ -46,11 +46,20 @@ public sealed record ProvisioningExecutionResult(
     public bool IsSuccess => Status is ProvisioningExecutionStatus.Completed or ProvisioningExecutionStatus.RestartRequired or ProvisioningExecutionStatus.Resumed;
 }
 
-public sealed record ProvisioningSystemOperationResult(bool IsSuccess, bool RequiresRestart, string? ErrorCode = null)
+public sealed record ProvisioningSystemOperationResult(
+    bool IsSuccess,
+    bool RequiresRestart,
+    string? ErrorCode = null,
+    /// <summary>
+    /// Raw diagnostic text (exit code, stderr) for the operator, kept separate from
+    /// <see cref="ErrorCode"/> because the code drives translated UI text while this is
+    /// system-generated and shown as-is.
+    /// </summary>
+    string? Detail = null)
 {
     public static ProvisioningSystemOperationResult Success(bool requiresRestart = false) => new(true, requiresRestart);
 
-    public static ProvisioningSystemOperationResult Failure(string errorCode) => new(false, false, errorCode);
+    public static ProvisioningSystemOperationResult Failure(string errorCode, string? detail = null) => new(false, false, errorCode, detail);
 }
 
 public interface IProvisioningSystemAdapter
@@ -333,7 +342,7 @@ public sealed class ProvisioningExecutionService(
             ProvisioningExecutionStatus.Failed,
             executionId,
             operations,
-            [new ProvisioningExecutionMessage(result.ErrorCode ?? fallbackCode, "A Windows provisioning operation did not complete.")],
+            [new ProvisioningExecutionMessage(result.ErrorCode ?? fallbackCode, "A Windows provisioning operation did not complete.", result.Detail)],
             []);
 
     private ProvisioningExecutionResult FailedAfterRestartRequired(
@@ -363,7 +372,7 @@ public sealed class ProvisioningExecutionService(
             ProvisioningExecutionStatus.Failed,
             pending.ExecutionId,
             operations,
-            [new ProvisioningExecutionMessage(result.ErrorCode ?? fallbackCode, "A Windows provisioning operation did not complete.")],
+            [new ProvisioningExecutionMessage(result.ErrorCode ?? fallbackCode, "A Windows provisioning operation did not complete.", result.Detail)],
             warnings);
     }
 

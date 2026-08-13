@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Easyaller.Core;
 using Easyaller.Core.Profiles;
 
 namespace Easyaller.Deployment;
@@ -234,7 +235,7 @@ public sealed class DeploymentPackageExporter : IDeploymentPackageExporter
 
     private static bool IsSafeRelativePath(string? path) =>
         !string.IsNullOrWhiteSpace(path) &&
-        !Path.IsPathRooted(path) &&
+        !WindowsPathFormat.IsAbsolute(path) &&
         !path.Split(['/', '\\']).Any(static segment => segment is "" or "." or "..");
 
     private static bool HasRequiredDirectory(DeploymentPackageAssetKind kind, string relativePath)
