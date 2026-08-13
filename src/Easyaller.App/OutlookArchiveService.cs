@@ -13,6 +13,13 @@ public sealed record OutlookArchivePreview(int MatchingMessages, DateTime OlderT
 
 public sealed record OutlookArchiveResult(int MovedMessages, string ArchivePath, IReadOnlyList<string> Errors);
 
+public sealed record OutlookArchiveProgress(
+    string FolderName,
+    int ProcessedMessages,
+    int TotalMessages,
+    int MovedMessages,
+    int FailedMessages);
+
 public enum OutlookArchiveAge
 {
     AllTime,
@@ -120,7 +127,8 @@ public sealed class OutlookArchiveService
         OutlookMailFolder folder,
         DateTime olderThan,
         string archivePath,
-        string targetFolderName)
+        string targetFolderName,
+        IProgress<OutlookArchiveProgress>? progress = null)
     {
         ArgumentNullException.ThrowIfNull(folder);
         EnsureCutoff(olderThan);
@@ -154,6 +162,8 @@ public sealed class OutlookArchiveService
                 SetArchiveDisplayName(archiveRoot, Path.GetFileNameWithoutExtension(fullPath));
                 target = GetOrCreateChildFolder(archiveRoot, SanitizeFolderName(targetFolderName));
                 var entryIds = FindMatchingEntryIds(source, olderThan);
+                var processed = 0;
+                progress?.Report(new OutlookArchiveProgress(targetFolderName, 0, entryIds.Count, 0, 0));
                 foreach (var entryId in entryIds)
                 {
                     object? item = null;
@@ -174,6 +184,14 @@ public sealed class OutlookArchiveService
                         Release(movedItem);
                         Release(item);
                     }
+
+                    processed++;
+                    progress?.Report(new OutlookArchiveProgress(
+                        targetFolderName,
+                        processed,
+                        entryIds.Count,
+                        moved,
+                        errors.Count));
                 }
 
                 return new OutlookArchiveResult(moved, fullPath, errors);

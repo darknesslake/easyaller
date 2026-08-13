@@ -62,6 +62,22 @@ public sealed class DesktopShortcutServiceTests : IDisposable
     }
 
     [Fact]
+    public void Copy_ReturnsReadableError_WhenDesktopCannotBeCreated()
+    {
+        var source = Directory.CreateDirectory(Path.Combine(_root, "source")).FullName;
+        File.WriteAllText(Path.Combine(source, "App.lnk"), "shortcut");
+        var fileInsteadOfDirectory = Path.Combine(_root, "not-a-directory");
+        File.WriteAllText(fileInsteadOfDirectory, "occupied");
+
+        var result = _service.Copy(source, fileInsteadOfDirectory, ShortcutConflictBehavior.Skip);
+
+        Assert.DoesNotContain(result.Errors, string.IsNullOrWhiteSpace);
+        Assert.Single(result.Errors);
+        Assert.Contains("правами администратора", result.Errors[0]);
+        Assert.Equal(0, result.Copied);
+    }
+
+    [Fact]
     public void SettingsStore_RestoresExistingShortcutDirectory()
     {
         var source = Directory.CreateDirectory(Path.Combine(_root, "Ярлыки")).FullName;

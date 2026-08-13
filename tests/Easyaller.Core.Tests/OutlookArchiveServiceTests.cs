@@ -46,4 +46,16 @@ public sealed class OutlookArchiveServiceTests
 
         Assert.Equal(expectedDate, result.ToString("yyyy-MM-dd"));
     }
+
+    [Fact]
+    public void ArchiveProgress_ReportsFolderAndCounters()
+    {
+        var progress = new OutlookArchiveProgress("Входящие", 7, 20, 6, 1);
+
+        Assert.Equal("Входящие", progress.FolderName);
+        Assert.Equal(7, progress.ProcessedMessages);
+        Assert.Equal(20, progress.TotalMessages);
+        Assert.Equal(6, progress.MovedMessages);
+        Assert.Equal(1, progress.FailedMessages);
+    }
 }

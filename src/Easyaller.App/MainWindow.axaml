@@ -1076,7 +1076,10 @@
                   </StackPanel>
                 </Grid>
                 <Border Classes="calloutInfo">
-                  <TextBlock x:Name="OutlookArchivePreviewText" Text="Загрузите папки Outlook и выберите параметры архивации." Classes="noteText" TextWrapping="Wrap" />
+                  <StackPanel Spacing="7">
+                    <TextBlock x:Name="OutlookArchivePreviewText" Text="Загрузите папки Outlook и выберите параметры архивации." Classes="noteText" TextWrapping="Wrap" />
+                    <ProgressBar x:Name="OutlookArchiveProgressBar" Minimum="0" Maximum="100" Value="0" IsVisible="False" Height="8" />
+                  </StackPanel>
                 </Border>
                 <WrapPanel Orientation="Horizontal" ItemHeight="42">
                   <Button x:Name="PreviewOutlookArchiveButton" Content="Посчитать письма" Click="PreviewOutlookArchive_Click" Classes="ghost" IsEnabled="False" />

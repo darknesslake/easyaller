@@ -73,6 +73,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     private IReadOnlyList<string> _shortcutPreview = [];
     private StandardOutlookFolders? _standardOutlookFolders;
     private IReadOnlyList<OutlookArchivePreview>? _outlookArchivePreviews;
+    private bool _isOutlookArchiveRunning;
     private string _selectedProfileName = "Выберите профиль";
     private string _selectedProfileRevision = "Профиль не выбран";
     private string _profileListCountText = "0 профилей";
@@ -176,6 +177,13 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
     private void MainWindow_Closing(object? sender, WindowClosingEventArgs e)
     {
+        if (_isOutlookArchiveRunning)
+        {
+            e.Cancel = true;
+            SetStatus("Окно не закрыто: дождитесь завершения переноса писем Outlook.");
+            return;
+        }
+
         if (!HasUnsavedChanges)
         {
             return;
@@ -469,6 +477,11 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
     private void ResetOutlookArchivePreview()
     {
+        if (_isOutlookArchiveRunning)
+        {
+            return;
+        }
+
         _outlookArchivePreviews = null;
         var archiveAge = GetOutlookArchiveAge();
         if (RunOutlookArchiveButton is not null)
@@ -532,10 +545,24 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
+        if (_isOutlookArchiveRunning)
+        {
+            SetStatus("Архивация Outlook уже выполняется. Дождитесь завершения текущего переноса.");
+            return;
+        }
+
+        _isOutlookArchiveRunning = true;
+        RunOutlookArchiveButton.IsEnabled = false;
+        PreviewOutlookArchiveButton.IsEnabled = false;
+        LoadOutlookFoldersButton.IsEnabled = false;
+
         var archivePath = OutlookArchivePathTextBox.Text?.Trim() ?? string.Empty;
         if (!IsValidOutlookArchivePath(archivePath))
         {
             SetStatus("Выберите файл архива с расширением .pst.");
+            _isOutlookArchiveRunning = false;
+            PreviewOutlookArchiveButton.IsEnabled = true;
+            LoadOutlookFoldersButton.IsEnabled = true;
             return;
         }
 
@@ -551,20 +578,45 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         if (!confirmed)
         {
             SetStatus("Архивация Outlook отменена.");
+            _isOutlookArchiveRunning = false;
+            RunOutlookArchiveButton.IsEnabled = true;
+            PreviewOutlookArchiveButton.IsEnabled = true;
+            LoadOutlookFoldersButton.IsEnabled = true;
             return;
         }
 
-        RunOutlookArchiveButton.IsEnabled = false;
-        PreviewOutlookArchiveButton.IsEnabled = false;
         OutlookArchivePreviewText.Text = "Outlook перемещает письма в PST. Не закрывайте Outlook и Easyaller…";
+        OutlookArchiveProgressBar.Value = 0;
+        OutlookArchiveProgressBar.IsVisible = true;
         try
         {
             var previews = _outlookArchivePreviews;
             var standardFolders = _standardOutlookFolders;
+            var inboxTotal = previews[0].MatchingMessages;
+            var sentTotal = previews[1].MatchingMessages;
+            var grandTotal = Math.Max(1, inboxTotal + sentTotal);
+            var inboxProcessed = 0;
+            var sentProcessed = 0;
+            var progress = new Progress<OutlookArchiveProgress>(value =>
+            {
+                if (value.FolderName == "Входящие")
+                {
+                    inboxProcessed = value.ProcessedMessages;
+                }
+                else
+                {
+                    sentProcessed = value.ProcessedMessages;
+                }
+
+                var processed = inboxProcessed + sentProcessed;
+                OutlookArchiveProgressBar.Value = processed * 100d / grandTotal;
+                OutlookArchivePreviewText.Text = $"Переносится «{value.FolderName}»: {value.ProcessedMessages} из {value.TotalMessages}.\n"
+                    + $"Всего обработано: {processed} из {inboxTotal + sentTotal}; перенесено в текущей папке: {value.MovedMessages}; ошибок: {value.FailedMessages}.";
+            });
             var results = await Task.Run(() => new[]
             {
-                _outlookArchiveService.Archive(standardFolders.Inbox, previews[0].OlderThan, archivePath, "Входящие"),
-                _outlookArchiveService.Archive(standardFolders.SentItems, previews[0].OlderThan, archivePath, "Отправленные"),
+                _outlookArchiveService.Archive(standardFolders.Inbox, previews[0].OlderThan, archivePath, "Входящие", progress),
+                _outlookArchiveService.Archive(standardFolders.SentItems, previews[0].OlderThan, archivePath, "Отправленные", progress),
             });
             var moved = results.Sum(static result => result.MovedMessages);
             var errors = results.SelectMany(static result => result.Errors).ToArray();
@@ -577,6 +629,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             OutlookArchivePreviewText.Text = message;
             SetStatus(message);
             _outlookArchivePreviews = null;
+            RunOutlookArchiveButton.IsEnabled = false;
         }
         catch (Exception exception) when (exception is COMException or IOException or UnauthorizedAccessException or InvalidOperationException)
         {
@@ -585,7 +638,10 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         }
         finally
         {
+            _isOutlookArchiveRunning = false;
             PreviewOutlookArchiveButton.IsEnabled = true;
+            LoadOutlookFoldersButton.IsEnabled = true;
+            OutlookArchiveProgressBar.IsVisible = false;
         }
     }
 

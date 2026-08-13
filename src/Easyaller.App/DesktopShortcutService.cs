@@ -63,11 +63,23 @@ public sealed class DesktopShortcutService
             return new DesktopShortcutCopyResult(0, 0, 0, ["В папке-источнике нет ярлыков .lnk, .url или .website."]);
         }
 
-        Directory.CreateDirectory(targetDesktopDirectory);
         var copied = 0;
         var replaced = 0;
         var skipped = 0;
         var errors = new List<string>();
+
+        try
+        {
+            Directory.CreateDirectory(targetDesktopDirectory);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return new DesktopShortcutCopyResult(
+                0,
+                0,
+                0,
+                [$"Не удалось открыть рабочий стол выбранного пользователя. Перезапустите Easyaller с правами администратора. {exception.Message}"]);
+        }
 
         foreach (var source in shortcuts)
         {
