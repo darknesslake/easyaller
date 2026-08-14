@@ -182,6 +182,36 @@ public sealed class ApplicationInstallationServiceTests
         Assert.Equal(ApplicationInstallOutcome.NotRun, report.Results[1].Outcome);
     }
 
+    [Fact]
+    public async Task RunPipelinedAsync_CancellationStopsCurrentInstallerAndPreservesRemainingSteps()
+    {
+        using var source = new TemporaryDirectory();
+        using var destination = new TemporaryDirectory();
+        CreateInstaller(source.Path, "first.exe");
+        CreateInstaller(source.Path, "second.exe");
+        var plan = new ApplicationInstallPlan(
+            source.Path,
+            [
+                new ApplicationInstallStep("first", "First", Path.Combine(source.Path, "first.exe"), []),
+                new ApplicationInstallStep("second", "Second", Path.Combine(source.Path, "second.exe"), []),
+            ],
+            [],
+            []);
+        using var cancellation = new CancellationTokenSource();
+        var runner = new CancellingRunner(cancellation);
+
+        var report = await new ApplicationInstallationService().RunPipelinedAsync(
+            plan,
+            destination.Path,
+            runner,
+            cancellationToken: cancellation.Token);
+
+        Assert.True(report.StoppedOnFailure);
+        Assert.True(report.WasCancelled);
+        Assert.Equal(ApplicationInstallOutcome.Cancelled, report.Results[0].Outcome);
+        Assert.Equal(ApplicationInstallOutcome.NotRun, report.Results[1].Outcome);
+    }
+
     [Theory]
     [InlineData("This installer was built with the Nullsoft Install System", InstallerFramework.Nsis, "/S")]
     [InlineData("Copyright (C) 1997-2024 Jordan Russell. All rights reserved. Inno Setup", InstallerFramework.InnoSetup, "/VERYSILENT")]
@@ -218,6 +248,36 @@ public sealed class ApplicationInstallationServiceTests
         Assert.Equal(["/qn"], detection.SuggestedArguments);
     }
 
+    [Theory]
+    [InlineData("Java Platform SE 8 U131", "Java Platform SE binary", "Oracle Corporation", InstallerFramework.OracleJava, "/s")]
+    [InlineData("Microsoft Lync 2010", "Microsoft Lync 2010 installer", "Microsoft Corporation", InstallerFramework.MicrosoftLync, "/Install")]
+    [InlineData("Microsoft Lync 2010", "Загрузчик тома для установщика Microsoft Lync 2010", "Корпорация Майкрософт", InstallerFramework.MicrosoftLync, "/Install")]
+    public void DetectFromMetadata_RecognizesVendorInstallers(
+        string productName,
+        string description,
+        string company,
+        InstallerFramework expected,
+        string expectedFirstArgument)
+    {
+        var detection = InstallerFrameworkDetector.DetectFromMetadata(productName, description, company);
+
+        Assert.Equal(expected, detection.Framework);
+        Assert.Equal(expectedFirstArgument, detection.SuggestedArguments[0]);
+    }
+
+    [Fact]
+    public void CreatePlan_EmptyArguments_UsesDetectedSilentArguments()
+    {
+        using var directory = new TemporaryDirectory();
+        var installerPath = Path.Combine(directory.Path, "setup.exe");
+        File.WriteAllBytes(installerPath, "This installer was built with the Nullsoft Install System"u8.ToArray());
+        var profile = ProfileWith(PackageApplication("app", "App", "setup.exe", []));
+
+        var plan = new ApplicationInstallationService().CreatePlan(profile, directory.Path);
+
+        Assert.Equal(["/S"], plan.Steps[0].Arguments);
+    }
+
     [Fact]
     public void Detect_RealFileOnDisk_FindsMarkerNearTheStart()
     {
@@ -230,6 +290,14 @@ public sealed class ApplicationInstallationServiceTests
         var detection = InstallerFrameworkDetector.Detect(path);
 
         Assert.Equal(InstallerFramework.Nsis, detection.Framework);
+    }
+
+    [Fact]
+    public void DetectFromContent_InstallShield_UsesArgumentListSafeQuietSyntax()
+    {
+        var detection = InstallerFrameworkDetector.DetectFromContent("InstallShield Setup Launcher"u8);
+
+        Assert.Equal(["/s", "/v/qn"], detection.SuggestedArguments);
     }
 
     [Fact]
@@ -384,7 +452,7 @@ public sealed class ApplicationInstallationServiceTests
     {
         public List<string> StartedApplications { get; } = [];
 
-        public ApplicationProcessResult Run(ApplicationInstallStep step)
+        public ApplicationProcessResult Run(ApplicationInstallStep step, CancellationToken cancellationToken = default)
         {
             StartedApplications.Add(step.DisplayName);
             return results[step.DisplayName];
@@ -395,7 +463,7 @@ public sealed class ApplicationInstallationServiceTests
     {
         public List<string> StartedApplications { get; } = [];
 
-        public ApplicationProcessResult Run(ApplicationInstallStep step)
+        public ApplicationProcessResult Run(ApplicationInstallStep step, CancellationToken cancellationToken = default)
         {
             onStart();
             lock (StartedApplications)
@@ -412,10 +480,19 @@ public sealed class ApplicationInstallationServiceTests
     {
         public List<string> ExecutedPaths { get; } = [];
 
-        public ApplicationProcessResult Run(ApplicationInstallStep step)
+        public ApplicationProcessResult Run(ApplicationInstallStep step, CancellationToken cancellationToken = default)
         {
             ExecutedPaths.Add(step.ExecutablePath);
             return new ApplicationProcessResult(0, null);
+        }
+    }
+
+    private sealed class CancellingRunner(CancellationTokenSource cancellation) : IApplicationInstallerRunner
+    {
+        public ApplicationProcessResult Run(ApplicationInstallStep step, CancellationToken cancellationToken = default)
+        {
+            cancellation.Cancel();
+            return new ApplicationProcessResult(null, "Установка остановлена пользователем.", WasCancelled: true);
         }
     }
 

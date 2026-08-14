@@ -7,6 +7,7 @@ public enum ApplicationInstallOutcome
     Installed,
     InstalledRestartRequired,
     Failed,
+    Cancelled,
     Skipped,
     NotRun,
 }
@@ -40,13 +41,15 @@ public sealed record ApplicationInstallReport(
     IReadOnlyList<ApplicationInstallStepResult> Results,
     bool StoppedOnFailure)
 {
+    public bool WasCancelled => Results.Any(static result => result.Outcome == ApplicationInstallOutcome.Cancelled);
+
     public bool RequiresRestart => Results.Any(static result => result.Outcome == ApplicationInstallOutcome.InstalledRestartRequired);
 
     public int InstalledCount => Results.Count(static result =>
         result.Outcome is ApplicationInstallOutcome.Installed or ApplicationInstallOutcome.InstalledRestartRequired);
 }
 
-public sealed record ApplicationProcessResult(int? ExitCode, string? ErrorMessage);
+public sealed record ApplicationProcessResult(int? ExitCode, string? ErrorMessage, bool WasCancelled = false);
 
 /// <summary>One installer found by scanning a folder, ready to become a profile entry.</summary>
 public sealed record DiscoveredInstaller(string RelativePath, string SuggestedName);
@@ -59,6 +62,8 @@ public enum InstallerFramework
     InnoSetup,
     InstallShield,
     WixBurn,
+    OracleJava,
+    MicrosoftLync,
 }
 
 /// <summary>A guess about which installer framework built a file, offered as a starting point only.</summary>
@@ -86,6 +91,23 @@ public static class InstallerFrameworkDetector
             return new InstallerFrameworkDetection(InstallerFramework.Msi, ["/qn"], "Windows Installer (.msi)");
         }
 
+        try
+        {
+            var versionInfo = System.Diagnostics.FileVersionInfo.GetVersionInfo(filePath);
+            var metadataDetection = DetectFromMetadata(
+                versionInfo.ProductName,
+                versionInfo.FileDescription,
+                versionInfo.CompanyName);
+            if (metadataDetection.Framework != InstallerFramework.Unknown)
+            {
+                return metadataDetection;
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return Unknown();
+        }
+
         byte[] buffer;
         try
         {
@@ -100,6 +122,26 @@ public static class InstallerFrameworkDetector
         }
 
         return DetectFromContent(buffer);
+    }
+
+    public static InstallerFrameworkDetection DetectFromMetadata(
+        string? productName,
+        string? fileDescription,
+        string? companyName)
+    {
+        if (ContainsText(productName, "Java Platform SE") && ContainsText(companyName, "Oracle"))
+        {
+            return new InstallerFrameworkDetection(InstallerFramework.OracleJava, ["/s"], "Oracle Java installer");
+        }
+
+        if (ContainsText(productName, "Microsoft Lync 2010") ||
+            (ContainsText(fileDescription, "Microsoft Lync 2010") &&
+             (ContainsText(companyName, "Microsoft") || ContainsText(companyName, "Майкрософт"))))
+        {
+            return new InstallerFrameworkDetection(InstallerFramework.MicrosoftLync, ["/Install", "/Silent"], "Microsoft Lync 2010 installer");
+        }
+
+        return Unknown();
     }
 
     public static InstallerFrameworkDetection DetectFromContent(ReadOnlySpan<byte> content)
@@ -121,8 +163,10 @@ public static class InstallerFrameworkDetector
 
         if (Contains(content, "InstallShield"))
         {
-            // InstallShield forwards to its embedded MSI as one literal token: /v"/qn".
-            return new InstallerFrameworkDetection(InstallerFramework.InstallShield, ["/s", "/v\"/qn\""], "InstallShield");
+            // /v and its MSI parameter must be one argument. Quotation marks are needed only when
+            // that parameter contains spaces; using /v/qn also avoids ProcessStartInfo escaping
+            // literal quotes that InstallShield would reject as an invalid MSI command line.
+            return new InstallerFrameworkDetection(InstallerFramework.InstallShield, ["/s", "/v/qn"], "InstallShield");
         }
 
         return Unknown();
@@ -133,6 +177,9 @@ public static class InstallerFrameworkDetector
 
     private static bool Contains(ReadOnlySpan<byte> haystack, string asciiNeedle) =>
         haystack.IndexOf(System.Text.Encoding.ASCII.GetBytes(asciiNeedle)) >= 0;
+
+    private static bool ContainsText(string? value, string expected) =>
+        value?.Contains(expected, StringComparison.OrdinalIgnoreCase) == true;
 }
 
 public sealed record ApplicationStagingResult(
@@ -145,7 +192,7 @@ public sealed record ApplicationStagingResult(
 
 public interface IApplicationInstallerRunner
 {
-    ApplicationProcessResult Run(ApplicationInstallStep step);
+    ApplicationProcessResult Run(ApplicationInstallStep step, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -214,6 +261,18 @@ public sealed class ApplicationInstallationService
                 continue;
             }
 
+            if (cancellationToken.IsCancellationRequested)
+            {
+                results.Add(new ApplicationInstallStepResult(
+                    step,
+                    ApplicationInstallOutcome.Cancelled,
+                    null,
+                    "Установка остановлена пользователем."));
+                stopped = true;
+                await stopCopying.CancelAsync().ConfigureAwait(false);
+                continue;
+            }
+
             var copy = await copies[index].Task.ConfigureAwait(false);
             if (copy.LocalPath is null)
             {
@@ -225,10 +284,10 @@ public sealed class ApplicationInstallationService
 
             progress?.Report($"Устанавливается: {step.DisplayName}");
             var localStep = step with { ExecutablePath = copy.LocalPath };
-            var processResult = await Task.Run(() => runner.Run(localStep), CancellationToken.None).ConfigureAwait(false);
+            var processResult = await Task.Run(() => runner.Run(localStep, cancellationToken), CancellationToken.None).ConfigureAwait(false);
             var outcome = DescribeOutcome(processResult);
             results.Add(new ApplicationInstallStepResult(localStep, outcome, processResult.ExitCode, processResult.ErrorMessage));
-            if (outcome == ApplicationInstallOutcome.Failed)
+            if (outcome is ApplicationInstallOutcome.Failed or ApplicationInstallOutcome.Cancelled)
             {
                 stopped = true;
                 // Nothing later will be installed, so stop pulling files over the network too.
@@ -256,11 +315,32 @@ public sealed class ApplicationInstallationService
                 return new CopyOutcome(null, "Путь установщика выходит за пределы папки копирования.");
             }
 
-            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-            await using (var source = new FileStream(step.ExecutablePath, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, useAsync: true))
-            await using (var target = new FileStream(destination, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true))
+            var relativeDirectory = Path.GetDirectoryName(relativePath);
+            if (!string.IsNullOrWhiteSpace(relativeDirectory))
             {
-                await source.CopyToAsync(target, cancellationToken).ConfigureAwait(false);
+                // Folder-based packages such as Office need every CAB/MSI beside setup.exe.
+                var segments = relativePath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                var packageRoot = Path.GetFullPath(step.ExecutablePath);
+                foreach (var _ in segments)
+                {
+                    packageRoot = Path.GetDirectoryName(packageRoot)!;
+                }
+
+                var sourcePackageDirectory = Path.Combine(packageRoot, segments[0]);
+                var destinationPackageDirectory = Path.Combine(destinationRoot, segments[0]);
+                foreach (var sourceFile in Directory.EnumerateFiles(sourcePackageDirectory, "*", SearchOption.AllDirectories))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var relativeFile = Path.GetRelativePath(sourcePackageDirectory, sourceFile);
+                    var destinationFile = Path.Combine(destinationPackageDirectory, relativeFile);
+                    Directory.CreateDirectory(Path.GetDirectoryName(destinationFile)!);
+                    await CopyFileAsync(sourceFile, destinationFile, cancellationToken).ConfigureAwait(false);
+                }
+            }
+            else
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                await CopyFileAsync(step.ExecutablePath, destination, cancellationToken).ConfigureAwait(false);
             }
 
             return new CopyOutcome(destination, null);
@@ -273,6 +353,13 @@ public sealed class ApplicationInstallationService
         {
             return new CopyOutcome(null, $"Не удалось скопировать {step.DisplayName}: {exception.Message}");
         }
+    }
+
+    private static async Task CopyFileAsync(string sourcePath, string destinationPath, CancellationToken cancellationToken)
+    {
+        await using var source = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, useAsync: true);
+        await using var target = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true);
+        await source.CopyToAsync(target, cancellationToken).ConfigureAwait(false);
     }
 
     private sealed record CopyOutcome(string? LocalPath, string? ErrorMessage);
@@ -350,11 +437,15 @@ public sealed class ApplicationInstallationService
                 continue;
             }
 
+            var arguments = application.Arguments.Count > 0
+                ? application.Arguments
+                : InstallerFrameworkDetector.Detect(candidate).SuggestedArguments;
+
             steps.Add(new ApplicationInstallStep(
                 application.Id,
                 application.DisplayName,
                 candidate,
-                application.Arguments,
+                arguments,
                 application.PackageRelativePath!));
         }
 
@@ -486,6 +577,7 @@ public sealed class ApplicationInstallationService
 
     private static ApplicationInstallOutcome DescribeOutcome(ApplicationProcessResult result) => result switch
     {
+        { WasCancelled: true } => ApplicationInstallOutcome.Cancelled,
         { ErrorMessage: not null } => ApplicationInstallOutcome.Failed,
         { ExitCode: 0 } => ApplicationInstallOutcome.Installed,
         { ExitCode: ExitCodeRestartRequired or ExitCodeRestartInitiated } => ApplicationInstallOutcome.InstalledRestartRequired,

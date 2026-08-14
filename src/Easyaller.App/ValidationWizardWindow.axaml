@@ -1,0 +1,53 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Easyaller.App.ValidationWizardWindow"
+        Title="Самопроверка Easyaller"
+        Width="820" Height="680" MinWidth="680" MinHeight="560"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource AppBackgroundBrush}">
+  <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="20" RowSpacing="14">
+    <Grid ColumnDefinitions="*,Auto">
+      <StackPanel Spacing="4">
+        <TextBlock Text="Самопроверка Easyaller" Classes="pageTitle" />
+        <TextBlock x:Name="ValidationSummaryText" Classes="helperText" />
+      </StackPanel>
+      <Button Grid.Column="1" Content="Начать заново" Click="Reset_Click" Classes="ghost" />
+    </Grid>
+
+    <ProgressBar Grid.Row="1" x:Name="ValidationProgressBar" Minimum="0" Maximum="100" Height="8" />
+
+    <Border Grid.Row="2" Classes="panelCard" Padding="20">
+      <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Spacing="15">
+          <Border Classes="tag" HorizontalAlignment="Left">
+            <TextBlock x:Name="ValidationStepNumberText" Classes="tagText" />
+          </Border>
+          <TextBlock x:Name="ValidationStepTitleText" FontSize="22" FontWeight="Bold" TextWrapping="Wrap" />
+          <TextBlock Text="Что сделать" Classes="cardTitle" />
+          <TextBlock x:Name="ValidationStepInstructionsText" TextWrapping="Wrap" LineHeight="23" />
+          <TextBlock Text="Ожидаемый результат" Classes="cardTitle" />
+          <Border Classes="calloutInfo">
+            <TextBlock x:Name="ValidationStepExpectedText" TextWrapping="Wrap" />
+          </Border>
+          <StackPanel Spacing="6">
+            <TextBlock Text="Заметки и текст ошибки" Classes="fieldLabel" />
+            <TextBox x:Name="ValidationNotesTextBox" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="90"
+                     PlaceholderText="Например: код ошибки, что фактически произошло, что нужно исправить" TextChanged="ValidationNotesTextBox_TextChanged" />
+          </StackPanel>
+          <TextBlock Text="Отметьте результат" Classes="cardTitle" />
+          <WrapPanel Orientation="Horizontal" ItemHeight="42">
+            <Button Content="✓ Пройдено" Click="Passed_Click" Classes="primary" />
+            <Button Content="! Ошибка" Click="Failed_Click" Classes="warningAction" Margin="8,0,0,0" />
+            <Button Content="Пропустить" Click="Skipped_Click" Classes="ghost" Margin="8,0,0,0" />
+          </WrapPanel>
+        </StackPanel>
+      </ScrollViewer>
+    </Border>
+
+    <Grid Grid.Row="3" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
+      <Button x:Name="PreviousValidationStepButton" Content="← Назад" Click="Previous_Click" Classes="ghost" />
+      <Button Grid.Column="2" Content="Сохранить отчёт…" Click="SaveReport_Click" Classes="ghost" />
+      <Button Grid.Column="3" x:Name="NextValidationStepButton" Content="Далее →" Click="Next_Click" Classes="primary" />
+    </Grid>
+  </Grid>
+</Window>

@@ -42,6 +42,8 @@ public sealed class FirstLogonBootstrapperTests
         Assert.Contains("InitialBootstrap", script, StringComparison.Ordinal);
         Assert.Contains("ResumeBootstrap", script, StringComparison.Ordinal);
         Assert.Contains("Start-Process", script, StringComparison.Ordinal);
+        Assert.Contains("selected-profile.wpprofile.json", script, StringComparison.Ordinal);
+        Assert.Contains("Easyaller\\Profiles", script, StringComparison.Ordinal);
         Assert.DoesNotContain("Remove-ItemProperty", script, StringComparison.Ordinal);
         Assert.NotNull(passwordShownToAdministrator);
         Assert.DoesNotContain(passwordShownToAdministrator, script, StringComparison.Ordinal);

@@ -317,7 +317,7 @@ public sealed class ProvisioningProfileValidator
             return;
         }
 
-        if (!IsFullyQualifiedWindowsPath(sourcePath))
+        if (!WindowsPathFormat.IsFullyQualified(sourcePath))
         {
             errors.Add(new ProfileValidationError(
                 "applicationSourcePath.notFullPath",
@@ -550,25 +550,6 @@ public sealed class ProvisioningProfileValidator
         return ((uint)bytes[0] << 24) | ((uint)bytes[1] << 16) | ((uint)bytes[2] << 8) | bytes[3];
     }
 
-    /// <summary>
-    /// Recognizes a Windows drive-letter or UNC root by its literal text, independent of the OS
-    /// running the check: <c>Path.IsPathFullyQualified</c> follows the current platform's own
-    /// rules, so a Windows path like <c>D:\installers</c> silently stops being "qualified" when
-    /// the validator runs on Linux — exactly where this cross-platform library's tests run.
-    /// </summary>
-    private static bool IsFullyQualifiedWindowsPath(string path) =>
-        path.StartsWith(@"\\", StringComparison.Ordinal)
-        || path.StartsWith("//", StringComparison.Ordinal)
-        || (path.Length >= 3 && char.IsAsciiLetter(path[0]) && path[1] == ':' && path[2] is '\\' or '/');
-
-    /// <summary>
-    /// Same platform-independence problem as <see cref="IsFullyQualifiedWindowsPath"/>, but for
-    /// rejecting an absolute path: <c>Path.IsPathRooted</c> does not recognize a Windows root on
-    /// Linux either, so this must not delegate to it.
-    /// </summary>
-    private static bool IsWindowsAbsolutePath(string path) =>
-        path.Length > 0 && (path[0] is '\\' or '/' || (path.Length >= 2 && char.IsAsciiLetter(path[0]) && path[1] == ':'));
-
     private static void ValidatePackageRelativePath(
         string? path,
         string fieldPath,
@@ -583,7 +564,7 @@ public sealed class ProvisioningProfileValidator
             return;
         }
 
-        if (IsWindowsAbsolutePath(path) || path.Split(['/', '\\']).Any(static segment => segment is "." or ".."))
+        if (WindowsPathFormat.IsAbsolute(path) || path.Split(['/', '\\']).Any(static segment => segment is "." or ".."))
         {
             errors.Add(new ProfileValidationError(
                 "applications.packagePath.unsafe",

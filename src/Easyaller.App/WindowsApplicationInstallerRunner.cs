@@ -17,7 +17,7 @@ public sealed class WindowsApplicationInstallerRunner : IApplicationInstallerRun
         _timeout = timeout ?? TimeSpan.FromMinutes(30);
     }
 
-    public ApplicationProcessResult Run(ApplicationInstallStep step)
+    public ApplicationProcessResult Run(ApplicationInstallStep step, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(step);
         if (!OperatingSystem.IsWindows())
@@ -27,20 +27,45 @@ public sealed class WindowsApplicationInstallerRunner : IApplicationInstallerRun
 
         try
         {
-            using var process = new Process { StartInfo = CreateStartInfo(step) };
+            var installerLogPath = TryCreateInstallerLogPath(step);
+            using var process = new Process { StartInfo = CreateStartInfo(step, installerLogPath) };
             if (!process.Start())
             {
                 return new ApplicationProcessResult(null, "Не удалось запустить установщик.");
             }
 
-            if (!process.WaitForExit((int)_timeout.TotalMilliseconds))
+
+            if (cancellationToken.IsCancellationRequested)
             {
-                // A hung installer must not block the whole run forever.
                 TryKill(process);
-                return new ApplicationProcessResult(null, $"Установщик не завершился за {_timeout.TotalMinutes:0} мин и был остановлен.");
+                return new ApplicationProcessResult(null, "Установка остановлена пользователем.", WasCancelled: true);
             }
 
-            return new ApplicationProcessResult(process.ExitCode, null);
+            var deadline = DateTime.UtcNow + _timeout;
+            while (!process.WaitForExit(250))
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    TryKill(process);
+                    return new ApplicationProcessResult(null, "Установка остановлена пользователем.", WasCancelled: true);
+                }
+
+                if (DateTime.UtcNow >= deadline)
+                {
+                    // A hung installer must not block the whole run forever.
+                    TryKill(process);
+                    return new ApplicationProcessResult(null, $"Установщик не завершился за {_timeout.TotalMinutes:0} мин и был остановлен.");
+                }
+            }
+
+            var errorMessage = process.ExitCode == 0 || process.ExitCode is 1641 or 3010
+                ? null
+                : installerLogPath is null
+                    ? null
+                    : File.Exists(installerLogPath)
+                        ? $"Журнал установщика сохранён: {installerLogPath}"
+                        : $"Установщик не создал запрошенный журнал: {installerLogPath}";
+            return new ApplicationProcessResult(process.ExitCode, errorMessage);
         }
         catch (Win32Exception exception)
         {
@@ -52,7 +77,7 @@ public sealed class WindowsApplicationInstallerRunner : IApplicationInstallerRun
         }
     }
 
-    private static ProcessStartInfo CreateStartInfo(ApplicationInstallStep step)
+    private static ProcessStartInfo CreateStartInfo(ApplicationInstallStep step, string? installerLogPath)
     {
         var startInfo = new ProcessStartInfo
         {
@@ -78,7 +103,37 @@ public sealed class WindowsApplicationInstallerRunner : IApplicationInstallerRun
             startInfo.ArgumentList.Add(argument);
         }
 
+        if (installerLogPath is not null)
+        {
+            startInfo.ArgumentList.Add("/LOG=" + installerLogPath);
+        }
+
         return startInfo;
+    }
+
+    private static string? TryCreateInstallerLogPath(ApplicationInstallStep step)
+    {
+        var detection = InstallerFrameworkDetector.Detect(step.ExecutablePath);
+        if (detection.Framework != InstallerFramework.InnoSetup)
+        {
+            return null;
+        }
+
+        try
+        {
+            var directory = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "Easyaller",
+                "InstallerLogs");
+            Directory.CreateDirectory(directory);
+            var safeName = string.Concat(step.DisplayName.Select(static character =>
+                Path.GetInvalidFileNameChars().Contains(character) ? '_' : character));
+            return Path.Combine(directory, $"{DateTime.Now:yyyyMMdd-HHmmss}-{safeName}.log");
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
     }
 
     private static void TryKill(Process process)

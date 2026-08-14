@@ -163,71 +163,103 @@ public sealed class WindowsProvisioningSystemAdapter : IProvisioningSystemAdapte
         if ($matches.Count -ne 1 -or $matches[0].Status -eq 'Disabled') { exit 2 }
 
         $interfaceIndex = $matches[0].ifIndex
-        $previousDhcp = (Get-NetIPInterface -InterfaceIndex $interfaceIndex -AddressFamily IPv4 -ErrorAction Stop).Dhcp
-        $previousAddresses = @(Get-NetIPAddress -InterfaceIndex $interfaceIndex -AddressFamily IPv4 -ErrorAction Stop | Where-Object {
-            $_.PrefixOrigin -ne 'WellKnown'
-        } | ForEach-Object {
-            [PSCustomObject]@{ Address = $_.IPAddress; PrefixLength = $_.PrefixLength }
-        })
-        $previousGateway = (Get-NetRoute -InterfaceIndex $interfaceIndex -AddressFamily IPv4 -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue |
-            Sort-Object RouteMetric | Select-Object -First 1).NextHop
-        $previousDns = @((Get-DnsClientServerAddress -InterfaceIndex $interfaceIndex -AddressFamily IPv4 -ErrorAction Stop).ServerAddresses)
+        $expectedAddress = $env:EASYALLER_STATIC_IPV4_ADDRESS
+        $expectedMask = $env:EASYALLER_STATIC_IPV4_SUBNET_MASK
+        $expectedGateway = $env:EASYALLER_STATIC_IPV4_GATEWAY
+        $expectedDns = @($env:EASYALLER_STATIC_IPV4_DNS -split ';' | Where-Object { $_ })
+
+        # Win32_NetworkAdapterConfiguration lives in ROOT/CIMV2 and remains available on
+        # systems where the newer MSFT_NetIPAddress provider in ROOT/StandardCimv2 is broken.
+        $configurations = @(Get-CimInstance -ClassName Win32_NetworkAdapterConfiguration -ErrorAction Stop |
+            Where-Object { $_.InterfaceIndex -eq $interfaceIndex })
+        if ($configurations.Count -ne 1) { throw 'The IPv4 configuration for the selected adapter was not found.' }
+        $configuration = $configurations[0]
+
+        $currentIpv4 = @($configuration.IPAddress | Where-Object { $_ -match '^\d{1,3}(\.\d{1,3}){3}$' })
+        $currentMasks = @($configuration.IPSubnet | Where-Object { $_ -match '^\d{1,3}(\.\d{1,3}){3}$' })
+        $currentGateway = @($configuration.DefaultIPGateway)[0]
+        $currentDns = @($configuration.DNSServerSearchOrder)
+        $addressMatches = $currentIpv4.Count -eq 1 -and $currentIpv4[0] -eq $expectedAddress -and $currentMasks[0] -eq $expectedMask
+        $gatewayMatches = [string]::IsNullOrWhiteSpace($expectedGateway) -or $currentGateway -eq $expectedGateway
+        $dnsMatches = $expectedDns.Count -eq 0 -or (
+            $currentDns.Count -eq $expectedDns.Count -and
+            @($currentDns | Where-Object { $_ -in $expectedDns }).Count -eq $expectedDns.Count)
+        if ($addressMatches -and $gatewayMatches -and $dnsMatches) { exit 0 }
+
+        $previousDhcp = [bool]$configuration.DHCPEnabled
+        $previousIpv4 = $currentIpv4
+        $previousMasks = $currentMasks
+        $previousGateway = @($configuration.DefaultIPGateway)
+        $previousDns = $currentDns
+
+        function Assert-WmiResult($result, $operation) {
+            if ($result.ReturnValue -notin @(0, 1)) {
+                throw "$operation failed with WMI return code $($result.ReturnValue)."
+            }
+        }
 
         try {
-            Set-NetIPInterface -InterfaceIndex $interfaceIndex -AddressFamily IPv4 -Dhcp Disabled -ErrorAction Stop
-            Get-NetIPAddress -InterfaceIndex $interfaceIndex -AddressFamily IPv4 -ErrorAction Stop |
-                Where-Object { $_.PrefixOrigin -ne 'WellKnown' } |
-                Remove-NetIPAddress -Confirm:$false -ErrorAction Stop
-            # A default gateway is optional: an isolated subnet may not have one.
-            $addressParameters = @{ InterfaceIndex = $interfaceIndex; IPAddress = $env:EASYALLER_STATIC_IPV4_ADDRESS; PrefixLength = ([int]$env:EASYALLER_STATIC_IPV4_PREFIX_LENGTH); ErrorAction = 'Stop' }
-            if ($env:EASYALLER_STATIC_IPV4_GATEWAY) { $addressParameters.DefaultGateway = $env:EASYALLER_STATIC_IPV4_GATEWAY }
-            New-NetIPAddress @addressParameters | Out-Null
+            $result = Invoke-CimMethod -InputObject $configuration -MethodName EnableStatic -Arguments @{
+                IPAddress = [string[]]@($expectedAddress)
+                SubnetMask = [string[]]@($expectedMask)
+            } -ErrorAction Stop
+            Assert-WmiResult $result 'Setting the static IPv4 address'
 
-            # No DNS servers configured means the adapter keeps the DNS it already uses.
-            $expectedDns = @($env:EASYALLER_STATIC_IPV4_DNS -split ';' | Where-Object { $_ })
+            if (-not [string]::IsNullOrWhiteSpace($expectedGateway)) {
+                $result = Invoke-CimMethod -InputObject $configuration -MethodName SetGateways -Arguments @{
+                    DefaultIPGateway = [string[]]@($expectedGateway)
+                    GatewayCostMetric = [UInt16[]]@(1)
+                } -ErrorAction Stop
+                Assert-WmiResult $result 'Setting the default gateway'
+            }
             if ($expectedDns.Count -gt 0) {
-                Set-DnsClientServerAddress -InterfaceIndex $interfaceIndex -ServerAddresses $expectedDns -ErrorAction Stop
+                $result = Invoke-CimMethod -InputObject $configuration -MethodName SetDNSServerSearchOrder -Arguments @{
+                    DNSServerSearchOrder = [string[]]$expectedDns
+                } -ErrorAction Stop
+                Assert-WmiResult $result 'Setting DNS servers'
             }
 
-            $configuredAddress = @(Get-NetIPAddress -InterfaceIndex $interfaceIndex -AddressFamily IPv4 -ErrorAction Stop | Where-Object {
-                $_.IPAddress -eq $env:EASYALLER_STATIC_IPV4_ADDRESS -and $_.PrefixLength -eq ([int]$env:EASYALLER_STATIC_IPV4_PREFIX_LENGTH)
-            })
-            if ($configuredAddress.Count -ne 1) {
+            $verified = Get-CimInstance -ClassName Win32_NetworkAdapterConfiguration -ErrorAction Stop |
+                Where-Object { $_.InterfaceIndex -eq $interfaceIndex } | Select-Object -First 1
+            $verifiedIpv4 = @($verified.IPAddress | Where-Object { $_ -match '^\d{1,3}(\.\d{1,3}){3}$' })
+            $verifiedMasks = @($verified.IPSubnet | Where-Object { $_ -match '^\d{1,3}(\.\d{1,3}){3}$' })
+            if ($verifiedIpv4.Count -ne 1 -or $verifiedIpv4[0] -ne $expectedAddress -or $verifiedMasks[0] -ne $expectedMask) {
                 throw 'Static IPv4 verification failed.'
             }
 
             if ($expectedDns.Count -gt 0) {
-                $configuredDns = @((Get-DnsClientServerAddress -InterfaceIndex $interfaceIndex -AddressFamily IPv4 -ErrorAction Stop).ServerAddresses)
+                $configuredDns = @($verified.DNSServerSearchOrder)
                 if (@($configuredDns | Where-Object { $_ -in $expectedDns }).Count -ne $expectedDns.Count) {
                     throw 'Static IPv4 verification failed.'
                 }
             }
         }
         catch {
+            $operationError = $_ | Out-String
             try {
-                Get-NetIPAddress -InterfaceIndex $interfaceIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue |
-                    Where-Object { $_.PrefixOrigin -ne 'WellKnown' } |
-                    Remove-NetIPAddress -Confirm:$false -ErrorAction SilentlyContinue
-                if ($previousDns.Count -gt 0) {
-                    Set-DnsClientServerAddress -InterfaceIndex $interfaceIndex -ServerAddresses $previousDns -ErrorAction Stop
+                if ($previousDhcp) {
+                    [void](Invoke-CimMethod -InputObject $configuration -MethodName EnableDHCP -ErrorAction SilentlyContinue)
                 }
-                else {
-                    Set-DnsClientServerAddress -InterfaceIndex $interfaceIndex -ResetServerAddresses -ErrorAction Stop
-                }
-                if ($previousDhcp -eq 'Enabled') {
-                    Set-NetIPInterface -InterfaceIndex $interfaceIndex -AddressFamily IPv4 -Dhcp Enabled -ErrorAction Stop
-                }
-                else {
-                    foreach ($previousAddress in $previousAddresses) {
-                        $restoreParameters = @{ InterfaceIndex = $interfaceIndex; IPAddress = $previousAddress.Address; PrefixLength = $previousAddress.PrefixLength; ErrorAction = 'Stop' }
-                        if ($previousGateway) { $restoreParameters.DefaultGateway = $previousGateway }
-                        New-NetIPAddress @restoreParameters | Out-Null
-                        $previousGateway = $null
+                elseif ($previousIpv4.Count -gt 0) {
+                    [void](Invoke-CimMethod -InputObject $configuration -MethodName EnableStatic -Arguments @{
+                        IPAddress = [string[]]$previousIpv4
+                        SubnetMask = [string[]]$previousMasks
+                    } -ErrorAction SilentlyContinue)
+                    if ($previousGateway.Count -gt 0) {
+                        [void](Invoke-CimMethod -InputObject $configuration -MethodName SetGateways -Arguments @{
+                            DefaultIPGateway = [string[]]$previousGateway
+                            GatewayCostMetric = [UInt16[]]@(1)
+                        } -ErrorAction SilentlyContinue)
                     }
-                    Set-NetIPInterface -InterfaceIndex $interfaceIndex -AddressFamily IPv4 -Dhcp Disabled -ErrorAction Stop
+                }
+                if ($previousDns.Count -gt 0) {
+                    [void](Invoke-CimMethod -InputObject $configuration -MethodName SetDNSServerSearchOrder -Arguments @{
+                        DNSServerSearchOrder = [string[]]$previousDns
+                    } -ErrorAction SilentlyContinue)
                 }
             }
             catch { }
+            [Console]::Error.WriteLine($operationError.Trim())
             exit 1
         }
         """;
@@ -303,6 +335,7 @@ public sealed class WindowsProvisioningSystemAdapter : IProvisioningSystemAdapte
             startInfo.Environment["EASYALLER_NETWORK_ADAPTER_ID"] = adapterId;
             startInfo.Environment["EASYALLER_STATIC_IPV4_ADDRESS"] = configuration.Address;
             startInfo.Environment["EASYALLER_STATIC_IPV4_PREFIX_LENGTH"] = prefixLength.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            startInfo.Environment["EASYALLER_STATIC_IPV4_SUBNET_MASK"] = configuration.SubnetMask;
             startInfo.Environment["EASYALLER_STATIC_IPV4_GATEWAY"] = configuration.DefaultGateway;
             startInfo.Environment["EASYALLER_STATIC_IPV4_DNS"] = string.Join(';', configuration.DnsServers);
         });
@@ -399,10 +432,21 @@ public sealed class WindowsProvisioningSystemAdapter : IProvisioningSystemAdapte
             process.StartInfo.ArgumentList.Add(script);
             configure?.Invoke(process.StartInfo);
 
+            // Read output asynchronously via the line events, not after WaitForExit: a script
+            // that writes enough text to fill the OS pipe buffer would otherwise deadlock the
+            // child (blocked writing) against the parent (blocked waiting for exit).
+            var output = new StringBuilder();
+            var error = new StringBuilder();
+            process.OutputDataReceived += (_, e) => { if (e.Data is not null) output.AppendLine(e.Data); };
+            process.ErrorDataReceived += (_, e) => { if (e.Data is not null) error.AppendLine(e.Data); };
+
             if (!process.Start())
             {
                 return ProvisioningSystemOperationResult.Failure("execution.powershell.start.failed");
             }
+
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
 
             if (!standardInput.IsEmpty)
             {
@@ -411,9 +455,15 @@ public sealed class WindowsProvisioningSystemAdapter : IProvisioningSystemAdapte
             }
 
             process.WaitForExit();
-            return process.ExitCode == 0
-                ? ProvisioningSystemOperationResult.Success()
-                : ProvisioningSystemOperationResult.Failure("execution.windows.operation.failed");
+            if (process.ExitCode == 0)
+            {
+                return ProvisioningSystemOperationResult.Success();
+            }
+
+            var diagnosticText = error.Length > 0 ? error.ToString() : output.ToString();
+            var detail = $"Exit code {process.ExitCode}."
+                + (string.IsNullOrWhiteSpace(diagnosticText) ? string.Empty : " " + diagnosticText.Trim());
+            return ProvisioningSystemOperationResult.Failure("execution.windows.operation.failed", detail);
         }
         catch (Win32Exception)
         {

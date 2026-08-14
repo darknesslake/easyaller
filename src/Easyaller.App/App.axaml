@@ -1,5 +1,6 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              x:Class="Easyaller.App.App"
              RequestedThemeVariant="Dark">
   <Application.Resources>
@@ -9,12 +10,12 @@
       <Color x:Key="SystemAccentColor">#0A84FF</Color>
 
       <!-- Surfaces (darkest to lightest), following the macOS grouped-content model -->
-      <SolidColorBrush x:Key="AppBackgroundBrush" Color="#1C1C1E" />
-      <SolidColorBrush x:Key="SidebarBrush" Color="#242426" />
-      <SolidColorBrush x:Key="SurfaceBrush" Color="#2C2C2E" />
-      <SolidColorBrush x:Key="SurfaceRaisedBrush" Color="#3A3A3C" />
-      <SolidColorBrush x:Key="SurfaceHoverBrush" Color="#48484A" />
-      <SolidColorBrush x:Key="SurfaceSunkenBrush" Color="#1A1A1C" />
+      <SolidColorBrush x:Key="AppBackgroundBrush" Color="#1E1E20" />
+      <SolidColorBrush x:Key="SidebarBrush" Color="#29292B" />
+      <SolidColorBrush x:Key="SurfaceBrush" Color="#262628" />
+      <SolidColorBrush x:Key="SurfaceRaisedBrush" Color="#343436" />
+      <SolidColorBrush x:Key="SurfaceHoverBrush" Color="#414144" />
+      <SolidColorBrush x:Key="SurfaceSunkenBrush" Color="#202022" />
 
       <!-- Hairline separators rather than heavy frames -->
       <SolidColorBrush x:Key="BorderBrush1" Color="#3F3F41" />
@@ -49,6 +50,7 @@
 
   <Application.Styles>
     <FluentTheme />
+    <materialIcons:MaterialIconStyles />
 
     <!-- macOS uses one interface face everywhere; Segoe UI Variable is the closest Windows analogue. -->
     <Style Selector="Window">
@@ -69,10 +71,16 @@
       <Setter Property="Background" Value="{StaticResource SurfaceHoverBrush}" />
     </Style>
     <Style Selector="TextBox">
-      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Background" Value="{StaticResource SurfaceSunkenBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource BorderBrush1}" />
+      <Setter Property="MinHeight" Value="34" />
     </Style>
     <Style Selector="ComboBox">
-      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Background" Value="{StaticResource SurfaceSunkenBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource BorderBrush1}" />
+      <Setter Property="MinHeight" Value="34" />
     </Style>
     <Style Selector="ListBox">
       <Setter Property="CornerRadius" Value="8" />
@@ -87,11 +95,12 @@
       <Setter Property="Background" Value="{StaticResource AccentHoverBrush}" />
     </Style>
     <Style Selector="Button.warningAction">
-      <Setter Property="Background" Value="{StaticResource WarningBrush}" />
+      <Setter Property="Background" Value="{StaticResource AccentBrush}" />
       <Setter Property="Foreground" Value="White" />
+      <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
     </Style>
     <Style Selector="Button.warningAction:pointerover">
-      <Setter Property="Background" Value="{StaticResource WarningHoverBrush}" />
+      <Setter Property="Background" Value="{StaticResource AccentHoverBrush}" />
     </Style>
     <Style Selector="Button.danger">
       <Setter Property="Background" Value="{StaticResource DangerBrush}" />
@@ -127,18 +136,18 @@
       <Setter Property="Padding" Value="10,8" />
     </Style>
     <Style Selector="Button.navItem.active">
-      <Setter Property="Background" Value="{StaticResource AccentSoftBrush}" />
+      <Setter Property="Background" Value="{StaticResource AccentBrush}" />
+      <Setter Property="Foreground" Value="White" />
     </Style>
     <Style Selector="Button.navItem.active TextBlock">
       <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+      <Setter Property="Foreground" Value="White" />
     </Style>
 
     <!-- Top-level scenario switcher: configure this PC vs prepare new installation media -->
     <Style Selector="Border.segmentGroup">
-      <Setter Property="Background" Value="{StaticResource SurfaceSunkenBrush}" />
-      <Setter Property="BorderBrush" Value="{StaticResource BorderBrush1}" />
-      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Background" Value="{StaticResource SurfaceRaisedBrush}" />
+      <Setter Property="BorderThickness" Value="0" />
       <Setter Property="CornerRadius" Value="10" />
       <Setter Property="Padding" Value="4" />
     </Style>
@@ -154,8 +163,8 @@
       <Setter Property="Background" Value="{StaticResource SurfaceHoverBrush}" />
     </Style>
     <Style Selector="Button.segment.active">
-      <Setter Property="Background" Value="{StaticResource SurfaceRaisedBrush}" />
-      <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+      <Setter Property="Background" Value="{StaticResource AccentSoftBrush}" />
+      <Setter Property="BorderBrush" Value="Transparent" />
     </Style>
     <Style Selector="Button.segment TextBlock.segmentTitle">
       <Setter Property="FontSize" Value="12.5" />
@@ -175,6 +184,59 @@
       <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}" />
     </Style>
     <Style Selector="Button.segment.active TextBlock.segmentIcon">
+      <Setter Property="Foreground" Value="{StaticResource AccentTextBrush}" />
+    </Style>
+
+    <!-- Start screen and compact indicator shown after a mode is selected -->
+    <Style Selector="Border.activeModeToolbar">
+      <Setter Property="Background" Value="{StaticResource SurfaceRaisedBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource BorderSubtleBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="8,5,6,5" />
+    </Style>
+    <Style Selector="Border.modeSelectionSurface">
+      <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource BorderSubtleBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="16" />
+      <Setter Property="Padding" Value="34" />
+    </Style>
+    <Style Selector="Button.modeChoice">
+      <Setter Property="MinHeight" Value="230" />
+      <Setter Property="Background" Value="{StaticResource SurfaceRaisedBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource BorderSubtleBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="14" />
+      <Setter Property="Padding" Value="20" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="VerticalContentAlignment" Value="Top" />
+    </Style>
+    <Style Selector="Button.modeChoice:pointerover">
+      <Setter Property="Background" Value="{StaticResource SurfaceHoverBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+    </Style>
+    <Style Selector="Border.modeChoiceIcon">
+      <Setter Property="Width" Value="54" />
+      <Setter Property="Height" Value="54" />
+      <Setter Property="CornerRadius" Value="13" />
+      <Setter Property="HorizontalAlignment" Value="Left" />
+    </Style>
+    <Style Selector="TextBlock.modeChoiceTitle">
+      <Setter Property="FontSize" Value="17" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style Selector="TextBlock.modeChoiceDescription">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+      <Setter Property="MinHeight" Value="48" />
+    </Style>
+    <Style Selector="TextBlock.modeChoiceAction">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="FontWeight" Value="SemiBold" />
       <Setter Property="Foreground" Value="{StaticResource AccentTextBrush}" />
     </Style>
 
@@ -211,9 +273,9 @@
 
     <!-- Sidebar nav icon badge: keeps every destination visually consistent -->
     <Style Selector="Border.navIcon">
-      <Setter Property="Width" Value="24" />
-      <Setter Property="Height" Value="24" />
-      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Width" Value="26" />
+      <Setter Property="Height" Value="26" />
+      <Setter Property="CornerRadius" Value="7" />
       <Setter Property="Background" Value="{StaticResource SurfaceRaisedBrush}" />
       <Setter Property="Margin" Value="0,0,10,0" />
     </Style>
@@ -224,15 +286,22 @@
       <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
     </Style>
     <Style Selector="Border.navItemActive Border.navIcon, Button.navItem.active Border.navIcon">
-      <Setter Property="Background" Value="{StaticResource AccentBrush}" />
+      <Setter Property="Background" Value="#55FFFFFF" />
     </Style>
     <Style Selector="Border.navItemActive TextBlock.navIconText, Button.navItem.active TextBlock.navIconText">
       <Setter Property="Foreground" Value="White" />
     </Style>
+    <Style Selector="Border.navIconBlue"><Setter Property="Background" Value="#0A84FF" /></Style>
+    <Style Selector="Border.navIconCyan"><Setter Property="Background" Value="#32ADE6" /></Style>
+    <Style Selector="Border.navIconPurple"><Setter Property="Background" Value="#BF5AF2" /></Style>
+    <Style Selector="Border.navIconGreen"><Setter Property="Background" Value="#30D158" /></Style>
+    <Style Selector="Border.navIconOrange"><Setter Property="Background" Value="#FF9F0A" /></Style>
+    <Style Selector="Border.navIconGray"><Setter Property="Background" Value="#636366" /></Style>
+    <Style Selector="Border.navIcon TextBlock.navIconText"><Setter Property="Foreground" Value="White" /><Setter Property="FontWeight" Value="SemiBold" /></Style>
 
     <!-- Typography -->
     <Style Selector="TextBlock.pageTitle">
-      <Setter Property="FontSize" Value="18" />
+      <Setter Property="FontSize" Value="22" />
       <Setter Property="FontWeight" Value="SemiBold" />
       <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
     </Style>
@@ -279,19 +348,37 @@
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="CornerRadius" Value="12" />
     </Style>
+    <Style Selector="Border.settingsSidebar">
+      <Setter Property="Background" Value="{StaticResource SidebarBrush}" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="14" />
+    </Style>
+    <Style Selector="Border.contentPane">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="0" />
+    </Style>
     <Style Selector="Border.innerCard">
       <Setter Property="Background" Value="{StaticResource SurfaceRaisedBrush}" />
-      <Setter Property="CornerRadius" Value="8" />
-      <Setter Property="Padding" Value="10" />
+      <Setter Property="CornerRadius" Value="11" />
+      <Setter Property="Padding" Value="12" />
+    </Style>
+    <Style Selector="Border.settingsGroup">
+      <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource BorderSubtleBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="12" />
+      <Setter Property="Margin" Value="0,8,0,0" />
+      <Setter Property="Padding" Value="14" />
     </Style>
 
     <!-- Footer action bar: a hairline separates it from the scrolled content above -->
     <Style Selector="Border.bottomBar">
-      <Setter Property="Background" Value="{StaticResource SurfaceRaisedBrush}" />
-      <Setter Property="BorderBrush" Value="{StaticResource BorderBrush1}" />
+      <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource BorderSubtleBrush}" />
       <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="CornerRadius" Value="10" />
-      <Setter Property="Padding" Value="11" />
+      <Setter Property="CornerRadius" Value="12" />
+      <Setter Property="Padding" Value="13" />
     </Style>
     <Style Selector="Border.calloutInfo">
       <Setter Property="Background" Value="{StaticResource AccentSoftBrush}" />
@@ -317,33 +404,32 @@
 
     <!-- Category step badge (numbered squares used to group settings into sections) -->
     <Style Selector="Border.stepBadge">
-      <Setter Property="Width" Value="20" />
-      <Setter Property="Height" Value="20" />
-      <Setter Property="CornerRadius" Value="5" />
-      <Setter Property="Background" Value="{StaticResource AccentSoftBrush}" />
-      <Setter Property="Margin" Value="0,0,8,0" />
+      <Setter Property="Width" Value="28" />
+      <Setter Property="Height" Value="28" />
+      <Setter Property="CornerRadius" Value="7" />
+      <Setter Property="Background" Value="{StaticResource AccentBrush}" />
+      <Setter Property="Margin" Value="0,0,10,0" />
     </Style>
     <Style Selector="TextBlock.stepBadgeText">
       <Setter Property="HorizontalAlignment" Value="Center" />
       <Setter Property="VerticalAlignment" Value="Center" />
       <Setter Property="FontSize" Value="11" />
       <Setter Property="FontWeight" Value="Bold" />
-      <Setter Property="Foreground" Value="{StaticResource AccentTextBrush}" />
+      <Setter Property="Foreground" Value="White" />
     </Style>
 
     <!-- Quick action on the current PC: visually separated from reusable profile fields -->
     <Style Selector="Border.quickActionOnPc">
-      <Setter Property="Background" Value="{StaticResource SurfaceSunkenBrush}" />
-      <Setter Property="BorderBrush" Value="{StaticResource WarningBorderBrush}" />
-      <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="CornerRadius" Value="7" />
-      <Setter Property="Padding" Value="10,7" />
-      <Setter Property="Margin" Value="0,2,0,0" />
+      <Setter Property="Background" Value="{StaticResource SurfaceRaisedBrush}" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="9" />
+      <Setter Property="Padding" Value="11,9" />
+      <Setter Property="Margin" Value="0,4,0,0" />
     </Style>
     <Style Selector="TextBlock.quickActionLabel">
       <Setter Property="FontSize" Value="10" />
       <Setter Property="FontWeight" Value="Bold" />
-      <Setter Property="Foreground" Value="{StaticResource WarningTextBrush}" />
+      <Setter Property="Foreground" Value="{StaticResource AccentTextBrush}" />
       <Setter Property="LetterSpacing" Value="0.4" />
     </Style>
 
@@ -412,11 +498,10 @@
 
     <!-- Collapsible category headers -->
     <Style Selector="Button.profileSectionButton">
-      <Setter Property="Background" Value="{StaticResource SurfaceRaisedBrush}" />
-      <Setter Property="BorderBrush" Value="{StaticResource BorderBrush1}" />
-      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
       <Setter Property="CornerRadius" Value="8" />
-      <Setter Property="Padding" Value="12,8" />
+      <Setter Property="Padding" Value="2,5" />
       <Setter Property="HorizontalContentAlignment" Value="Stretch" />
     </Style>
     <Style Selector="Button.profileSectionButton:pointerover /template/ ContentPresenter">
@@ -449,8 +534,11 @@
     </Style>
     <Style Selector="ListBox#ProfilesList > ListBoxItem:selected">
       <Setter Property="Background" Value="{StaticResource AccentSoftBrush}" />
-      <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
-      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="ListBox#ProfilesList > ListBoxItem:selected TextBlock">
+      <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
     </Style>
   </Application.Styles>
 </Application>

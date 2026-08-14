@@ -211,9 +211,12 @@ public sealed class FileProfileRepository : IProfileRepository
                 return WriteInvalid("profile.id.required", "profileId", "Profile ID is required.");
             }
 
-            if (profile.Revision != 1)
+            if (profile.Revision < 1)
             {
-                return WriteInvalid("profile.storage.create.revision", "revision", "A new profile must start at revision 1.");
+                // A profile new to this repository still carries a meaningful revision when it
+                // arrives via import from another machine's edit history — only a truly invalid
+                // (non-positive) number is rejected here, not "not equal to 1".
+                return WriteInvalid("profile.storage.create.revision", "revision", "Revision must be at least 1.");
             }
 
             var targetPath = GetProfilePath(profile.ProfileId);

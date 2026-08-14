@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text.Json;
+using Easyaller.Core;
 
 namespace Easyaller.Deployment;
 
@@ -338,7 +339,7 @@ public sealed class DiskBoundDirectoryUsbMediaWriteTarget : IUsbMediaWriteTarget
 
         private static string GetContainedPath(string rootDirectory, string relativePath)
         {
-            if (string.IsNullOrWhiteSpace(relativePath) || Path.IsPathRooted(relativePath) ||
+            if (string.IsNullOrWhiteSpace(relativePath) || WindowsPathFormat.IsAbsolute(relativePath) ||
                 relativePath.Split(['/', '\\']).Any(static segment => segment is "" or "." or ".."))
             {
                 throw new InvalidOperationException("USB destination path is unsafe.");

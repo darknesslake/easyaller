@@ -204,6 +204,28 @@ public sealed class ProfileImportExportServiceTests
     }
 
     [Fact]
+    public void Import_ProfileWithEditHistoryOntoAMachineThatNeverSawIt_Succeeds()
+    {
+        // The realistic import case: a profile edited many times on one machine (so its revision
+        // is well past 1), moved to a machine where that profileId has never existed before —
+        // exactly what happens when a profile is imported onto a fresh VM.
+        using var directory = new TemporaryDirectory();
+        var repository = new FileProfileRepository(directory.Path);
+        var service = new ProfileImportExportService(repository);
+        var editedElsewhere = ProvisioningProfileFactory.CreateDefault() with { Revision = 27 };
+        var source = new ProfileJsonSerializer().Serialize(editedElsewhere);
+
+        var preview = service.PreviewImport(source);
+        Assert.Equal(ProfileImportPreviewStatus.Ready, preview.Status);
+
+        var saved = service.Import(source, ProfileImportConflictResolution.Create);
+
+        Assert.Equal(ProfileImportStatus.Saved, saved.Status);
+        Assert.Equal(27, saved.Profile!.Revision);
+        Assert.Equal(27, repository.Read(editedElsewhere.ProfileId).Profile!.Revision);
+    }
+
+    [Fact]
     public void Import_Cancelled_DoesNotWriteThePreviewedProfile()
     {
         using var directory = new TemporaryDirectory();

@@ -1,129 +1,176 @@
 # Easyaller
 
-Easyaller is an open-source Windows workstation provisioning tool. It separates reusable, versioned configuration profiles from sensitive per-machine deployment packages, so teams can share setup standards without committing credentials or local configuration to Git.
+Easyaller is an open-source Windows workstation provisioning and maintenance application. It turns repeatable support work into validated profiles and explicit operator workflows while keeping credentials, local installers, deployment media, and organization-specific data out of Git.
 
-> Status: pre-alpha. The profile contract, validation foundation, local profile storage, import/export service, deterministic answer-file generation, in-memory dry run, safe file-only deployment-package export, its desktop workflow, configuration-set payload delivery, fixed first-logon bootstrapper, temporary-account cleanup state machine, explicit privacy-policy service, runtime Windows version gate, read-only removable-disk safety model, read-only ISO inspection, one-time USB confirmation state machine, hash-verified USB write engine, Windows USB-volume binding, and the protected desktop USB workflow are implemented. Completed Windows SIM and VM validation, real account cleanup, desktop policy application, first-boot execution, and physical USB validation are not implemented yet.
+> Status: pre-alpha, actively tested on Windows 11. The start screen, profile manager, selective live-PC configuration, compliance checks, application queue, deployment-package export, protected USB workflow, desktop-shortcut maintenance, and classic Outlook PST archiving are implemented. Use a test workstation or VM before production rollout.
 
-## Interface previews
+![Easyaller start screen and profile manager](docs/assets/profiles-preview.png)
 
-These are static pre-alpha interface previews, created before the current Russian desktop UI. They are not screenshots of the completed application.
+| PC maintenance | New Windows preparation |
+| --- | --- |
+| ![Easyaller PC maintenance](docs/assets/maintenance-current.png) | ![Easyaller New USB Install](docs/assets/prepare-windows-preview.png) |
 
-![Easyaller Profiles preview](docs/assets/profiles-preview.png)
+## Why it exists
 
-![Easyaller Prepare Windows 11 preview](docs/assets/prepare-windows-preview.png)
+Preparing a workstation usually combines many error-prone manual actions: naming the PC, configuring networking and DNS, applying a time zone and privacy settings, joining a domain, installing applications in order, copying shortcuts, and cleaning up Outlook mailboxes. Easyaller provides one auditable desktop workflow for those tasks.
 
-## What Easyaller is for
+The application separates three concerns:
 
-- Build and exchange portable workstation profiles.
-- Require the final computer name, network adapter, proxy address, and domain credentials at runtime, and apply explicitly configured static IPv4/DNS and WinHTTP proxy-bypass profile values only after confirmation.
-- Prepare a Windows 11 deployment package using documented Windows Setup mechanisms.
-- Reuse one provisioning pipeline after Windows first boot rather than maintaining a second deployment engine.
-- Make destructive USB creation an explicit, separately protected workflow.
+1. **Reusable profiles** describe the intended workstation state.
+2. **Runtime inputs** provide machine-specific values and credentials only when an action needs them.
+3. **PC maintenance tools** perform standalone support operations that do not belong to a new-Windows profile.
+
+Easyaller opens on a dedicated start screen. Select and manage the profile there, then enter one of the three operating modes. Every mode has a visible **Exit mode** action that returns to the start screen without closing the application.
+
+## Current workflows
+
+### Configure this PC
+
+- Apply only settings that are explicitly present and selected; empty runtime fields do not erase existing Windows values.
+- Set the Windows time zone on the current computer.
+- Rename the computer with the validated organization naming format.
+- Configure static IPv4, subnet mask, gateway, and up to three DNS servers on an explicitly selected adapter.
+- Configure WinHTTP proxy and bypass values.
+- Join a Windows domain with credentials held only in memory for the current operation.
+- Apply supported Windows 11 privacy policies.
+- Install applications in a user-defined queue, with move-up and move-down controls.
+- Resume multi-step provisioning after a required restart.
+- Compare the current computer with a selected profile and save a readable compliance report.
+
+Every live-PC action is confirmed, reports its result, and skips values that already match.
+
+### Profiles
+
+- Select and manage profiles only from the start screen, so the active profile cannot change unexpectedly during an operation.
+- Create, clone, rename, describe, reset, delete, import, and export versioned `*.wpprofile.json` profiles.
+- Store complete reusable workstation configuration without passwords or tokens.
+- Validate schema versions, duplicate JSON keys, unknown properties, network values, computer names, package paths, and secret-like fields.
+- Save atomically with revision-conflict detection, recoverable backups, and corrupted-file isolation.
+- Embed one selected profile into a self-contained release executable for offline workstation preparation.
+
+Local profiles are stored under `%LOCALAPPDATA%\Easyaller\Profiles`. Older machine-wide profiles are migrated from `%ProgramData%\Easyaller\Profiles` when possible.
+
+### Prepare Windows
+
+- Validate supported Windows 11 Pro and Enterprise amd64 targets.
+- Inspect an administrator-supplied ISO without downloading Windows.
+- Generate deterministic `autounattend.xml` using documented Windows Setup settings.
+- Preview the effective configuration and generated XML before writing files.
+- Export a hash-verified deployment package through a sibling staging directory and atomic finalization.
+- Deliver the Easyaller payload, selected profile, manifests, scripts, and explicitly included installers through the configuration-set layout.
+- Create a protected installation USB workflow for an already empty, preformatted removable volume.
+
+Easyaller does not automatically select or partition an internal disk.
+
+### Maintain an existing PC
+
+Maintenance operations are separate from provisioning profiles and run only when the operator requests them.
+
+#### Copy desktop shortcuts
+
+- Select a local Windows user.
+- Select a source directory containing `.lnk`, `.url`, or `.website` files.
+- Preview the exact shortcut list.
+- Skip or replace name conflicts.
+- Copy to the selected user's desktop after confirmation.
+- Remember the source directory between launches and clear it automatically when the directory disappears.
+- Report a clear administrator-rights error instead of crashing when Windows denies access to another user's profile.
+
+#### Archive classic Outlook mail
+
+- Use the current signed-in user's classic Microsoft Outlook profile.
+- Archive the standard Inbox and Sent Items folders.
+- Select all time, older than two weeks, one month, or three months.
+- Count matching messages before changing Outlook.
+- Create or reuse `%USERPROFILE%\Documents\Файлы Outlook\dd.MM.yyyy.pst`.
+- Display the PST in Outlook as `dd.MM.yyyy`.
+- Create `Входящие` and `Отправленные` directly in the PST root and move messages into the matching archive folder.
+- Show per-folder and overall progress, moved-message counts, and failures.
+- Block duplicate clicks, require a fresh preview after completion, and prevent Easyaller from closing during a transfer.
+
+The Outlook workflow uses the classic Outlook COM object model. The new Outlook client is not supported.
 
 ## Safety model
 
-- Reusable profiles must never contain passwords, tokens, or domain credentials.
-- Imported JSON is untrusted input. The loader rejects duplicate keys, unknown fields, invalid enum values, and unsupported schema versions.
-- Application paths are constrained to the deployment package. Path traversal and absolute paths are rejected.
-- A per-machine deployment package is treated as sensitive and is ignored by Git.
-- Disk partitioning and USB formatting are out of scope for the current implementation.
+- Passwords, tokens, and domain credentials are never profile fields.
+- Runtime credentials remain in memory only for the current operation.
+- Imported JSON is treated as untrusted input.
+- Application paths are constrained to the deployment package; absolute paths and traversal are rejected.
+- Profiles, proprietary installers, release executables, ISO files, VM disks, and generated deployment packages are ignored by Git.
+- Actions that change Windows, another user's desktop, removable media, or Outlook require explicit confirmation.
+- USB creation never chooses a target automatically and rechecks immutable disk identity before writing.
+- Outlook archiving requires a current preview and cannot run twice concurrently.
 
-## Implemented today
-
-- Versioned `*.wpprofile.json` profile domain model.
-- JSON Schema v1 in [`schemas/provisioning-profile.schema.json`](schemas/provisioning-profile.schema.json).
-- Deterministic UTF-8 JSON serialization with a stable property order and a final newline.
-- Strict profile loading with schema-version, duplicate-property, required-field, locale, OOBE, and package-path validation.
-- Local profile repository with revision-conflict detection, atomic writes, recoverable backups, and corrupted-file isolation.
-- Import/export service with UTF-8 and size limits, secret-field scanning, strict loading, conflict resolution, export previews, and atomic file output.
-- Provisioning-plan contract that maps a validated profile to future setup steps and explicit runtime prompts without executing Windows changes.
-- Avalonia desktop screen for listing, creating, cloning, editing all current profile sections, refreshing, importing, exporting, and explicitly deleting local profiles.
-- Set up this PC screen that previews a selected profile plan, validates runtime-only computer, network, proxy, and domain input, and can apply fixed confirmed Windows operations with administrator rights, restart, and resume verification. Static IPv4, gateway, DNS, and a WinHTTP-only proxy bypass list are profile fields, but the adapter and proxy address must be explicitly selected at runtime. It also prepares a basic file-only Windows 11 package through preview, dry run, and explicit folder selection. The runtime executor still needs Windows VM validation. See [`docs/STATIC_IPV4_DNS.md`](docs/STATIC_IPV4_DNS.md) and [`docs/PROXY_BYPASS.md`](docs/PROXY_BYPASS.md).
-- Deployment module contracts for compatibility validation, answer-file generation, in-memory dry run, package planning, and safe file-only export.
-- In-memory deployment dry run exposes the effective profile, OOBE and privacy choices, compatibility status, and the exact generated XML without writing files or changing Windows. It warns that profile data and any obfuscated temporary-account password must be treated as sensitive.
-- Deterministic, XML-writer-based `autounattend.xml` generation for validated locale, time-zone, explicitly configured OOBE values, and an optional ephemeral local account. The desktop UI does not expose it yet.
-- Safe deployment-package exporter: writes to a sibling staging directory, verifies SHA-256 hashes, then atomically finalizes a new destination. Packages contain the answer file, selected profile, README, manifest, and explicitly allowed local payload, scripts, and installers. See [`docs/DEPLOYMENT_PACKAGE.md`](docs/DEPLOYMENT_PACKAGE.md).
-- Configuration-set payload layout keeps optional files below `$OEM$/$1/ProgramData/Easyaller` and writes a second payload manifest there. The read-only verifier detects missing or changed delivered files before future first-boot work uses them.
-- Opt-in first-logon bootstrapper for the temporary `ProvisioningAdmin` account. It uses one fixed `FirstLogonCommands` command, verifies the payload, registers a one-time resume entry, launches the verified Easyaller application payload, and records completed startup after the main window is created. See [`docs/FIRST_LOGON_BOOTSTRAP.md`](docs/FIRST_LOGON_BOOTSTRAP.md).
-- Temporary-account cleanup state machine: plans `disable` or `delete` only after the required resume, domain join, and expected administrator-access evidence. It has no Windows account-management adapter yet. See [`docs/TEMPORARY_ACCOUNT_CLEANUP.md`](docs/TEMPORARY_ACCOUNT_CLEANUP.md).
-- Explicit privacy-policy service for documented location, advertising ID, and online speech settings. It supports only guarded Windows 11 targets, rereads every value after application, and keeps `notConfigured` and `userChoice` as no-ops. The desktop UI does not call it yet. See [`docs/PRIVACY_POLICIES.md`](docs/PRIVACY_POLICIES.md).
-- Read-only runtime Windows version gate compares the installed system with the deployment manifest and selected profile. Unknown builds warn and skip validated actions; mismatches block them. The desktop UI does not call it yet. See [`docs/RUNTIME_VERSION_GATE.md`](docs/RUNTIME_VERSION_GATE.md).
-- Read-only removable-disk inventory and hot-swap safety model. It never selects a default target and blocks system, boot, fixed, offline, read-only, or identity-less disks. See [`docs/DISK_SAFETY.md`](docs/DISK_SAFETY.md).
-- Read-only Windows ISO inspection calculates SHA-256, validates media structure, editions, architecture, and a configurable size cap. It mounts only with read-only access and always attempts to dismount in `finally`; the desktop UI does not call it yet. See [`docs/ISO_INSPECTION.md`](docs/ISO_INSPECTION.md).
-- One-time, five-minute destructive USB confirmation state machine. It displays the device identity, requires the exact phrase `ERASE`, and rechecks the selected disk immediately before a future first write. See [`docs/USB_CONFIRMATION.md`](docs/USB_CONFIRMATION.md).
-- USB write engine builds an immutable hash-verified plan from Windows Setup media and a deployment package, requires the one-time authorization, and never marks a partial target ready. Its Windows adapter binds an empty preformatted volume root to the authorized immutable disk identity before staging files. See [`docs/USB_WRITE_ENGINE.md`](docs/USB_WRITE_ENGINE.md) and [`docs/USB_VOLUME_BINDING.md`](docs/USB_VOLUME_BINDING.md).
-- Protected desktop USB workflow lists only eligible removable disks, requires an explicit choice and `ERASE`, resolves one empty volume for the rechecked disk, stages files, and verifies final hashes. See [`docs/USB_CREATOR.md`](docs/USB_CREATOR.md).
-- Cryptographically generated 24-character temporary local-account password with one-time reveal and memory cleanup. It is never profile or manifest data, and AutoLogon remains excluded.
-- Windows-host validation harness that records ISO, image, and answer-file hashes plus explicit Windows SIM evidence without mounting images or touching disks. See [`docs/WINDOWS_SIM_VALIDATION.md`](docs/WINDOWS_SIM_VALIDATION.md).
-- Initial Windows 11 compatibility catalog for documented Pro and Enterprise amd64 24H2 and 25H2 targets. See [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md).
-- Neutral profile fixtures and unit tests.
-
-## Repository layout
+## Architecture
 
 ```text
 src/
-  Easyaller.App/           Avalonia desktop application
-  Easyaller.Core/          Profile model, validation, serialization, local storage
-  Easyaller.Deployment/    Future Windows deployment module
+  Easyaller.App/           Avalonia desktop UI and Windows adapters
+  Easyaller.Core/          Profiles, validation, storage, planning, journals
+  Easyaller.Deployment/    Unattend, packages, USB and Windows deployment logic
 tests/
-  Easyaller.Core.Tests/    Unit tests and neutral JSON fixtures
-schemas/                   Public profile contract
-docs/previews/             Source for the interface previews
-docs/assets/               README screenshots
+  Easyaller.Core.Tests/    Unit and integration-oriented service tests
+tools/
+  Easyaller.IsoPackageBuilder/
+scripts/
+  New-EasyallerWindowsIso.ps1
+schemas/
+  provisioning-profile.schema.json
 ```
 
-## Development
+## Build and test
 
 Prerequisite: .NET SDK 10.
 
-```sh
+```powershell
 dotnet build Easyaller.slnx
 dotnet test Easyaller.slnx --no-build
-```
-
-Run the desktop application:
-
-```sh
 dotnet run --project src/Easyaller.App/Easyaller.App.csproj
 ```
 
-On Windows, profiles are stored in `%ProgramData%\Easyaller\Profiles`. On other desktop platforms, the pre-alpha app uses the current user's local application-data directory.
+The current suite contains 290 tests covering profile validation and persistence, provisioning plans and execution, deployment export, application installation queues, USB safety, shortcut copying, maintenance settings, and Outlook archive-period rules.
 
-Local organization configuration, real exported profiles, deployment output, ISO files, VM disks, installers, and build output are ignored by Git. Only neutral test fixtures and future public examples may use the `*.wpprofile.json` extension in the repository.
+### Publish one self-contained EXE
 
-The public starting profile is [`examples/profiles/neutral-workstation.wpprofile.json`](examples/profiles/neutral-workstation.wpprofile.json). It contains no organization, network, proxy, application, or credential values. Replace its ID and review every setting before importing it.
+```powershell
+dotnet publish src/Easyaller.App/Easyaller.App.csproj `
+  -c Release -r win-x64 --self-contained true `
+  -p:PublishSingleFile=true `
+  -p:IncludeNativeLibrariesForSelfExtract=true
+```
 
-Read [`PRODUCT_SPEC.md`](PRODUCT_SPEC.md) for product decisions.
+To embed a local profile, pass `-p:EmbeddedProfilePath=C:\path\profile.wpprofile.json`. Never commit that profile when it contains organization-specific configuration.
 
-Read [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md) for a practical guide to running the desktop application, creating profiles, importing and exporting them, and understanding the current pre-alpha limits.
+### Create a data-only ISO
 
-Русская инструкция: [`docs/GETTING_STARTED_RU.md`](docs/GETTING_STARTED_RU.md).
+Place the self-contained `Easyaller.App.exe` in an otherwise empty media directory, then run:
 
-End-to-end deployment operator guide: [`docs/DEPLOYMENT_OPERATIONS.md`](docs/DEPLOYMENT_OPERATIONS.md) and [`docs/DEPLOYMENT_OPERATIONS_RU.md`](docs/DEPLOYMENT_OPERATIONS_RU.md).
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/New-EasyallerWindowsIso.ps1 `
+  -SourceDirectory C:\path\iso-root `
+  -DestinationIso C:\path\Easyaller.iso `
+  -VolumeLabel EASYALLER `
+  -DataOnly
+```
 
-Windows-host validation instructions: [`docs/WINDOWS_SIM_VALIDATION.md`](docs/WINDOWS_SIM_VALIDATION.md) and [`docs/WINDOWS_SIM_VALIDATION_RU.md`](docs/WINDOWS_SIM_VALIDATION_RU.md).
+## Documentation
 
-VM validation instructions: [`docs/VM_TESTING.md`](docs/VM_TESTING.md) and [`docs/VM_TESTING_RU.md`](docs/VM_TESTING_RU.md).
+- [Getting started](docs/GETTING_STARTED.md) · [Русская инструкция](docs/GETTING_STARTED_RU.md)
+- [Deployment operations](docs/DEPLOYMENT_OPERATIONS.md) · [RU](docs/DEPLOYMENT_OPERATIONS_RU.md)
+- [Runtime provisioning](docs/PROVISIONING_EXECUTION.md) · [RU](docs/PROVISIONING_EXECUTION_RU.md)
+- [Deployment packages](docs/DEPLOYMENT_PACKAGE.md) · [RU](docs/DEPLOYMENT_PACKAGE_RU.md)
+- [Static IPv4 and DNS](docs/STATIC_IPV4_DNS.md) · [RU](docs/STATIC_IPV4_DNS_RU.md)
+- [USB creator](docs/USB_CREATOR.md) · [RU](docs/USB_CREATOR_RU.md)
+- [Windows SIM validation](docs/WINDOWS_SIM_VALIDATION.md) · [RU](docs/WINDOWS_SIM_VALIDATION_RU.md)
+- [Product specification](PRODUCT_SPEC.md)
 
-Removable-disk safety instructions: [`docs/DISK_SAFETY.md`](docs/DISK_SAFETY.md) and [`docs/DISK_SAFETY_RU.md`](docs/DISK_SAFETY_RU.md).
+## Project boundaries
 
-ISO inspection instructions: [`docs/ISO_INSPECTION.md`](docs/ISO_INSPECTION.md) and [`docs/ISO_INSPECTION_RU.md`](docs/ISO_INSPECTION_RU.md).
-
-USB confirmation instructions: [`docs/USB_CONFIRMATION.md`](docs/USB_CONFIRMATION.md) and [`docs/USB_CONFIRMATION_RU.md`](docs/USB_CONFIRMATION_RU.md).
-
-USB write-engine instructions: [`docs/USB_WRITE_ENGINE.md`](docs/USB_WRITE_ENGINE.md) and [`docs/USB_WRITE_ENGINE_RU.md`](docs/USB_WRITE_ENGINE_RU.md).
-
-Windows USB-volume binding instructions: [`docs/USB_VOLUME_BINDING.md`](docs/USB_VOLUME_BINDING.md) and [`docs/USB_VOLUME_BINDING_RU.md`](docs/USB_VOLUME_BINDING_RU.md).
-
-USB creation instructions: [`docs/USB_CREATOR.md`](docs/USB_CREATOR.md) and [`docs/USB_CREATOR_RU.md`](docs/USB_CREATOR_RU.md).
-
-Deployment package format and safety instructions: [`docs/DEPLOYMENT_PACKAGE.md`](docs/DEPLOYMENT_PACKAGE.md) and [`docs/DEPLOYMENT_PACKAGE_RU.md`](docs/DEPLOYMENT_PACKAGE_RU.md).
-
-Runtime execution instructions: [`docs/PROVISIONING_EXECUTION.md`](docs/PROVISIONING_EXECUTION.md) and [`docs/PROVISIONING_EXECUTION_RU.md`](docs/PROVISIONING_EXECUTION_RU.md).
+Easyaller is not a fleet-management platform, an ISO downloader, a credential vault, or an automatic internal-disk partitioner. Organization profiles and licensed application installers remain private deployment assets.
 
 ## Contributing and security
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for local checks, profile boundaries, and pull-request expectations. See [SECURITY.md](SECURITY.md) for private vulnerability reporting and the safe research boundary.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development expectations and [SECURITY.md](SECURITY.md) for private vulnerability reporting.
 
 ## License
 
