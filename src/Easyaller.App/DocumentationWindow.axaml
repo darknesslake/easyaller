@@ -1,0 +1,114 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Easyaller.App.DocumentationWindow"
+        Title="Справка Easyaller"
+        Width="980"
+        Height="760"
+        MinWidth="760"
+        MinHeight="560"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource AppBackgroundBrush}">
+  <Grid RowDefinitions="Auto,*,Auto" Margin="20" RowSpacing="14">
+    <Grid ColumnDefinitions="*,Auto">
+      <StackPanel Spacing="4">
+        <TextBlock Text="Справка Easyaller" Classes="pageTitle" />
+        <TextBlock Text="Выберите нужный раздел — внутри только действия и важные пояснения." Classes="helperText" />
+      </StackPanel>
+      <Border Grid.Column="1" Classes="tag" VerticalAlignment="Center">
+        <TextBlock Text="Работает без интернета" Classes="tagText" />
+      </Border>
+    </Grid>
+
+    <Grid Grid.Row="1" ColumnDefinitions="220,*" ColumnSpacing="14">
+      <Border Classes="panelCard" Padding="8">
+        <StackPanel Spacing="6">
+          <TextBlock Text="РАЗДЕЛЫ" Classes="fieldLabel" Margin="8,5,8,4" />
+          <ListBox x:Name="DocumentationSectionsList" SelectedIndex="0" SelectionChanged="DocumentationSectionsList_SelectionChanged"
+                   Background="Transparent" BorderThickness="0">
+            <ListBoxItem Content="🚀  Быстрый старт" Padding="12,10" />
+            <ListBoxItem Content="👤  Профили" Padding="12,10" />
+            <ListBoxItem Content="🖥  Настройка ПК" Padding="12,10" />
+            <ListBoxItem Content="📦  Установка программ" Padding="12,10" />
+            <ListBoxItem Content="🛠  Обслуживание ПК" Padding="12,10" />
+            <ListBoxItem Content="💿  Новая Windows" Padding="12,10" />
+          </ListBox>
+        </StackPanel>
+      </Border>
+
+      <Border Grid.Column="1" Classes="panelCard" Padding="0">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+          <Grid Margin="22">
+            <StackPanel x:Name="QuickStartDocumentationPanel" Spacing="14">
+              <StackPanel Spacing="4">
+                <TextBlock Text="Быстрый старт" FontSize="22" FontWeight="Bold" />
+                <TextBlock Text="Полный порядок настройки уже установленной Windows" Classes="helperText" />
+              </StackPanel>
+              <Border Classes="calloutInfo"><TextBlock Text="Easyaller применяет только те действия, которые вы запускаете кнопками. Простое сохранение профиля компьютер не изменяет." TextWrapping="Wrap" /></Border>
+              <TextBlock Text="Перед началом" Classes="cardTitle" />
+              <TextBlock Text="1. Нажмите сверху «Без прав администратора — перезапустить», если эта кнопка видна.&#10;2. Подтвердите запрос Windows.&#10;3. В списке слева выберите нужный профиль.&#10;4. Если профиль привезён на флешке — откройте меню ⋮ возле «Профили», нажмите «Импорт…» и выберите файл .wpprofile.json." TextWrapping="Wrap" LineHeight="23" />
+              <TextBlock Text="Настроить компьютер" Classes="cardTitle" />
+              <TextBlock Text="1. Сверху выберите «Настроить этот компьютер».&#10;2. В боковой панели откройте «Применить настройки».&#10;3. Нажмите «Взять из профиля», чтобы не вводить сохранённые значения повторно.&#10;4. Заполните только данные текущего ПК: имя компьютера, адаптер и пароль домена.&#10;5. Нажмите «Проверить значения без изменений».&#10;6. Исправьте поля, которые Easyaller отметил ошибкой.&#10;7. Нажмите «Применить настройки» и подтвердите список операций.&#10;8. Софт при этом не устанавливается: у него свой раздел.&#10;9. После завершения слева откройте «Проверить результат» и нажмите «Проверить этот компьютер»." TextWrapping="Wrap" LineHeight="23" />
+              <Border Classes="calloutInfo"><TextBlock Text="Готово, если в результате применения нет остановленных операций, а в проверке нужные строки зелёные и помечены «совпадает»." TextWrapping="Wrap" /></Border>
+            </StackPanel>
+
+            <StackPanel x:Name="ProfilesDocumentationPanel" Spacing="14" IsVisible="False">
+              <TextBlock Text="Профили" FontSize="22" FontWeight="Bold" />
+              <TextBlock Text="Как создать и подготовить профиль для других ПК" TextWrapping="Wrap" />
+              <TextBlock Text="Создать профиль" Classes="cardTitle" />
+              <TextBlock Text="1. Нажмите «Новый профиль» сверху справа.&#10;2. В разделе «Профиль» укажите название и описание.&#10;3. Открывайте разделы ниже по очереди и задавайте только корпоративный стандарт.&#10;4. В «Приложениях» нажмите «Собрать из папки…» или «Добавить файлы…».&#10;5. Проверьте найденные названия, разрядность и тихие аргументы.&#10;6. Расставьте программы стрелками ↑ и ↓ возле каждой строки.&#10;7. Нажмите «Сохранить» в верхней части карточки профиля." TextWrapping="Wrap" LineHeight="23" />
+              <Border Classes="calloutInfo"><TextBlock Text="Профиль хранит все заданные настройки, но никогда не хранит пароли. Имя компьютера вводится отдельно при применении." TextWrapping="Wrap" /></Border>
+              <TextBlock Text="Перенести профиль" Classes="cardTitle" />
+              <TextBlock Text="1. Сохраните изменения.&#10;2. Откройте верхнее меню ⋮ возле «Профили».&#10;3. Нажмите «Экспорт» и выберите место сохранения.&#10;4. Перенесите .wpprofile.json на новый ПК.&#10;5. Там откройте то же меню, нажмите «Импорт…» и проверьте название импортированного профиля." TextWrapping="Wrap" LineHeight="23" />
+            </StackPanel>
+
+            <StackPanel x:Name="ApplyDocumentationPanel" Spacing="14" IsVisible="False">
+              <TextBlock Text="Настройка этого компьютера" FontSize="22" FontWeight="Bold" />
+              <TextBlock Text="Как применить отдельные настройки, не затрагивая остальные" TextWrapping="Wrap" />
+              <TextBlock Text="Подготовка полей" Classes="cardTitle" />
+              <TextBlock Text="1. Выберите профиль слева.&#10;2. Сверху оставьте режим «Настроить этот компьютер».&#10;3. В боковой панели откройте «Применить настройки».&#10;4. Нажмите «Взять из профиля».&#10;5. Очистите или не заполняйте поля операций, которые сейчас выполнять не нужно.&#10;6. Введите имя ПК в формате, разрешённом профилем, и имя/GUID сетевого адаптера (обычно Ethernet)." TextWrapping="Wrap" LineHeight="23" />
+              <TextBlock Text="Главное правило" Classes="cardTitle" />
+              <Border Classes="calloutInfo"><TextBlock Text="Пустое поле ничего не меняет. Каждая кнопка применяет только свою настройку; остальные параметры Windows остаются как есть." TextWrapping="Wrap" /></Border>
+              <TextBlock Text="Проверка и применение" Classes="cardTitle" />
+              <TextBlock Text="1. Нажмите «Проверить значения без изменений».&#10;2. Прочитайте результат в нижней панели. Проверка Windows не меняет.&#10;3. Если всё верно, нажмите «Применить настройки».&#10;4. В окне подтверждения ещё раз проверьте точный список операций.&#10;5. Подтвердите применение и не закрывайте Easyaller.&#10;6. Эта кнопка не устанавливает программы.&#10;7. Если запрошена перезагрузка — закончите остальные действия и перезагрузите ПК.&#10;8. Слева откройте «Проверить результат», нажмите «Проверить этот компьютер» и убедитесь, что применённые строки совпадают." TextWrapping="Wrap" LineHeight="23" />
+            </StackPanel>
+
+            <StackPanel x:Name="ApplicationsDocumentationPanel" Spacing="14" IsVisible="False">
+              <TextBlock Text="Установка программ" FontSize="22" FontWeight="Bold" />
+              <TextBlock Text="Как добавить установщики и выполнить очередь" TextWrapping="Wrap" />
+              <TextBlock Text="Добавить программы в профиль" Classes="cardTitle" />
+              <TextBlock Text="1. В редакторе профиля откройте раздел «Приложения».&#10;2. Нажмите «Собрать из папки…» для всей папки или «Добавить файлы…» для отдельных EXE/MSI.&#10;3. Щёлкните программу в списке.&#10;4. Проверьте название, разрядность и аргументы тихой установки.&#10;5. Нажмите «Сохранить изменения» внутри карточки программы.&#10;6. Расставьте очередь стрелками ↑ и ↓.&#10;7. Сохраните профиль." TextWrapping="Wrap" LineHeight="23" />
+              <TextBlock Text="Запустить установку" Classes="cardTitle" />
+              <TextBlock Text="Вся очередь:&#10;1. Откройте «Настроить этот компьютер».&#10;2. Выберите профиль, затем слева откройте «Установка программ».&#10;3. При необходимости выберите папку с установщиками. Подключённый ISO с папкой Installers определяется автоматически.&#10;4. Нажмите «Установить всё по очереди».&#10;5. Easyaller проверит файлы и покажет точное количество программ.&#10;6. Подтвердите запуск. Настройки Windows и проверка при этом не запускаются.&#10;&#10;Одна программа:&#10;1. В разделе установки найдите её в списке.&#10;2. Дважды щёлкните по названию.&#10;3. Проверьте имя файла и подтвердите запуск. Остальная очередь не запускается." TextWrapping="Wrap" LineHeight="23" />
+              <TextBlock Text="Если установка завершилась ошибкой" Classes="cardTitle" />
+              <TextBlock Text="• «Повторить неудачную» — снова запустить проблемный установщик.&#10;• «Пропустить и продолжить» — перейти к следующему.&#10;• «Остановить установку» — завершить активный процесс и сохранить очередь." TextWrapping="Wrap" LineHeight="23" />
+              <Border Classes="calloutInfo"><TextBlock Text="Незавершённая очередь сохраняется после перезапуска Easyaller. Последние результаты отображаются в истории." TextWrapping="Wrap" /></Border>
+            </StackPanel>
+
+            <StackPanel x:Name="MaintenanceDocumentationPanel" Spacing="14" IsVisible="False">
+              <TextBlock Text="Обслуживание ПК" FontSize="22" FontWeight="Bold" />
+              <TextBlock Text="Как скопировать ярлыки и перенести почту в PST" TextWrapping="Wrap" />
+              <TextBlock Text="Скопировать ярлыки" Classes="cardTitle" />
+              <TextBlock Text="1. Сверху нажмите «Обслуживание ПК».&#10;2. В поле «Пользователь Windows» выберите получателя ярлыков.&#10;3. Нажмите «Выбрать папку…» и укажите папку «Ярлыки».&#10;4. Выберите поведение совпадений: «Не заменять» или «Заменить файлом из папки».&#10;5. Нажмите «Проверить список».&#10;6. Убедитесь, что написано «Доступ на запись подтверждён», и проверьте действия возле файлов.&#10;7. Нажмите «Скопировать на рабочий стол» и подтвердите пользователя." TextWrapping="Wrap" LineHeight="23" />
+              <TextBlock Text="Архивировать Outlook" Classes="cardTitle" />
+              <TextBlock Text="1. Закройте лишние окна Outlook, но сам классический Outlook может оставаться запущенным.&#10;2. В Easyaller нажмите «Подключить Outlook».&#10;3. Проверьте, что найдены «Входящие» и «Отправленные».&#10;4. Выберите срок: за всё время, старше 2 недель, 1 месяца или 3 месяцев.&#10;5. Оставьте предложенный файл с сегодняшней датой либо нажмите «Выбрать файл…».&#10;6. Нажмите «Посчитать письма». Это ничего не переносит.&#10;7. Проверьте количество по двум папкам.&#10;8. Нажмите «Переместить письма в PST» и подтвердите путь и количество.&#10;9. Дождитесь сообщения «PST проверен». Затем проверьте в Outlook хранилище с сегодняшней датой." TextWrapping="Wrap" LineHeight="23" />
+              <Border Classes="calloutInfo"><TextBlock Text="Новый Outlook не поддерживается. При остановке уже перенесённые письма остаются в PST, а результат сохраняется в истории." TextWrapping="Wrap" /></Border>
+            </StackPanel>
+
+            <StackPanel x:Name="NewWindowsDocumentationPanel" Spacing="14" IsVisible="False">
+              <TextBlock Text="Подготовка новой Windows" FontSize="22" FontWeight="Bold" />
+              <TextBlock Text="Как подготовить пакет или установочный USB Windows 11" TextWrapping="Wrap" />
+              <TextBlock Text="Пошагово" Classes="cardTitle" />
+              <TextBlock Text="1. Выберите профиль слева и сохраните все изменения.&#10;2. Сверху нажмите «New USB Install».&#10;3. Нажмите «Выбрать ISO…» и укажите исходный ISO Windows 11.&#10;4. Дождитесь определения редакции, версии и сборки. Сверьте их с нужной Windows.&#10;5. Проверьте параметры установки, локаль, раскладки и часовой пояс.&#10;6. Нажмите проверку совместимости и исправьте все ошибки.&#10;7. Выполните dry run — он ничего не записывает.&#10;8. Прочитайте сводку создаваемых файлов.&#10;9. Для пакета нажмите экспорт и выберите пустую папку.&#10;10. Для USB выберите только выделенную тестовую флешку, сверьте модель, букву и объём, затем подтвердите запись.&#10;11. Загрузите тестовый ПК/VM с носителя и проверьте результат до использования в работе." TextWrapping="Wrap" LineHeight="23" />
+              <Border Classes="calloutInfo"><TextBlock Text="Первую проверку выполняйте в виртуальной машине или на отдельной тестовой флешке. Перед записью всегда сверяйте букву, размер и модель диска." TextWrapping="Wrap" /></Border>
+            </StackPanel>
+          </Grid>
+        </ScrollViewer>
+      </Border>
+    </Grid>
+
+    <Grid Grid.Row="2" ColumnDefinitions="*,Auto">
+      <TextBlock Text="Подробности отдельных операций также показываются подсказками возле полей программы." Classes="helperText" VerticalAlignment="Center" />
+      <Button Grid.Column="1" Content="Закрыть" Click="Close_Click" Classes="primary" />
+    </Grid>
+  </Grid>
+</Window>

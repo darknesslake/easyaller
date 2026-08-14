@@ -2,8 +2,9 @@ using Easyaller.App;
 
 namespace Easyaller.Core.Tests;
 
-public sealed class OutlookArchiveServiceTests
+public sealed class OutlookArchiveServiceTests : IDisposable
 {
+    private readonly string _root = Path.Combine(Path.GetTempPath(), "easyaller-outlook-tests-" + Guid.NewGuid().ToString("N"));
     [Fact]
     public void CalculateCutoff_SubtractsSelectedMonths()
     {
@@ -57,5 +58,78 @@ public sealed class OutlookArchiveServiceTests
         Assert.Equal(20, progress.TotalMessages);
         Assert.Equal(6, progress.MovedMessages);
         Assert.Equal(1, progress.FailedMessages);
+    }
+
+    [Fact]
+    public void ArchiveResult_ExposesFolderSpecificFailures()
+    {
+        var result = new OutlookArchiveResult(
+            "Входящие",
+            3,
+            2,
+            @"C:\Archive\13.08.2026.pst",
+            [new OutlookArchiveFailure("«Тема письма»", "Нет доступа")],
+            WasCancelled: false);
+
+        Assert.Equal("Входящие", result.FolderName);
+        Assert.Equal(2, result.MovedMessages);
+        Assert.Equal("«Тема письма»: Нет доступа", Assert.Single(result.Errors));
+    }
+
+    [Fact]
+    public void HistoryStore_PersistsNewestEntriesAcrossRestart()
+    {
+        var path = Path.Combine(_root, "history.json");
+        var store = new OutlookArchiveHistoryStore(path);
+        var first = new OutlookArchiveHistoryEntry(
+            new DateTimeOffset(2026, 8, 13, 9, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 8, 13, 9, 1, 0, TimeSpan.Zero),
+            @"C:\Archive\13.08.2026.pst",
+            "завершена",
+            5,
+            4,
+            []);
+        var second = first with
+        {
+            StartedAt = first.StartedAt.AddHours(1),
+            FinishedAt = first.FinishedAt.AddHours(1),
+            Status = "остановлена пользователем",
+        };
+
+        store.Add(first);
+        store.Add(second);
+
+        var restored = new OutlookArchiveHistoryStore(path).Load();
+        Assert.Equal(2, restored.Count);
+        Assert.Equal("остановлена пользователем", restored[0].Status);
+        Assert.Equal("завершена", restored[1].Status);
+    }
+
+    [Fact]
+    public void HistoryStore_UsesAtMostTwentyEntries()
+    {
+        var path = Path.Combine(_root, "history.json");
+        var store = new OutlookArchiveHistoryStore(path);
+        for (var index = 0; index < 25; index++)
+        {
+            store.Add(new OutlookArchiveHistoryEntry(
+                DateTimeOffset.UtcNow.AddMinutes(index),
+                DateTimeOffset.UtcNow.AddMinutes(index + 1),
+                $@"C:\Archive\{index}.pst",
+                "завершена",
+                index,
+                0,
+                []));
+        }
+
+        Assert.Equal(20, store.Load().Count);
+    }
+
+    public void Dispose()
+    {
+        if (Directory.Exists(_root))
+        {
+            Directory.Delete(_root, recursive: true);
+        }
     }
 }

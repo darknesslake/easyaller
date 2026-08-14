@@ -12,6 +12,7 @@
     <PackageReference Include="Avalonia" Version="12.1.0" />
     <PackageReference Include="Avalonia.Desktop" Version="12.1.0" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.0" />
+    <PackageReference Include="Material.Icons.Avalonia" Version="3.0.2" />
   </ItemGroup>
 
   <ItemGroup>
@@ -22,6 +23,11 @@
   <ItemGroup Condition="'$(EmbeddedProfilePath)' != '' and Exists('$(EmbeddedProfilePath)')">
     <EmbeddedResource Include="$(EmbeddedProfilePath)"
                       LogicalName="Easyaller.EmbeddedProfile.wpprofile.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\docs\GETTING_STARTED_RU.md"
+                      LogicalName="Easyaller.Docs.GettingStarted.ru.md" />
   </ItemGroup>
 
 </Project>

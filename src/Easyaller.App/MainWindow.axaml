@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:Easyaller.App"
+        xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
         x:Class="Easyaller.App.MainWindow"
         x:DataType="local:MainWindow"
         Title="Easyaller"
@@ -10,11 +11,28 @@
         MinHeight="720"
         Closing="MainWindow_Closing"
         Background="{StaticResource AppBackgroundBrush}">
-  <Grid RowDefinitions="Auto,*,Auto" Margin="20,16">
+  <Grid RowDefinitions="Auto,*,Auto" Margin="18,14">
       <StackPanel Spacing="6" Margin="0,0,0,14">
-        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16">
-          <StackPanel Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
-            <TextBlock Text="Easyaller" Classes="pageTitle" />
+        <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="16" Height="46">
+          <Border x:Name="ActiveModeToolbar" Grid.Column="0" Classes="activeModeToolbar" HorizontalAlignment="Left" IsVisible="False">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+              <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <materialIcons:MaterialIcon x:Name="ActiveModeIcon" Kind="Monitor" Width="18" Height="18" Foreground="{StaticResource AccentTextBrush}" />
+                <TextBlock x:Name="ActiveModeTitleText" Text="Настроить этот компьютер" FontWeight="SemiBold" VerticalAlignment="Center" />
+              </StackPanel>
+              <Border Width="1" Background="{StaticResource BorderSubtleBrush}" Margin="2,2" />
+              <Button x:Name="ExitModeButton" Classes="ghost" Click="ExitMode_Click" Padding="10,6" ToolTip.Tip="Вернуться к выбору режима">
+                <StackPanel Orientation="Horizontal" Spacing="7">
+                  <materialIcons:MaterialIcon Kind="ArrowLeft" Width="17" Height="17" />
+                  <TextBlock Text="Выйти из режима" VerticalAlignment="Center" />
+                </StackPanel>
+              </Button>
+            </StackPanel>
+          </Border>
+
+          <TextBlock Grid.Column="1" Text="EASYALLER" Classes="pageTitle" VerticalAlignment="Center" HorizontalAlignment="Center" />
+
+          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" HorizontalAlignment="Right">
             <Border Classes="tag" VerticalAlignment="Center" ToolTip.Tip="Профили хранятся локально на этом компьютере.">
               <TextBlock Text="Пре-альфа" Classes="tagText" />
             </Border>
@@ -22,107 +40,147 @@
                     ToolTip.Tip="Переименование компьютера, присоединение к домену, настройка сети и большинство установщиков требуют прав администратора. Без них эти шаги остановятся с ошибкой, а установщики будут запрашивать подтверждение по одному.">
               <TextBlock Text="Без прав администратора — перезапустить" FontSize="11" FontWeight="SemiBold" />
             </Button>
-          </StackPanel>
-
-          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center">
-            <TextBlock Text="Режим:" Classes="fieldLabel" VerticalAlignment="Center" />
-            <Border Classes="segmentGroup">
-              <StackPanel Orientation="Horizontal" Spacing="4">
-                <Button x:Name="ThisPcModeButton" Classes="segment active" Click="SelectThisPcMode_Click" ToolTip.Tip="Windows уже установлена на этом компьютере — применяем к ней профиль.">
-                  <StackPanel Orientation="Horizontal" Spacing="10">
-                    <TextBlock Classes="segmentIcon" Text="🖥" />
-                    <StackPanel Spacing="1">
-                      <TextBlock Classes="segmentTitle" Text="Настроить этот компьютер" />
-                      <TextBlock Classes="segmentHint" Text="Windows уже установлена" />
-                    </StackPanel>
-                  </StackPanel>
-                </Button>
-                <Button x:Name="NewInstallModeButton" Classes="segment" Click="SelectNewInstallMode_Click" ToolTip.Tip="Режим в разработке: готовит файлы для Windows, которую только предстоит установить. Автозапуск после установки и запись на USB ещё не завершены.">
-                  <StackPanel Orientation="Horizontal" Spacing="10">
-                    <TextBlock Classes="segmentIcon" Text="💿" />
-                    <StackPanel Spacing="1">
-                      <TextBlock Classes="segmentTitle" Text="New USB Install" />
-                      <TextBlock Classes="segmentHint" Text="В разработке" />
-                    </StackPanel>
-                  </StackPanel>
-                </Button>
-                <Button x:Name="MaintenanceModeButton" Classes="segment" Click="SelectMaintenanceMode_Click" ToolTip.Tip="Отдельные действия для уже работающего компьютера. Профиль настройки Windows не используется.">
-                  <StackPanel Orientation="Horizontal" Spacing="10">
-                    <TextBlock Classes="segmentIcon" Text="⚙" />
-                    <StackPanel Spacing="1">
-                      <TextBlock Classes="segmentTitle" Text="Обслуживание ПК" />
-                      <TextBlock Classes="segmentHint" Text="Ярлыки и другие операции" />
-                    </StackPanel>
-                  </StackPanel>
-                </Button>
-              </StackPanel>
-            </Border>
+            <Button Click="OpenDocumentation_Click" Classes="ghost" Width="36" Height="34"
+                    ToolTip.Tip="Справка — открыть встроенное руководство без интернета">
+              <materialIcons:MaterialIcon Kind="HelpCircleOutline" Width="19" Height="19" />
+            </Button>
           </StackPanel>
 
         </Grid>
       </StackPanel>
 
-      <Grid x:Name="ProfileWorkspaceGrid" Grid.Row="1" ColumnDefinitions="224,*" ColumnSpacing="14">
-        <Border Classes="panelCard" Padding="9">
-          <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="7">
-            <Grid ColumnDefinitions="*,Auto,Auto" Margin="4,2,4,0">
-              <TextBlock Text="Профили" Classes="fieldLabel" VerticalAlignment="Center" />
-              <TextBlock Grid.Column="1" Text="{Binding ProfileListCountText}" FontSize="10.5" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" Margin="0,0,4,0" />
-              <Button Grid.Column="2" Classes="ghost" BorderThickness="0" Background="Transparent" Width="24" Height="24" Padding="0" VerticalAlignment="Center" ToolTip.Tip="Действия с профилями">
-                <TextBlock Text="⋮" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                <Button.Flyout>
-                  <MenuFlyout Placement="BottomEdgeAlignedRight">
-                    <MenuItem Header="Новый профиль" Click="CreateProfile_Click" />
-                    <MenuItem Header="Импорт…" Click="ImportProfile_Click" />
-                    <MenuItem Header="Экспорт" Click="ExportProfile_Click" IsEnabled="{Binding CanUseSavedProfileActions}" />
-                  </MenuFlyout>
-                </Button.Flyout>
-              </Button>
-            </Grid>
-            <TextBox x:Name="ProfileSearchTextBox" Grid.Row="1" PlaceholderText="Поиск" FontSize="12" Padding="8,5" TextChanged="ProfileSearchTextBox_TextChanged" IsEnabled="{Binding CanSearchProfiles}" />
-            <Grid Grid.Row="2">
-              <ListBox x:Name="ProfilesList" SelectionChanged="ProfilesList_SelectionChanged" Background="Transparent" BorderThickness="0">
-                <ListBox.ItemTemplate>
-                  <DataTemplate DataType="{x:Type local:ProfileListItem}">
-                    <Grid ColumnDefinitions="*,Auto" Margin="4,4" ColumnSpacing="6">
-                      <Grid.ContextMenu>
-                        <ContextMenu>
-                          <MenuItem Header="Создать копию" Tag="{Binding}" Click="ProfileListItemClone_Click" />
-                          <MenuItem Header="Удалить профиль…" Tag="{Binding}" Click="ProfileListItemDelete_Click" />
-                        </ContextMenu>
-                      </Grid.ContextMenu>
-                      <StackPanel Spacing="1">
-                        <TextBlock Text="{Binding Name}" FontSize="12.5" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis" />
-                        <TextBlock Text="{Binding Detail}" FontSize="10.5" Foreground="{StaticResource TextMutedBrush}" TextTrimming="CharacterEllipsis" />
-                      </StackPanel>
-                      <Button Grid.Column="1" Classes="ghost" BorderThickness="0" Background="Transparent" Width="22" Height="22" Padding="0" VerticalAlignment="Center" ToolTip.Tip="Действия с профилем">
-                        <TextBlock Text="⋮" FontSize="15" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        <Button.Flyout>
-                          <MenuFlyout Placement="BottomEdgeAlignedRight">
-                            <MenuItem Header="Создать копию" Tag="{Binding}" Click="ProfileListItemClone_Click" />
-                            <MenuItem Header="Удалить профиль…" Tag="{Binding}" Click="ProfileListItemDelete_Click" />
-                          </MenuFlyout>
-                        </Button.Flyout>
-                      </Button>
-                    </Grid>
-                  </DataTemplate>
-                </ListBox.ItemTemplate>
-              </ListBox>
-              <StackPanel IsVisible="{Binding HasNoVisibleProfiles}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="4" Margin="14">
-                <TextBlock Text="Профили не найдены" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" />
-                <TextBlock Text="Измените запрос или создайте новый профиль." TextWrapping="Wrap" TextAlignment="Center" Classes="helperText" />
+      <Border x:Name="ModeSelectionWorkspace" Grid.Row="1" Classes="modeSelectionSurface">
+        <StackPanel Width="860" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="24">
+          <StackPanel Spacing="7" HorizontalAlignment="Center">
+            <TextBlock Text="Что вы хотите сделать?" FontSize="28" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}" />
+            <TextBlock Text="Сначала выберите профиль, затем режим работы. В любой момент можно вернуться сюда." Classes="pageSubtitle" FontSize="13" HorizontalAlignment="Center" TextAlignment="Center" />
+          </StackPanel>
+
+          <Border Classes="innerCard" HorizontalAlignment="Stretch">
+            <StackPanel Spacing="12">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <StackPanel Spacing="5">
+                  <TextBlock Text="Профиль для работы" Classes="fieldLabel" />
+                  <ComboBox x:Name="MainMenuProfileComboBox" MinWidth="420" SelectionChanged="MainMenuProfileComboBox_SelectionChanged" PlaceholderText="Выберите профиль">
+                    <ComboBox.ItemTemplate>
+                      <DataTemplate DataType="{x:Type local:ProfileListItem}">
+                        <StackPanel Spacing="1">
+                          <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                          <TextBlock Text="{Binding Detail}" Classes="helperText" />
+                        </StackPanel>
+                      </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                  </ComboBox>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Bottom">
+                  <StackPanel Orientation="Horizontal" Spacing="7" HorizontalAlignment="Right">
+                    <Button Content="Новый профиль" Click="CreateProfile_Click" Classes="ghost" />
+                    <Button Content="Импорт…" Click="ImportProfile_Click" Classes="ghost" />
+                    <Button Content="Экспорт" Click="ExportProfile_Click" IsEnabled="{Binding CanUseSavedProfileActions}" Classes="ghost" />
+                  </StackPanel>
+                  <StackPanel Orientation="Horizontal" Spacing="7" HorizontalAlignment="Right">
+                    <Button Content="Создать копию" Click="CloneProfile_Click" IsEnabled="{Binding CanUseSavedProfileActions}" Classes="ghost" />
+                    <Button Content="Удалить…" Click="DeleteProfile_Click" IsEnabled="{Binding CanUseSavedProfileActions}" Classes="ghost" />
+                  </StackPanel>
+                </StackPanel>
+              </Grid>
+
+              <Grid ColumnDefinitions="260,*,Auto" ColumnSpacing="10">
+                <StackPanel Spacing="5">
+                  <TextBlock Text="Название" Classes="fieldLabel" />
+                  <TextBox x:Name="MainMenuProfileNameTextBox" PlaceholderText="Название профиля" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="5">
+                  <TextBlock Text="Описание" Classes="fieldLabel" />
+                  <TextBox x:Name="MainMenuProfileDescriptionTextBox" PlaceholderText="Кратко опишите назначение профиля" />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="7" VerticalAlignment="Bottom">
+                  <Button Content="Сбросить" Click="ResetProfile_Click" IsEnabled="{Binding CanSaveProfile}" Classes="ghost" />
+                  <Button Content="Сохранить" Click="SaveMainMenuProfile_Click" IsEnabled="{Binding CanSaveProfile}" Classes="primary" />
+                </StackPanel>
+              </Grid>
+              <TextBlock x:Name="MainMenuProfileErrorText" Classes="validationError" IsVisible="False" />
+            </StackPanel>
+          </Border>
+
+          <Grid ColumnDefinitions="*,*,*" ColumnSpacing="14">
+            <Button x:Name="ThisPcModeButton" Grid.Column="0" Classes="modeChoice" Click="SelectThisPcMode_Click">
+              <StackPanel Spacing="13">
+                <Border Classes="modeChoiceIcon navIconBlue">
+                  <materialIcons:MaterialIcon Kind="Monitor" Width="27" Height="27" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <TextBlock Text="Настроить этот компьютер" Classes="modeChoiceTitle" />
+                <TextBlock Text="Применить профиль и параметры к уже установленной Windows." Classes="modeChoiceDescription" />
+                <TextBlock Text="Открыть режим" Classes="modeChoiceAction" />
               </StackPanel>
-            </Grid>
-            <Button Grid.Row="3" Content="Обновить" Click="Refresh_Click" Classes="ghost" HorizontalAlignment="Stretch" Padding="8,5" />
+            </Button>
+
+            <Button x:Name="MaintenanceModeButton" Grid.Column="1" Classes="modeChoice" Click="SelectMaintenanceMode_Click">
+              <StackPanel Spacing="13">
+                <Border Classes="modeChoiceIcon navIconPurple">
+                  <materialIcons:MaterialIcon Kind="Cog" Width="27" Height="27" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <TextBlock Text="Обслуживание ПК" Classes="modeChoiceTitle" />
+                <TextBlock Text="Скопировать ярлыки пользователю или архивировать письма Outlook." Classes="modeChoiceDescription" />
+                <TextBlock Text="Открыть режим" Classes="modeChoiceAction" />
+              </StackPanel>
+            </Button>
+
+            <Button x:Name="NewInstallModeButton" Grid.Column="2" Classes="modeChoice" Click="SelectNewInstallMode_Click">
+              <StackPanel Spacing="13">
+                <Border Classes="modeChoiceIcon navIconOrange">
+                  <materialIcons:MaterialIcon Kind="UsbFlashDrive" Width="27" Height="27" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <TextBlock Text="New USB Install" Classes="modeChoiceTitle" />
+                <TextBlock Text="Подготовить профиль и файлы для новой установки Windows." Classes="modeChoiceDescription" />
+                <TextBlock Text="Открыть режим" Classes="modeChoiceAction" />
+              </StackPanel>
+            </Button>
+          </Grid>
+
+          <TextBlock Text="Выбор не изменяет компьютер и не запускает установку." Classes="helperText" HorizontalAlignment="Center" />
+        </StackPanel>
+      </Border>
+
+      <Grid x:Name="ProfileWorkspaceGrid" Grid.Row="1" ColumnDefinitions="250,*" ColumnSpacing="14" IsVisible="False">
+        <Border Classes="settingsSidebar" Padding="10">
+          <Grid RowDefinitions="*,Auto" RowSpacing="7">
+            <StackPanel x:Name="SettingsNavigationPanel" Grid.Row="0" Spacing="3">
+              <TextBlock Text="РАЗДЕЛЫ" Classes="quickActionLabel" Margin="8,0,0,4" />
+              <Button x:Name="WindowsSettingsNavButton" Classes="navItem active" Click="SelectWindowsSettingsSection_Click">
+                <StackPanel Orientation="Horizontal"><Border Classes="navIcon navIconBlue"><materialIcons:MaterialIcon Kind="Monitor" Width="16" Height="16" Foreground="White" /></Border><TextBlock Text="Windows" VerticalAlignment="Center" /></StackPanel>
+              </Button>
+              <Button x:Name="NetworkSettingsNavButton" Classes="navItem" Click="SelectNetworkSettingsSection_Click">
+                <StackPanel Orientation="Horizontal"><Border Classes="navIcon navIconCyan"><materialIcons:MaterialIcon Kind="Lan" Width="16" Height="16" Foreground="White" /></Border><TextBlock Text="Сеть и доступ" VerticalAlignment="Center" /></StackPanel>
+              </Button>
+              <Button x:Name="DomainSettingsNavButton" Classes="navItem" Click="SelectDomainSettingsSection_Click">
+                <StackPanel Orientation="Horizontal"><Border Classes="navIcon navIconPurple"><materialIcons:MaterialIcon Kind="Domain" Width="16" Height="16" Foreground="White" /></Border><TextBlock Text="Домен" VerticalAlignment="Center" /></StackPanel>
+              </Button>
+              <Border Height="1" Background="{StaticResource BorderBrush1}" Margin="2,6" />
+              <Button x:Name="ApplySettingsNavButton" Classes="navItem" Click="SelectApplySettingsSection_Click">
+                <StackPanel Orientation="Horizontal"><Border Classes="navIcon navIconOrange"><materialIcons:MaterialIcon Kind="PlayCircleOutline" Width="16" Height="16" Foreground="White" /></Border><TextBlock Text="Применить настройки" VerticalAlignment="Center" /></StackPanel>
+              </Button>
+              <Button x:Name="VerifySettingsNavButton" Classes="navItem" Click="SelectVerifySettingsSection_Click">
+                <StackPanel Orientation="Horizontal"><Border Classes="navIcon navIconGreen"><materialIcons:MaterialIcon Kind="CheckCircleOutline" Width="16" Height="16" Foreground="White" /></Border><TextBlock Text="Проверить результат" VerticalAlignment="Center" /></StackPanel>
+              </Button>
+              <Button x:Name="SoftwareSettingsNavButton" Classes="navItem" Click="SelectSoftwareSettingsSection_Click">
+                <StackPanel Orientation="Horizontal"><Border Classes="navIcon navIconGray"><materialIcons:MaterialIcon Kind="ViewGridOutline" Width="16" Height="16" Foreground="White" /></Border><TextBlock Text="Установка программ" VerticalAlignment="Center" /></StackPanel>
+              </Button>
+            </StackPanel>
+            <Button Grid.Row="1" Content="Обновить профиль" Click="Refresh_Click" Classes="ghost" HorizontalAlignment="Stretch" Padding="8,5" />
+            <Panel IsVisible="False">
+              <TextBox x:Name="ProfileSearchTextBox" TextChanged="ProfileSearchTextBox_TextChanged" />
+              <ListBox x:Name="ProfilesList" SelectionChanged="ProfilesList_SelectionChanged" />
+            </Panel>
           </Grid>
         </Border>
 
-        <Border Grid.Column="1" Classes="panelCard" Padding="14">
+        <Border x:Name="ProfileEditorWorkspace" Grid.Column="1" Classes="contentPane" Padding="14,4,2,2">
           <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" RowSpacing="11">
             <StackPanel Spacing="6">
               <Grid ColumnDefinitions="*,Auto">
                 <Panel VerticalAlignment="Center" HorizontalAlignment="Left">
-                  <TextBlock x:Name="ProfileNameDisplayText" Text="{Binding SelectedProfileName}" FontSize="15.5" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis" DoubleTapped="ProfileNameDisplayText_DoubleTapped" Cursor="Hand" ToolTip.Tip="Двойной клик — переименовать профиль" />
+                  <TextBlock x:Name="ProfileNameDisplayText" Text="{Binding SelectedProfileName}" FontSize="15.5" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis" />
                   <TextBox x:Name="ProfileNameTextBox" IsVisible="False" FontSize="15.5" FontWeight="SemiBold" Padding="4,2" MinWidth="240" LostFocus="ProfileNameTextBox_LostFocus" KeyDown="ProfileNameTextBox_KeyDown" />
                 </Panel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
@@ -136,7 +194,7 @@
               </Grid>
               <TextBlock x:Name="ProfileNameErrorText" Classes="validationError" IsVisible="False" />
               <Panel HorizontalAlignment="Stretch">
-                <TextBlock x:Name="ProfileDescriptionDisplayText" Classes="helperText" TextWrapping="Wrap" DoubleTapped="ProfileDescriptionDisplayText_DoubleTapped" Cursor="Hand" ToolTip.Tip="Двойной клик — изменить описание" />
+                <TextBlock x:Name="ProfileDescriptionDisplayText" Classes="helperText" TextWrapping="Wrap" />
                 <TextBox x:Name="ProfileDescriptionTextBox" IsVisible="False" FontSize="12" Padding="8,5" PlaceholderText="Описание профиля (необязательно)" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="60" LostFocus="ProfileDescriptionTextBox_LostFocus" KeyDown="ProfileDescriptionTextBox_KeyDown" />
               </Panel>
             </StackPanel>
@@ -144,20 +202,34 @@
               <Border Classes="tag"><TextBlock Text="{Binding SelectedProfileRevision}" Classes="tagText" /></Border>
               <Border Classes="tag" Margin="6,0,0,0" ToolTip.Tip="Профиль не хранит пароли и токены. Имя доменной учётной записи, домен, адреса сети и прокси в нём сохраняются — это конфиденциальные данные, проверяйте их перед передачей профиля."><TextBlock Text="Без паролей" Classes="tagText" /></Border>
             </WrapPanel>
-            <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="6">
-              <Button x:Name="EditTabButton" Classes="tabPill active" Content="Профиль" Click="ShowEditTab_Click" />
-              <Button x:Name="ApplyTabButton" Classes="tabPill" Content="Применить на этом ПК" Click="ShowApplyTab_Click" />
-              <Button x:Name="VerifyTabButton" Classes="tabPill" Content="Проверка" Click="ShowVerifyTab_Click" ToolTip.Tip="Сверяет текущую Windows с профилем. Только чтение, ничего не меняет." />
-            </StackPanel>
-            <ScrollViewer x:Name="ProfileEditorScrollViewer" Grid.Row="3" HorizontalScrollBarVisibility="Disabled">
+            <Grid x:Name="TabSwitcherPanel" Grid.Row="2" ColumnDefinitions="*,Auto">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <Button x:Name="EditTabButton" Classes="tabPill active" Content="Профиль" Click="ShowEditTab_Click" />
+                <Button x:Name="ApplyTabButton" Classes="tabPill" Content="Применить на этом ПК" Click="ShowApplyTab_Click" />
+                <Button x:Name="VerifyTabButton" Classes="tabPill" Content="Проверка" Click="ShowVerifyTab_Click" ToolTip.Tip="Сверяет текущую Windows с профилем. Только чтение, ничего не меняет." />
+              </StackPanel>
+              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                <Button Content="Как заполнить профиль?" Click="OpenProfileDocumentation_Click" Classes="ghost" />
+                <Button Content="Как применить?" Click="OpenApplyDocumentation_Click" Classes="ghost" />
+              </StackPanel>
+            </Grid>
+            <ScrollViewer x:Name="UnifiedThisPcScrollViewer" Grid.Row="3" HorizontalScrollBarVisibility="Disabled">
+              <StackPanel Spacing="16">
+                <Border x:Name="UnifiedProfileHeader" Classes="calloutInfo" IsVisible="False">
+                  <StackPanel Spacing="3">
+                    <TextBlock Text="1. Профиль и стандарт компьютера" Classes="panelTitle" />
+                    <TextBlock Text="Значения сохраняются в выбранном профиле. Само редактирование ничего на этом ПК не меняет." Classes="helperText" />
+                  </StackPanel>
+                </Border>
+            <ScrollViewer x:Name="ProfileEditorScrollViewer" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Disabled">
               <StackPanel Spacing="9" Margin="0,6,0,0">
               <TextBlock x:Name="ProfileSummaryText" Text="Выберите профиль" Classes="helperText" Margin="2,0" />
-              <StackPanel>
+              <StackPanel x:Name="WindowsProfileSection">
                 <Button Classes="profileSectionButton" Click="ToggleWindowsSection_Click" HorizontalAlignment="Stretch">
                   <Grid ColumnDefinitions="Auto,*,Auto,Auto">
-                    <Border Classes="stepBadge"><TextBlock Classes="stepBadgeText" Text="1" /></Border>
+                    <Border Classes="stepBadge"><materialIcons:MaterialIcon Kind="ClockOutline" Width="17" Height="17" Foreground="White" /></Border>
                     <StackPanel Grid.Column="1" Orientation="Horizontal">
-                      <TextBlock x:Name="WindowsSectionTitleText" Text="Windows и первый запуск" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                      <TextBlock x:Name="WindowsSectionTitleText" Text="Windows и первый запуск" Classes="pageTitle" VerticalAlignment="Center" />
                       <Border Classes="helpBadge" ToolTip.Tip="Настройки, которые будут использованы при подготовке новой Windows. Они не изменяют уже работающий компьютер.">
                         <TextBlock Classes="helpBadgeText" Text="i" />
                       </Border>
@@ -168,7 +240,7 @@
                     <TextBlock x:Name="WindowsSectionChevron" Grid.Column="3" Text="⌄" FontSize="15" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
                   </Grid>
                 </Button>
-                <Border x:Name="WindowsSectionContent" IsVisible="False" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush1}" BorderThickness="1" CornerRadius="8" Margin="0,4,0,0" Padding="11">
+                <Border x:Name="WindowsSectionContent" IsVisible="False" Classes="settingsGroup">
                 <StackPanel Spacing="12">
                   <TextBlock x:Name="WindowsSectionNoteText" Text="Это стандарт для устанавливаемой Windows. Он не меняет уже работающий компьютер." Classes="noteText" />
                   <StackPanel Spacing="6">
@@ -304,12 +376,12 @@
                 </StackPanel>
                 </Border>
               </StackPanel>
-              <StackPanel>
+              <StackPanel x:Name="NetworkProfileSection" IsVisible="False">
                 <Button Classes="profileSectionButton" Click="ToggleNetworkSection_Click" HorizontalAlignment="Stretch">
                   <Grid ColumnDefinitions="Auto,*,Auto,Auto">
-                    <Border Classes="stepBadge"><TextBlock Classes="stepBadgeText" Text="2" /></Border>
+                    <Border Classes="stepBadge"><materialIcons:MaterialIcon Kind="Lan" Width="17" Height="17" Foreground="White" /></Border>
                     <StackPanel Grid.Column="1" Orientation="Horizontal">
-                      <TextBlock Text="Сеть и доступ" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                      <TextBlock Text="Сеть и доступ" Classes="pageTitle" VerticalAlignment="Center" />
                       <Border Classes="helpBadge" ToolTip.Tip="Профиль может хранить статические сетевые параметры и правила прокси. Адаптер и адрес прокси выбираются перед применением.">
                         <TextBlock Classes="helpBadgeText" Text="i" />
                       </Border>
@@ -320,7 +392,7 @@
                     <TextBlock x:Name="NetworkSectionChevron" Grid.Column="3" Text="⌄" FontSize="15" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
                   </Grid>
                 </Button>
-                <Border x:Name="NetworkSectionContent" IsVisible="False" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush1}" BorderThickness="1" CornerRadius="8" Margin="0,4,0,0" Padding="11">
+                <Border x:Name="NetworkSectionContent" IsVisible="False" Classes="settingsGroup">
                 <StackPanel Spacing="12">
                   <TextBlock Text="Имя компьютера, адреса сети и прокси. Адаптер профиль хранит только как подсказку — перед применением его нужно подтвердить." Classes="noteText" />
                   <StackPanel Spacing="6">
@@ -472,12 +544,12 @@
                 </StackPanel>
                 </Border>
               </StackPanel>
-              <StackPanel>
+              <StackPanel x:Name="DomainProfileSection" IsVisible="False">
                 <Button Classes="profileSectionButton" Click="ToggleDomainSection_Click" HorizontalAlignment="Stretch">
                   <Grid ColumnDefinitions="Auto,*,Auto,Auto">
-                    <Border Classes="stepBadge"><TextBlock Classes="stepBadgeText" Text="3" /></Border>
+                    <Border Classes="stepBadge"><materialIcons:MaterialIcon Kind="Domain" Width="17" Height="17" Foreground="White" /></Border>
                     <StackPanel Grid.Column="1" Orientation="Horizontal">
-                      <TextBlock x:Name="DomainSectionTitleText" Text="Домен и запуск настройки" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                      <TextBlock x:Name="DomainSectionTitleText" Text="Домен и запуск настройки" Classes="pageTitle" VerticalAlignment="Center" />
                       <Border Classes="helpBadge" ToolTip.Tip="Правила для домена и запуска Easyaller. Пароль домена никогда не сохраняется в профиле.">
                         <TextBlock Classes="helpBadgeText" Text="i" />
                       </Border>
@@ -488,7 +560,7 @@
                     <TextBlock x:Name="DomainSectionChevron" Grid.Column="3" Text="⌄" FontSize="15" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
                   </Grid>
                 </Button>
-                <Border x:Name="DomainSectionContent" IsVisible="False" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush1}" BorderThickness="1" CornerRadius="8" Margin="0,4,0,0" Padding="11">
+                <Border x:Name="DomainSectionContent" IsVisible="False" Classes="settingsGroup">
                 <StackPanel Spacing="12">
                   <TextBlock x:Name="DomainSectionNoteText" Text="Эти правила определяют, когда Easyaller запускается и требуется ли присоединение к домену. Пароль всегда вводится позднее и не сохраняется." Classes="noteText" />
                   <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
@@ -548,7 +620,7 @@
                 </StackPanel>
                 </Border>
               </StackPanel>
-              <StackPanel>
+              <StackPanel x:Name="ApplicationsProfileSection" IsVisible="False">
                 <Button Classes="profileSectionButton" Click="ToggleApplicationsSection_Click" HorizontalAlignment="Stretch">
                   <Grid ColumnDefinitions="Auto,*,Auto,Auto">
                     <Border Classes="stepBadge"><TextBlock Classes="stepBadgeText" Text="4" /></Border>
@@ -581,24 +653,29 @@
                     <TextBlock Text="Сохраняется в профиле и показывается при экспорте как конфиденциальное значение — оно раскрывает имя внутреннего сервера." Classes="helperText" />
                   </StackPanel>
                   <TextBlock Text="Приложения" Classes="cardTitle" />
+                  <TextBlock Text="Дважды щёлкните по названию программы, чтобы установить только её на этот ПК." Classes="helperText" />
                   <ListBox x:Name="ApplicationsList" ScrollViewer.VerticalScrollBarVisibility="Disabled" Background="{StaticResource SurfaceRaisedBrush}" BorderThickness="0" SelectionChanged="ApplicationsList_SelectionChanged">
                     <ListBox.ItemTemplate>
                       <DataTemplate DataType="{x:Type local:ApplicationListItem}">
-                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="6,3">
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" Margin="6,3">
                           <Border Classes="stepBadge" MinWidth="24" Padding="6,2">
                             <TextBlock Text="{Binding QueueNumber}" Classes="stepBadgeText" HorizontalAlignment="Center" />
                           </Border>
-                          <TextBlock Text="{Binding DisplayName}" Foreground="{StaticResource TextPrimaryBrush}" />
-                          <TextBlock Text="{Binding Detail}" FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" />
-                        </StackPanel>
+                          <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center" DoubleTapped="ApplicationItem_DoubleTapped" Cursor="Hand" ToolTip.Tip="Двойной щелчок — установить только эту программу на текущий ПК">
+                            <TextBlock Text="{Binding DisplayName}" Foreground="{StaticResource TextPrimaryBrush}" />
+                            <TextBlock Text="{Binding Detail}" FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" />
+                          </StackPanel>
+                          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
+                            <Button Content="↑" Click="MoveApplicationItemUp_Click" IsEnabled="{Binding CanMoveUp}" Padding="10,4" MinWidth="34" ToolTip.Tip="Переместить эту программу выше" />
+                            <Button Content="↓" Click="MoveApplicationItemDown_Click" IsEnabled="{Binding CanMoveDown}" Padding="10,4" MinWidth="34" ToolTip.Tip="Переместить эту программу ниже" />
+                          </StackPanel>
+                        </Grid>
                       </DataTemplate>
                     </ListBox.ItemTemplate>
                   </ListBox>
                   <StackPanel Orientation="Horizontal" Spacing="10">
                     <Button Content="Собрать из папки…" Click="ScanApplicationFolder_Click" Classes="primary" ToolTip.Tip="Укажите папку с софтом — программа сама найдёт установщики .exe и .msi, включая папки продуктов вроде Office, и заполнит список." />
                     <Button Content="Добавить файлы…" Click="AddApplicationFiles_Click" ToolTip.Tip="Точечное добавление: выберите конкретные .exe или .msi." />
-                    <Button Content="↑ Вверх" Click="MoveApplicationUp_Click" IsEnabled="{Binding HasSelectedApplication}" ToolTip.Tip="Переместить выбранную программу раньше в очереди установки." />
-                    <Button Content="↓ Вниз" Click="MoveApplicationDown_Click" IsEnabled="{Binding HasSelectedApplication}" ToolTip.Tip="Переместить выбранную программу позже в очереди установки." />
                     <Button Content="Удалить выбранное" Click="RemoveApplication_Click" />
                   </StackPanel>
                   <Border Classes="innerCard" IsVisible="{Binding HasSelectedApplication}">
@@ -702,18 +779,19 @@
                 </StackPanel>
                 </Border>
               </StackPanel>
-              <StackPanel Orientation="Horizontal" Spacing="6" Margin="2,4,2,0">
+              <StackPanel x:Name="StoragePathPanel" Orientation="Horizontal" Spacing="6" Margin="2,4,2,0">
                 <TextBlock Text="Хранилище:" Classes="helperText" />
                 <TextBlock x:Name="StoragePathText" TextWrapping="Wrap" Classes="helperText" />
               </StackPanel>
               </StackPanel>
             </ScrollViewer>
-            <ScrollViewer x:Name="PrepareInstallScrollViewer" Grid.Row="3" IsVisible="False" HorizontalScrollBarVisibility="Disabled">
+            <ScrollViewer x:Name="PrepareInstallScrollViewer" IsVisible="False" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Disabled">
               <StackPanel Spacing="14" Margin="0,8,0,0">
                 <Border Classes="calloutInfo">
-                  <StackPanel Spacing="4">
-                    <TextBlock Text="New USB Install — Windows 11" Classes="cardTitle" />
-                  </StackPanel>
+                  <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Text="New USB Install — Windows 11" Classes="cardTitle" VerticalAlignment="Center" />
+                    <Button Grid.Column="1" Content="Как подготовить?" Click="OpenNewWindowsDocumentation_Click" Classes="ghost" />
+                  </Grid>
                 </Border>
 
                 <Border Classes="calloutWarning">
@@ -782,7 +860,13 @@
                 </Border>
               </StackPanel>
             </ScrollViewer>
-            <ScrollViewer x:Name="ApplyTabScrollViewer" Grid.Row="3" IsVisible="False" HorizontalScrollBarVisibility="Disabled">
+                <Border x:Name="UnifiedApplyHeader" Classes="calloutInfo" IsVisible="False">
+                  <StackPanel Spacing="3">
+                    <TextBlock Text="2. Применить настройки к этому ПК" Classes="panelTitle" />
+                    <TextBlock Text="Запускается отдельно и только после подтверждения. Программы этим действием не устанавливаются." Classes="helperText" />
+                  </StackPanel>
+                </Border>
+            <ScrollViewer x:Name="ApplyTabScrollViewer" IsVisible="False" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Disabled">
               <StackPanel Spacing="14" Margin="0,8,0,0">
                 <Border Classes="calloutInfo">
                   <StackPanel Spacing="4">
@@ -797,7 +881,7 @@
                 </StackPanel>
                 <Border Classes="innerCard">
                   <StackPanel Spacing="10">
-                    <TextBlock Text="Кнопка «Применить к этому ПК» выполняет весь список одним действием, пропускает уже верные настройки и останавливается на первой ошибке. Каждый запуск записывается в локальный журнал." Classes="noteText" />
+                    <TextBlock Text="Кнопка «Применить настройки» меняет только параметры Windows из профиля и не запускает установщики. Для софта используйте независимый блок «Установка программ» ниже. Каждый запуск записывается в локальный журнал." Classes="noteText" />
                     <TextBlock x:Name="ApplyPlanStepsText" Text="Выберите профиль, чтобы увидеть список операций." TextWrapping="Wrap" Foreground="{StaticResource TextPrimaryBrush}" />
                     <TextBlock x:Name="TimeZoneActionText" Text="Выберите профиль, чтобы увидеть его часовой пояс." Classes="noteText" />
                     <TextBlock x:Name="ApplyNotAutomatedText" Classes="helperText" TextWrapping="Wrap" />
@@ -858,32 +942,6 @@
                 </Grid>
                 <TextBlock Text="Пароль и адрес прокси хранятся в памяти только на время проверки или применения. Они никогда не сохраняются в профиле, состоянии resume или журнале." Classes="noteText" />
 
-                <StackPanel x:Name="ApplicationInstallPanel" IsVisible="False" Spacing="8">
-                  <StackPanel Orientation="Horizontal" Spacing="8">
-                    <Border Classes="stepBadge"><TextBlock Classes="stepBadgeText" Text="3" /></Border>
-                    <TextBlock Text="Установка приложений из профиля" Classes="panelTitle" VerticalAlignment="Center" />
-                  </StackPanel>
-                  <Border Classes="innerCard">
-                    <StackPanel Spacing="10">
-                      <TextBlock x:Name="ApplicationInstallSummaryText" Classes="noteText" TextWrapping="Wrap" />
-                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-                        <TextBox x:Name="InstallerRootTextBox" IsReadOnly="True" FontSize="12" Padding="8,5" PlaceholderText="Папка с установщиками (installers из пакета)" />
-                        <Button Grid.Column="1" Content="Выбрать папку…" Click="ChooseInstallerRoot_Click" Classes="ghost" />
-                      </Grid>
-                      <Border Classes="quickActionOnPc">
-                        <StackPanel Spacing="6">
-                          <TextBlock Text="ДЕЙСТВИЕ НА ЭТОМ ПК" Classes="quickActionLabel" />
-                          <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Button x:Name="CheckInstallersButton" Content="Проверить установщики" Click="CheckInstallers_Click" Classes="ghost" ToolTip.Tip="Только проверяет, что все файлы на месте. Ничего не запускает." />
-                            <Button x:Name="InstallApplicationsButton" Content="Установить всё по очереди" Click="InstallApplications_Click" Classes="warningAction" IsEnabled="False" ToolTip.Tip="По одному в порядке профиля. Останавливается на первой ошибке. Большинству установщиков нужны права администратора." />
-                          </StackPanel>
-                        </StackPanel>
-                      </Border>
-                      <TextBox x:Name="ApplicationInstallResultTextBox" IsVisible="False" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="80" Background="{StaticResource SurfaceSunkenBrush}" Foreground="{StaticResource TextSecondaryBrush}" BorderThickness="0" />
-                    </StackPanel>
-                  </Border>
-                </StackPanel>
-
                 <StackPanel x:Name="ManualInstructionsPanel" IsVisible="False" Spacing="8">
                   <StackPanel Orientation="Horizontal" Spacing="8">
                     <Border Classes="stepBadge"><TextBlock Classes="stepBadgeText" Text="4" /></Border>
@@ -908,7 +966,13 @@
                 <TextBox x:Name="ApplyResultTextBox" Text="Пока ничего не применялось." IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="96" Background="{StaticResource SurfaceSunkenBrush}" Foreground="{StaticResource TextSecondaryBrush}" BorderThickness="0" />
               </StackPanel>
             </ScrollViewer>
-            <ScrollViewer x:Name="VerifyTabScrollViewer" Grid.Row="3" IsVisible="False" HorizontalScrollBarVisibility="Disabled">
+                <Border x:Name="UnifiedVerifyHeader" Classes="calloutInfo" IsVisible="False">
+                  <StackPanel Spacing="3">
+                    <TextBlock Text="3. Проверить результат" Classes="panelTitle" />
+                    <TextBlock Text="Проверка только читает текущее состояние Windows и сравнивает его с профилем. Никакие настройки и программы не запускаются." Classes="helperText" />
+                  </StackPanel>
+                </Border>
+            <ScrollViewer x:Name="VerifyTabScrollViewer" IsVisible="False" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Disabled">
               <StackPanel Spacing="12" Margin="0,8,0,0">
                 <Border Classes="calloutInfo">
                   <StackPanel Spacing="4">
@@ -942,9 +1006,21 @@
                 <TextBlock x:Name="ComplianceEmptyText" Text="Нажмите «Проверить этот компьютер», чтобы сверить его с выбранным профилем." Classes="helperText" Margin="2,0" />
               </StackPanel>
             </ScrollViewer>
+
+                <Border x:Name="UnifiedSoftwareBlock" Classes="innerCard" IsVisible="False" Padding="16">
+                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <StackPanel Spacing="5">
+                      <TextBlock Text="4. Установка программ" Classes="panelTitle" />
+                      <TextBlock Text="Отдельная очередь установщиков из профиля. Она не запускается кнопкой применения настроек и не участвует в проверке Windows." Classes="helperText" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Content="Открыть установку программ" Click="OpenSoftwareSection_Click" Classes="primary primaryLarge" VerticalAlignment="Center" />
+                  </Grid>
+                </Border>
+              </StackPanel>
+            </ScrollViewer>
             <Border Grid.Row="4" x:Name="VerifyBottomBar" IsVisible="False" Classes="bottomBar">
               <StackPanel Spacing="10">
-                <TextBlock Text="Отчёт сохраняется обычным текстовым файлом и не содержит паролей." Classes="helperText" />
+                <TextBlock Text="Проверка только читает состояние компьютера. Отчёт не содержит паролей." Classes="helperText" />
                 <WrapPanel Orientation="Horizontal" ItemHeight="42" HorizontalAlignment="Left">
                   <Button x:Name="RunComplianceCheckButton" Content="Проверить этот компьютер" Click="RunComplianceCheck_Click" Classes="primary primaryLarge" />
                   <Button x:Name="SaveComplianceReportButton" Content="Сохранить отчёт…" Click="SaveComplianceReport_Click" Classes="ghost" IsEnabled="False" Margin="8,0,0,0" />
@@ -953,12 +1029,21 @@
             </Border>
             <Border Grid.Row="4" x:Name="ApplyBottomBar" IsVisible="False" Classes="bottomBar">
               <StackPanel Spacing="10">
-                <TextBlock Text="Проверка ничего не меняет. Применение выполняет только настройки, описанные выбранным профилем и заполненными полями текущего запуска." Classes="helperText" />
+                <TextBlock Text="Эта кнопка применяет только настройки Windows из выбранного профиля. Программы не устанавливаются, проверка не запускается." Classes="helperText" />
                 <WrapPanel Orientation="Horizontal" ItemHeight="46" HorizontalAlignment="Left">
                   <Button Content="Проверить значения без изменений" Click="ValidateRuntimeInputs_Click" Classes="ghost" />
-                  <Button x:Name="ApplyRuntimeInputsButton" Content="Применить к этому ПК" Click="ApplyRuntimeInputs_Click" Classes="warningAction primaryLarge" Margin="8,0,0,0" />
+                  <Button x:Name="ApplyRuntimeInputsButton" Content="Применить настройки" Click="ApplyRuntimeInputs_Click" Classes="warningAction primaryLarge" Margin="8,0,0,0" />
                 </WrapPanel>
               </StackPanel>
+            </Border>
+            <Border Grid.Row="4" x:Name="ProfileSectionBottomBar" IsVisible="False" Classes="bottomBar">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="14">
+                <StackPanel Spacing="3" VerticalAlignment="Center">
+                  <TextBlock Text="Изменения в полях сначала сохраняются только в профиле." Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" />
+                  <TextBlock Text="Кнопки «Применить … на этом ПК» внутри раздела меняют только соответствующую группу настроек." Classes="helperText" />
+                </StackPanel>
+                <Button Grid.Column="1" Content="Сохранить раздел в профиль" Click="SaveProfile_Click" IsEnabled="{Binding CanSaveProfile}" Classes="primary primaryLarge" VerticalAlignment="Center" />
+              </Grid>
             </Border>
             <Border Grid.Row="4" x:Name="PrepareBottomBar" IsVisible="False" Classes="bottomBar">
               <StackPanel Spacing="10">
@@ -972,15 +1057,140 @@
             </Border>
           </Grid>
         </Border>
+
+        <Border x:Name="SoftwareWorkspace" Grid.Column="1" Classes="contentPane" Padding="14,4,2,2" IsVisible="False">
+          <Grid RowDefinitions="Auto,*,Auto" RowSpacing="12">
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
+              <StackPanel Spacing="4">
+                <TextBlock Text="Установка программ" Classes="pageTitle" />
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                  <TextBlock Text="Профиль:" Classes="helperText" />
+                  <TextBlock Text="{Binding SelectedProfileName}" Classes="helperText" />
+                </StackPanel>
+              </StackPanel>
+              <Button Grid.Column="1" Click="SelectWindowsSettingsSection_Click" Classes="ghost" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal" Spacing="7"><materialIcons:MaterialIcon Kind="ArrowLeft" Width="16" Height="16" /><TextBlock Text="К разделам" /></StackPanel>
+              </Button>
+              <Button Grid.Column="2" Content="Сохранить профиль" Click="SaveProfile_Click" IsEnabled="{Binding CanSaveProfile}" Classes="primary" VerticalAlignment="Center" />
+              <Button Grid.Column="3" Content="Как установить?" Click="OpenApplicationsDocumentation_Click" Classes="ghost" VerticalAlignment="Center" />
+            </Grid>
+
+            <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+              <StackPanel x:Name="ApplicationInstallPanel" IsVisible="False" Spacing="12">
+                <Border Classes="calloutInfo">
+                  <TextBlock x:Name="ApplicationInstallSummaryText" Classes="noteText" TextWrapping="Wrap" />
+                </Border>
+
+                <Border Classes="innerCard">
+                  <StackPanel Spacing="10">
+                    <TextBlock Text="Источник установщиков" Classes="cardTitle" />
+                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                      <TextBox x:Name="InstallerRootTextBox" IsReadOnly="True" FontSize="12" Padding="8,5" PlaceholderText="Папка Installers или подключённый ISO с софтом" />
+                      <Button Grid.Column="1" Content="Выбрать папку…" Click="ChooseInstallerRoot_Click" Classes="ghost" />
+                      <Button Grid.Column="2" x:Name="CheckInstallersButton" Content="Проверить" Click="CheckInstallers_Click" Classes="ghost" ToolTip.Tip="Проверяет файлы и тихие ключи, ничего не устанавливая." />
+                    </Grid>
+                  </StackPanel>
+                </Border>
+
+                <Border x:Name="ResumeInstallQueuePanel" Classes="calloutWarning" IsVisible="False">
+                  <StackPanel Spacing="8">
+                    <TextBlock x:Name="ResumeInstallQueueText" TextWrapping="Wrap" Foreground="{StaticResource WarningTextBrush}" />
+                    <WrapPanel Orientation="Horizontal" ItemHeight="40">
+                      <Button x:Name="RetryFailedInstallButton" Content="Повторить неудачную" Click="RetryFailedInstall_Click" Classes="warningAction" />
+                      <Button x:Name="SkipFailedInstallButton" Content="Пропустить и продолжить" Click="SkipFailedInstall_Click" Classes="ghost" Margin="8,0,0,0" />
+                    </WrapPanel>
+                  </StackPanel>
+                </Border>
+
+                <Border Classes="innerCard">
+                  <StackPanel Spacing="9">
+                    <TextBlock Text="Программы из профиля" Classes="cardTitle" />
+                    <TextBlock Text="Двойной щелчок по названию устанавливает только выбранную программу. Стрелки меняют порядок всей очереди." Classes="helperText" TextWrapping="Wrap" />
+                    <ListBox x:Name="SoftwareApplicationsList" ScrollViewer.VerticalScrollBarVisibility="Auto" Background="{StaticResource SurfaceRaisedBrush}" BorderThickness="0" MaxHeight="330" SelectionChanged="SoftwareApplicationsList_SelectionChanged">
+                      <ListBox.ItemTemplate>
+                        <DataTemplate DataType="{x:Type local:ApplicationListItem}">
+                          <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" Margin="7,5">
+                            <Border Classes="stepBadge" MinWidth="24" Padding="6,2">
+                              <TextBlock Text="{Binding QueueNumber}" Classes="stepBadgeText" HorizontalAlignment="Center" />
+                            </Border>
+                            <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center" DoubleTapped="ApplicationItem_DoubleTapped" Cursor="Hand" ToolTip.Tip="Двойной щелчок — установить только эту программу">
+                              <TextBlock Text="{Binding DisplayName}" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" />
+                              <TextBlock Text="{Binding Detail}" Classes="helperText" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
+                              <Button Click="MoveApplicationItemUp_Click" IsEnabled="{Binding CanMoveUp}" Padding="10,4" MinWidth="34" ToolTip.Tip="Выше в очереди"><materialIcons:MaterialIcon Kind="ArrowUp" Width="16" Height="16" /></Button>
+                              <Button Click="MoveApplicationItemDown_Click" IsEnabled="{Binding CanMoveDown}" Padding="10,4" MinWidth="34" ToolTip.Tip="Ниже в очереди"><materialIcons:MaterialIcon Kind="ArrowDown" Width="16" Height="16" /></Button>
+                            </StackPanel>
+                          </Grid>
+                        </DataTemplate>
+                      </ListBox.ItemTemplate>
+                    </ListBox>
+                    <WrapPanel Orientation="Horizontal" ItemHeight="38">
+                      <Button Content="Собрать из папки…" Click="ScanApplicationFolder_Click" Classes="primary" />
+                      <Button Content="Добавить файлы…" Click="AddApplicationFiles_Click" Classes="ghost" Margin="8,0,0,0" />
+                      <Button Content="Удалить выбранное" Click="RemoveSoftwareApplication_Click" Classes="ghost" Margin="8,0,0,0" />
+                    </WrapPanel>
+
+                    <Border x:Name="SoftwareApplicationEditorCard" Classes="calloutInfo" IsVisible="False">
+                      <StackPanel Spacing="8">
+                        <TextBlock Text="Параметры выбранной программы" Classes="cardTitle" />
+                        <Grid ColumnDefinitions="*,240" ColumnSpacing="12">
+                          <StackPanel Spacing="5">
+                            <TextBlock Text="Название" Classes="fieldLabel" />
+                            <TextBox x:Name="SoftwareApplicationDisplayNameTextBox" />
+                          </StackPanel>
+                          <StackPanel Grid.Column="1" Spacing="5">
+                            <TextBlock Text="Разрядность" Classes="fieldLabel" />
+                            <ComboBox x:Name="SoftwareApplicationArchitectureComboBox">
+                              <ComboBoxItem Tag="Any">Любая</ComboBoxItem>
+                              <ComboBoxItem Tag="X64">Только x64</ComboBoxItem>
+                              <ComboBoxItem Tag="X86">Только x86</ComboBoxItem>
+                            </ComboBox>
+                          </StackPanel>
+                        </Grid>
+                        <TextBlock Text="Аргументы тихой установки — по одному в строке" Classes="fieldLabel" />
+                        <TextBox x:Name="SoftwareApplicationArgumentsTextBox" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="52" />
+                        <TextBlock x:Name="SoftwareSelectedApplicationPathText" Classes="helperText" TextWrapping="Wrap" />
+                        <Button Content="Сохранить параметры программы" Click="SaveSoftwareApplication_Click" HorizontalAlignment="Left" />
+                      </StackPanel>
+                    </Border>
+                  </StackPanel>
+                </Border>
+
+                <TextBox x:Name="ApplicationInstallResultTextBox" IsVisible="False" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="110" Background="{StaticResource SurfaceSunkenBrush}" Foreground="{StaticResource TextSecondaryBrush}" BorderThickness="0" />
+
+                <Border Classes="calloutInfo">
+                  <StackPanel Spacing="5">
+                    <TextBlock Text="Последние установки" Classes="fieldLabel" />
+                    <TextBlock x:Name="ApplicationInstallHistoryText" Text="Установки ещё не выполнялись." Classes="noteText" TextWrapping="Wrap" />
+                  </StackPanel>
+                </Border>
+              </StackPanel>
+            </ScrollViewer>
+
+            <Border Grid.Row="2" Classes="bottomBar">
+              <StackPanel Spacing="8">
+                <TextBlock Text="Устанавливаются только программы. Настройки Windows, сеть и домен не применяются." Classes="helperText" />
+                <WrapPanel Orientation="Horizontal" ItemHeight="46">
+                  <Button x:Name="InstallApplicationsButton" Content="Установить всё по очереди" Click="InstallApplications_Click" Classes="warningAction primaryLarge" IsEnabled="False" />
+                  <Button x:Name="CancelApplicationInstallButton" Content="Остановить установку" Click="CancelApplicationInstall_Click" Classes="ghost" IsVisible="False" Margin="8,0,0,0" />
+                </WrapPanel>
+              </StackPanel>
+            </Border>
+          </Grid>
+        </Border>
       </Grid>
 
       <Border x:Name="MaintenanceWorkspace" Grid.Row="1" Classes="panelCard" Padding="18" IsVisible="False">
         <ScrollViewer HorizontalScrollBarVisibility="Disabled">
           <StackPanel Spacing="16" MaxWidth="920" HorizontalAlignment="Center">
-            <StackPanel Spacing="5">
-              <TextBlock Text="Обслуживание этого компьютера" Classes="pageTitle" />
-              <TextBlock Text="Самостоятельные операции для уже настроенной Windows. Они не входят в профиль новой установки и запускаются только вручную." Classes="helperText" TextWrapping="Wrap" />
-            </StackPanel>
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Spacing="5">
+                <TextBlock Text="Обслуживание этого компьютера" Classes="pageTitle" />
+                <TextBlock Text="Самостоятельные операции для уже настроенной Windows. Они не входят в профиль новой установки и запускаются только вручную." Classes="helperText" TextWrapping="Wrap" />
+              </StackPanel>
+              <Button Grid.Column="1" Content="Как выполнить?" Click="OpenMaintenanceDocumentation_Click" Classes="ghost" VerticalAlignment="Center" />
+            </Grid>
 
             <Border Classes="innerCard">
               <StackPanel Spacing="14">
@@ -1021,7 +1231,7 @@
                   </StackPanel>
                   <StackPanel Grid.Column="1" Spacing="6">
                     <TextBlock Text="Если ярлык уже существует" Classes="fieldLabel" />
-                    <ComboBox x:Name="ShortcutConflictComboBox" SelectedIndex="0">
+                    <ComboBox x:Name="ShortcutConflictComboBox" SelectedIndex="0" SelectionChanged="ShortcutConflictComboBox_SelectionChanged">
                       <ComboBoxItem Tag="Skip">Не заменять</ComboBoxItem>
                       <ComboBoxItem Tag="Replace">Заменить файлом из папки</ComboBoxItem>
                     </ComboBox>
@@ -1084,7 +1294,14 @@
                 <WrapPanel Orientation="Horizontal" ItemHeight="42">
                   <Button x:Name="PreviewOutlookArchiveButton" Content="Посчитать письма" Click="PreviewOutlookArchive_Click" Classes="ghost" IsEnabled="False" />
                   <Button x:Name="RunOutlookArchiveButton" Content="Переместить письма в PST" Click="RunOutlookArchive_Click" Classes="warningAction primaryLarge" IsEnabled="False" Margin="8,0,0,0" />
+                  <Button x:Name="CancelOutlookArchiveButton" Content="Остановить" Click="CancelOutlookArchive_Click" Classes="ghost" IsVisible="False" Margin="8,0,0,0" />
                 </WrapPanel>
+                <Border Classes="calloutInfo">
+                  <StackPanel Spacing="5">
+                    <TextBlock Text="Последние архивации" Classes="fieldLabel" />
+                    <TextBlock x:Name="OutlookArchiveHistoryText" Text="Архивации ещё не выполнялись." Classes="noteText" TextWrapping="Wrap" />
+                  </StackPanel>
+                </Border>
               </StackPanel>
             </Border>
           </StackPanel>

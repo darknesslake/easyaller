@@ -6,7 +6,7 @@ Easyaller can now apply the runtime values from a selected profile through **Set
 
 ## Explicit boundary
 
-The screen first validates runtime values without changing Windows. Applying them requires an explicit exact `APPLY` confirmation and administrator privileges. The reusable profile still contains no password, token, or domain credential. A runtime domain credential exists only in memory for the fixed domain-join operation, is redacted by string output, and is disposed after the operation.
+The screen first validates runtime values without changing Windows. Each apply button runs only its corresponding setting after explicit confirmation and requires administrator privileges. A blank runtime field does not clear an existing Windows value. The reusable profile still contains no password, token, or domain credential. A runtime domain credential exists only in memory for the fixed domain-join operation, is redacted by string output, and is disposed after the operation.
 
 The executor accepts only these fixed operations, in this order:
 
@@ -21,7 +21,7 @@ The executor does not format disks, modify ISO files, choose an internal disk, a
 
 1. Run Easyaller as an administrator on Windows.
 2. Select a profile, enter the requested runtime values, and use **Validate entered values**.
-3. Review the target carefully, type `APPLY` exactly, then select **Apply to Windows**.
+3. Review the target carefully, select the apply button for the required setting, and confirm the displayed operation list.
 4. If a computer rename or domain join succeeds, Easyaller stores a small pending-resume record under `%ProgramData%\Easyaller\state`. It contains only execution ID, profile ID and revision, expected computer name, whether a domain join was requested, and creation time. It never contains a password, proxy, or domain name.
 5. Easyaller attempts to register one fixed `RunOnce` continuation for `--resume-provisioning`. If the command cannot be registered, restart manually and launch Easyaller with that argument. Do not edit the state file.
 6. After restart, resume verifies the final computer name and, when relevant, that the computer belongs to a domain before removing the pending state.

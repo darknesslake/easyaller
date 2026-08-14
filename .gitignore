@@ -10,6 +10,7 @@
 /deployment-output/
 
 # Large local test artifacts.
+/artifacts/
 *.iso
 *.wim
 *.esd
@@ -19,6 +20,10 @@
 *.vmcx
 *.vmrs
 /vm-evidence/
+
+# Local assistant and one-off verification state.
+/.claude/
+/.tmp-shortcut-check/
 
 # Build and IDE output.
 [Bb]in/

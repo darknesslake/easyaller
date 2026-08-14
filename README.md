@@ -2,9 +2,13 @@
 
 Easyaller is an open-source Windows workstation provisioning and maintenance application. It turns repeatable support work into validated profiles and explicit operator workflows while keeping credentials, local installers, deployment media, and organization-specific data out of Git.
 
-> Status: pre-alpha, actively tested on Windows 11. The profile editor, selective live-PC configuration, compliance checks, application queue, deployment-package export, protected USB workflow, desktop-shortcut maintenance, and classic Outlook PST archiving are implemented. Use a test workstation or VM before production rollout.
+> Status: pre-alpha, actively tested on Windows 11. The start screen, profile manager, selective live-PC configuration, compliance checks, application queue, deployment-package export, protected USB workflow, desktop-shortcut maintenance, and classic Outlook PST archiving are implemented. Use a test workstation or VM before production rollout.
 
-![Easyaller PC maintenance](docs/assets/maintenance-current.png)
+![Easyaller start screen and profile manager](docs/assets/profiles-preview.png)
+
+| PC maintenance | New Windows preparation |
+| --- | --- |
+| ![Easyaller PC maintenance](docs/assets/maintenance-current.png) | ![Easyaller New USB Install](docs/assets/prepare-windows-preview.png) |
 
 ## Why it exists
 
@@ -15,6 +19,8 @@ The application separates three concerns:
 1. **Reusable profiles** describe the intended workstation state.
 2. **Runtime inputs** provide machine-specific values and credentials only when an action needs them.
 3. **PC maintenance tools** perform standalone support operations that do not belong to a new-Windows profile.
+
+Easyaller opens on a dedicated start screen. Select and manage the profile there, then enter one of the three operating modes. Every mode has a visible **Exit mode** action that returns to the start screen without closing the application.
 
 ## Current workflows
 
@@ -35,7 +41,8 @@ Every live-PC action is confirmed, reports its result, and skips values that alr
 
 ### Profiles
 
-- Create, clone, rename, edit, reset, delete, import, and export versioned `*.wpprofile.json` profiles.
+- Select and manage profiles only from the start screen, so the active profile cannot change unexpectedly during an operation.
+- Create, clone, rename, describe, reset, delete, import, and export versioned `*.wpprofile.json` profiles.
 - Store complete reusable workstation configuration without passwords or tokens.
 - Validate schema versions, duplicate JSON keys, unknown properties, network values, computer names, package paths, and secret-like fields.
 - Save atomically with revision-conflict detection, recoverable backups, and corrupted-file isolation.
@@ -121,7 +128,7 @@ dotnet test Easyaller.slnx --no-build
 dotnet run --project src/Easyaller.App/Easyaller.App.csproj
 ```
 
-The current suite contains more than 260 tests covering profile validation and persistence, provisioning plans and execution, deployment export, application installation queues, USB safety, shortcut copying, maintenance settings, and Outlook archive-period rules.
+The current suite contains 290 tests covering profile validation and persistence, provisioning plans and execution, deployment export, application installation queues, USB safety, shortcut copying, maintenance settings, and Outlook archive-period rules.
 
 ### Publish one self-contained EXE
 

@@ -24,7 +24,7 @@ Example neutral profile fragment:
 
 ## What Apply changes
 
-After an operator validates the proxy address and types `APPLY`, the Windows adapter writes the same address and bypass list to two independent Windows proxy stores in one operation:
+After an operator validates the proxy address and explicitly confirms the action, the Windows adapter writes the same address and bypass list to two independent Windows proxy stores in one operation:
 
 1. **WinHTTP** — the fixed PowerShell `Set-WinhttpProxy` command. This is the machine-wide store consumed by Windows Update and other background services. It is not visible in Settings.
 2. **WinINET** — the current user's `HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings` values (`ProxyEnable`, `ProxyServer`, `ProxyOverride`). This is the same store edited by **Settings → Network & Internet → Proxy** and consumed by the browser and most desktop applications. Easyaller notifies running processes of the change through the documented `InternetSetOption` WinINET API (`INTERNET_OPTION_SETTINGS_CHANGED` and `INTERNET_OPTION_REFRESH`) so it takes effect without a sign-out.
