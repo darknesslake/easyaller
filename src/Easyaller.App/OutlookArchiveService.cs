@@ -11,7 +11,25 @@ public sealed record OutlookMailFolder(string Name, string FolderPath, string En
 
 public sealed record OutlookArchivePreview(int MatchingMessages, DateTime OlderThan, string SourceFolder);
 
-public sealed record OutlookArchiveResult(int MovedMessages, string ArchivePath, IReadOnlyList<string> Errors);
+public sealed record OutlookArchiveFailure(string ItemDescription, string Error);
+
+public sealed record OutlookArchiveResult(
+    string FolderName,
+    int ProcessedMessages,
+    int MovedMessages,
+    string ArchivePath,
+    IReadOnlyList<OutlookArchiveFailure> Failures,
+    bool WasCancelled)
+{
+    public IReadOnlyList<string> Errors => Failures
+        .Select(static failure => $"{failure.ItemDescription}: {failure.Error}")
+        .ToArray();
+}
+
+public sealed record OutlookArchiveVerification(
+    string ArchivePath,
+    long FileSizeBytes,
+    IReadOnlyList<string> FolderNames);
 
 public sealed record OutlookArchiveProgress(
     string FolderName,
@@ -128,7 +146,8 @@ public sealed class OutlookArchiveService
         DateTime olderThan,
         string archivePath,
         string targetFolderName,
-        IProgress<OutlookArchiveProgress>? progress = null)
+        IProgress<OutlookArchiveProgress>? progress = null,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(folder);
         EnsureCutoff(olderThan);
@@ -153,8 +172,10 @@ public sealed class OutlookArchiveService
             }
             object? archiveRoot = null;
             object? target = null;
-            var errors = new List<string>();
+            var failures = new List<OutlookArchiveFailure>();
             var moved = 0;
+            var processed = 0;
+            var wasCancelled = false;
             try
             {
                 archiveRoot = FindStoreRootByPath(nameSpace, fullPath)
@@ -162,22 +183,29 @@ public sealed class OutlookArchiveService
                 SetArchiveDisplayName(archiveRoot, Path.GetFileNameWithoutExtension(fullPath));
                 target = GetOrCreateChildFolder(archiveRoot, SanitizeFolderName(targetFolderName));
                 var entryIds = FindMatchingEntryIds(source, olderThan);
-                var processed = 0;
                 progress?.Report(new OutlookArchiveProgress(targetFolderName, 0, entryIds.Count, 0, 0));
                 foreach (var entryId in entryIds)
                 {
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        wasCancelled = true;
+                        break;
+                    }
+
                     object? item = null;
                     object? movedItem = null;
+                    var itemDescription = $"Письмо {processed + 1}";
                     try
                     {
                         item = nameSpace.GetItemFromID(entryId, folder.StoreId);
                         dynamic mail = item;
+                        itemDescription = GetItemDescription(mail, itemDescription);
                         movedItem = mail.Move(target);
                         moved++;
                     }
                     catch (Exception exception) when (exception is COMException or InvalidCastException)
                     {
-                        errors.Add(exception.Message);
+                        failures.Add(new OutlookArchiveFailure(itemDescription, exception.Message));
                     }
                     finally
                     {
@@ -191,10 +219,16 @@ public sealed class OutlookArchiveService
                         processed,
                         entryIds.Count,
                         moved,
-                        errors.Count));
+                        failures.Count));
                 }
 
-                return new OutlookArchiveResult(moved, fullPath, errors);
+                return new OutlookArchiveResult(
+                    targetFolderName,
+                    processed,
+                    moved,
+                    fullPath,
+                    failures,
+                    wasCancelled);
             }
             finally
             {
@@ -202,6 +236,101 @@ public sealed class OutlookArchiveService
                 Release(archiveRoot);
             }
         }, folder);
+    }
+
+    public OutlookArchiveVerification VerifyArchive(string archivePath, params string[] requiredFolderNames)
+    {
+        if (!string.Equals(Path.GetExtension(archivePath), ".pst", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException("Файл архива должен иметь расширение .pst.", nameof(archivePath));
+        }
+
+        var fullPath = Path.GetFullPath(archivePath);
+        if (!File.Exists(fullPath))
+        {
+            throw new InvalidOperationException("Файл PST не найден после архивации.");
+        }
+
+        var fileSize = new FileInfo(fullPath).Length;
+        if (fileSize <= 0)
+        {
+            throw new InvalidOperationException("Созданный файл PST пуст.");
+        }
+
+        EnsureAvailable();
+        object? application = null;
+        object? session = null;
+        object? root = null;
+        try
+        {
+            application = Activator.CreateInstance(Type.GetTypeFromProgID("Outlook.Application")!);
+            dynamic outlook = application!;
+            session = outlook.Session;
+            dynamic nameSpace = session;
+            root = FindStoreRootByPath(nameSpace, fullPath)
+                ?? throw new InvalidOperationException("PST создан, но Outlook не видит подключённое хранилище.");
+            var folderNames = GetChildFolderNames(root);
+            var missing = requiredFolderNames
+                .Where(required => !folderNames.Contains(required, StringComparer.CurrentCultureIgnoreCase))
+                .ToArray();
+            if (missing.Length > 0)
+            {
+                throw new InvalidOperationException("В PST отсутствуют папки: " + string.Join(", ", missing));
+            }
+
+            return new OutlookArchiveVerification(fullPath, fileSize, folderNames);
+        }
+        finally
+        {
+            Release(root);
+            Release(session);
+            Release(application);
+        }
+    }
+
+    private static string GetItemDescription(dynamic mail, string fallback)
+    {
+        try
+        {
+            var subject = ((string?)mail.Subject)?.Trim();
+            return string.IsNullOrWhiteSpace(subject) ? fallback : $"«{subject}»";
+        }
+        catch (COMException)
+        {
+            return fallback;
+        }
+    }
+
+    private static IReadOnlyList<string> GetChildFolderNames(object rootObject)
+    {
+        dynamic root = rootObject;
+        object? foldersObject = null;
+        var names = new List<string>();
+        try
+        {
+            foldersObject = root.Folders;
+            dynamic folders = foldersObject;
+            for (var index = 1; index <= folders.Count; index++)
+            {
+                object? child = null;
+                try
+                {
+                    child = folders.Item(index);
+                    dynamic folder = child;
+                    names.Add((string)folder.Name);
+                }
+                finally
+                {
+                    Release(child);
+                }
+            }
+
+            return names;
+        }
+        finally
+        {
+            Release(foldersObject);
+        }
     }
 
     private T WithFolder<T>(OutlookMailFolder folder, Func<dynamic, T> action) =>

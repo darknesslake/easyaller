@@ -50,6 +50,67 @@ public sealed class DesktopShortcutServiceTests : IDisposable
     }
 
     [Fact]
+    public void BuildPlan_SeparatesNewReplacedAndSkippedFiles()
+    {
+        var source = Directory.CreateDirectory(Path.Combine(_root, "source-plan")).FullName;
+        var desktop = Directory.CreateDirectory(Path.Combine(_root, "user-plan", "Desktop")).FullName;
+        File.WriteAllText(Path.Combine(source, "New.lnk"), "new");
+        File.WriteAllText(Path.Combine(source, "Existing.lnk"), "replacement");
+        File.WriteAllText(Path.Combine(desktop, "Existing.lnk"), "current");
+
+        var skipPlan = _service.BuildPlan(source, desktop, ShortcutConflictBehavior.Skip);
+        var replacePlan = _service.BuildPlan(source, desktop, ShortcutConflictBehavior.Replace);
+
+        Assert.Contains(skipPlan, item => item.FileName == "New.lnk" && item.Action == DesktopShortcutAction.Copy);
+        Assert.Contains(skipPlan, item => item.FileName == "Existing.lnk" && item.Action == DesktopShortcutAction.Skip);
+        Assert.Contains(replacePlan, item => item.FileName == "Existing.lnk" && item.Action == DesktopShortcutAction.Replace);
+    }
+
+    [Fact]
+    public void CheckTargetAccess_ConfirmsWritableDesktop()
+    {
+        var desktop = Directory.CreateDirectory(Path.Combine(_root, "access-user", "Desktop")).FullName;
+
+        var result = _service.CheckTargetAccess(desktop);
+
+        Assert.True(result.CanWrite);
+        Assert.Empty(Directory.EnumerateFiles(desktop));
+    }
+
+    [Fact]
+    public void CheckTargetAccess_RejectsMissingDesktop()
+    {
+        var result = _service.CheckTargetAccess(Path.Combine(_root, "missing", "Desktop"));
+
+        Assert.False(result.CanWrite);
+        Assert.Contains("не найден", result.Message);
+    }
+
+    [Fact]
+    public void Copy_ReturnsPerFileResultDetails()
+    {
+        var source = Directory.CreateDirectory(Path.Combine(_root, "source-details")).FullName;
+        var desktop = Directory.CreateDirectory(Path.Combine(_root, "user-details", "Desktop")).FullName;
+        File.WriteAllText(Path.Combine(source, "New.lnk"), "new");
+        File.WriteAllText(Path.Combine(source, "Existing.url"), "replacement");
+        File.WriteAllText(Path.Combine(desktop, "Existing.url"), "current");
+
+        var result = _service.Copy(source, desktop, ShortcutConflictBehavior.Skip);
+
+        Assert.Contains(result.Items, item => item.FileName == "New.lnk" && item.Action == DesktopShortcutAction.Copy);
+        Assert.Contains(result.Items, item => item.FileName == "Existing.url" && item.Action == DesktopShortcutAction.Skip);
+    }
+
+    [Fact]
+    public void ResolveDesktopDirectory_UsesExistingLocalizedDesktop()
+    {
+        var profile = Directory.CreateDirectory(Path.Combine(_root, "localized-user")).FullName;
+        var localizedDesktop = Directory.CreateDirectory(Path.Combine(profile, "Рабочий стол")).FullName;
+
+        Assert.Equal(localizedDesktop, DesktopShortcutService.ResolveDesktopDirectory(profile));
+    }
+
+    [Fact]
     public void GetUsers_ExcludesSharedAndSystemProfiles()
     {
         Directory.CreateDirectory(Path.Combine(_root, "Public"));

@@ -24,7 +24,7 @@ includes Wi-Fi secrets, VPN settings, or raw commands.
 ## Applying a profile
 
 The operator must still enter one enabled adapter name or interface GUID at
-runtime. Easyaller never selects an adapter. After the exact `APPLY`
+runtime. Easyaller never selects an adapter. After explicit confirmation
 confirmation and an administrator check, it disables DHCP only for that
 adapter, replaces its non-system IPv4 addresses, sets the configured address
 and gateway, then sets the ordered DNS server list. When the DNS list is empty

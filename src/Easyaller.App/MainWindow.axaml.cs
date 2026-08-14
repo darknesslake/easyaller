@@ -25,6 +25,16 @@ public enum EditorTab
     Verify,
 }
 
+public enum SettingsSection
+{
+    Windows,
+    Network,
+    Domain,
+    Apply,
+    Verify,
+    Software,
+}
+
 public sealed partial class MainWindow : Window, INotifyPropertyChanged
 {
     private readonly FileProfileRepository _repository;
@@ -62,18 +72,29 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     private readonly RuntimeProfileEligibilityService _eligibilityService = new();
     private readonly PrivacyConfigurationService _privacyService = new();
     private readonly ApplicationInstallationService _applicationInstaller = new();
+    private readonly ApplicationInstallQueueStore _applicationInstallQueueStore = ApplicationInstallQueueStore.CreateDefault();
+    private readonly ApplicationInstallHistoryStore _applicationInstallHistoryStore = ApplicationInstallHistoryStore.CreateDefault();
     private readonly DesktopShortcutService _desktopShortcutService = new();
     private readonly MaintenanceSettingsStore _maintenanceSettingsStore = MaintenanceSettingsStore.CreateDefault();
     private readonly OutlookArchiveService _outlookArchiveService = new();
+    private readonly OutlookArchiveHistoryStore _outlookArchiveHistoryStore = OutlookArchiveHistoryStore.CreateDefault();
     private ApplicationInstallPlan? _applicationInstallPlan;
+    private ApplicationInstallQueueState? _pendingInstallQueue;
+    private CancellationTokenSource? _applicationInstallCancellation;
+    private bool _isApplicationInstallRunning;
+    private ValidationWizardWindow? _validationWizardWindow;
     private ComplianceReport? _complianceReport;
     private string? _selectedIsoPath;
     private EditorTab _activeTab = EditorTab.Profile;
+    private SettingsSection _activeSettingsSection = SettingsSection.Windows;
     private bool _isPrepareInstallMode;
     private IReadOnlyList<string> _shortcutPreview = [];
+    private IReadOnlyList<DesktopShortcutPlanItem> _shortcutPlan = [];
+    private DesktopShortcutAccessCheck? _shortcutAccessCheck;
     private StandardOutlookFolders? _standardOutlookFolders;
     private IReadOnlyList<OutlookArchivePreview>? _outlookArchivePreviews;
     private bool _isOutlookArchiveRunning;
+    private CancellationTokenSource? _outlookArchiveCancellation;
     private string _selectedProfileName = "Выберите профиль";
     private string _selectedProfileRevision = "Профиль не выбран";
     private string _profileListCountText = "0 профилей";
@@ -92,18 +113,23 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         _profileImportExportService = new ProfileImportExportService(_repository);
         _profileEditorController = new ProfileEditorController(_repository);
         ProfilesList.ItemsSource = _profiles;
+        MainMenuProfileComboBox.ItemsSource = _allProfiles;
         ApplicationsList.ItemsSource = _applications;
+        SoftwareApplicationsList.ItemsSource = _applications;
         InstructionsList.ItemsSource = _instructions;
         DnsServersList.ItemsSource = _dnsServers;
         ComplianceList.ItemsSource = _complianceChecks;
         RefreshMaintenanceUsers();
         InitializeShortcutSource();
         InitializeOutlookArchivePath();
+        RefreshOutlookArchiveHistory();
+        RefreshInstallQueueResumeState();
+        RefreshApplicationInstallHistory();
         InitializeDeploymentTargetDefaults();
         StoragePathText.Text = _repository.RootDirectory;
         AttachEditorChangeHandlers();
-        SetMode(prepareInstallMode: false);
         RefreshProfiles();
+        ShowModeSelection();
     }
 
     /// <summary>
@@ -184,6 +210,13 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
+        if (_isApplicationInstallRunning)
+        {
+            e.Cancel = true;
+            SetStatus("Окно не закрыто: сначала остановите выполняющийся установщик.");
+            return;
+        }
+
         if (!HasUnsavedChanges)
         {
             return;
@@ -216,9 +249,24 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         SetStatus($"Профиль «{profile.Metadata.Name}» создан.");
     }
 
-    private void SelectThisPcMode_Click(object? sender, RoutedEventArgs e) => SetMode(prepareInstallMode: false);
+    private void SelectThisPcMode_Click(object? sender, RoutedEventArgs e)
+    {
+        if (CanLeaveCurrentProfile())
+        {
+            SetMode(prepareInstallMode: false);
+        }
+    }
 
-    private void SelectNewInstallMode_Click(object? sender, RoutedEventArgs e) => SetMode(prepareInstallMode: true);
+    private void SelectNewInstallMode_Click(object? sender, RoutedEventArgs e)
+    {
+        if (CanLeaveCurrentProfile())
+        {
+            SetMode(prepareInstallMode: true);
+        }
+    }
+
+    private void OpenSoftwareSection_Click(object? sender, RoutedEventArgs e)
+        => SetActiveSettingsSection(SettingsSection.Software);
 
     private void SelectMaintenanceMode_Click(object? sender, RoutedEventArgs e)
     {
@@ -230,6 +278,10 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         SetActiveNavClass(ThisPcModeButton, false);
         SetActiveNavClass(NewInstallModeButton, false);
         SetActiveNavClass(MaintenanceModeButton, true);
+        ModeSelectionWorkspace.IsVisible = false;
+        ActiveModeToolbar.IsVisible = true;
+        ActiveModeTitleText.Text = "Обслуживание ПК";
+        ActiveModeIcon.Kind = Material.Icons.MaterialIconKind.Cog;
         ProfileWorkspaceGrid.IsVisible = false;
         MaintenanceWorkspace.IsVisible = true;
         RefreshMaintenanceUsers();
@@ -243,7 +295,15 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         SetActiveNavClass(ThisPcModeButton, !prepareInstallMode);
         SetActiveNavClass(NewInstallModeButton, prepareInstallMode);
         SetActiveNavClass(MaintenanceModeButton, false);
+        ModeSelectionWorkspace.IsVisible = false;
+        ActiveModeToolbar.IsVisible = true;
+        ActiveModeTitleText.Text = prepareInstallMode ? "New USB Install" : "Настроить этот компьютер";
+        ActiveModeIcon.Kind = prepareInstallMode
+            ? Material.Icons.MaterialIconKind.UsbFlashDrive
+            : Material.Icons.MaterialIconKind.Monitor;
         ProfileWorkspaceGrid.IsVisible = true;
+        ProfileEditorWorkspace.IsVisible = true;
+        SoftwareWorkspace.IsVisible = false;
         MaintenanceWorkspace.IsVisible = false;
         ApplyTabButton.Content = prepareInstallMode ? "USB Install" : "Применить на этом ПК";
 
@@ -259,7 +319,49 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         WindowsSectionNoteText.Text = prepareInstallMode
             ? "Это стандарт для устанавливаемой Windows. Он не меняет уже работающий компьютер."
             : "К уже установленной Windows из этого раздела применяются часовой пояс и параметры конфиденциальности. Языки, редакции и экраны первичной настройки задаются файлом ответов и видны в режиме «New USB Install».";
-        SetActiveTab(_activeTab);
+        SettingsNavigationPanel.IsVisible = !prepareInstallMode;
+        if (prepareInstallMode)
+        {
+            SetActiveTab(_activeTab);
+        }
+        else
+        {
+            SetActiveSettingsSection(_activeSettingsSection);
+        }
+    }
+
+    private void ExitMode_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_isApplicationInstallRunning)
+        {
+            SetStatus("Сначала дождитесь завершения установки программ или остановите её.");
+            return;
+        }
+
+        if (_isOutlookArchiveRunning)
+        {
+            SetStatus("Сначала дождитесь завершения архивации Outlook или остановите её.");
+            return;
+        }
+
+        if (!CanLeaveCurrentProfile())
+        {
+            return;
+        }
+
+        ShowModeSelection();
+    }
+
+    private void ShowModeSelection()
+    {
+        SetActiveNavClass(ThisPcModeButton, false);
+        SetActiveNavClass(NewInstallModeButton, false);
+        SetActiveNavClass(MaintenanceModeButton, false);
+        ActiveModeToolbar.IsVisible = false;
+        ModeSelectionWorkspace.IsVisible = true;
+        ProfileWorkspaceGrid.IsVisible = false;
+        MaintenanceWorkspace.IsVisible = false;
+        SetStatus("Выберите режим работы.");
     }
 
     private void InitializeShortcutSource()
@@ -302,6 +404,14 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         UpdateShortcutPreview();
     }
 
+    private void ShortcutConflictComboBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (CopyShortcutsButton is not null)
+        {
+            UpdateShortcutPreview();
+        }
+    }
+
     private void UpdateShortcutTarget()
     {
         ShortcutTargetDesktopTextBox.Text = (MaintenanceUserComboBox.SelectedItem as LocalWindowsUser)?.DesktopDirectory ?? string.Empty;
@@ -337,7 +447,9 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         var source = ShortcutSourceTextBox?.Text?.Trim() ?? string.Empty;
         var user = MaintenanceUserComboBox?.SelectedItem as LocalWindowsUser;
         _shortcutPreview = _desktopShortcutService.Discover(source);
-        CopyShortcutsButton.IsEnabled = user is not null && _shortcutPreview.Count > 0;
+        _shortcutPlan = [];
+        _shortcutAccessCheck = null;
+        CopyShortcutsButton.IsEnabled = false;
 
         if (user is null)
         {
@@ -358,10 +470,17 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         }
         else
         {
-            var names = _shortcutPreview.Select(Path.GetFileName).Take(12).ToArray();
-            var remainder = _shortcutPreview.Count - names.Length;
-            ShortcutPreviewText.Text = $"Будет скопировано пользователю «{user.Name}»: {_shortcutPreview.Count}.\n"
-                + string.Join("\n", names.Select(static name => "• " + name))
+            var conflictBehavior = GetShortcutConflictBehavior();
+            _shortcutPlan = _desktopShortcutService.BuildPlan(source, user.DesktopDirectory, conflictBehavior);
+            _shortcutAccessCheck = _desktopShortcutService.CheckTargetAccess(user.DesktopDirectory);
+            CopyShortcutsButton.IsEnabled = _shortcutAccessCheck.CanWrite && _shortcutPlan.Count > 0;
+            var visibleItems = _shortcutPlan.Take(12).ToArray();
+            var remainder = _shortcutPlan.Count - visibleItems.Length;
+            ShortcutPreviewText.Text = $"Пользователь «{user.Name}». {_shortcutAccessCheck.Message}\n"
+                + $"Новых: {_shortcutPlan.Count(static item => item.Action == DesktopShortcutAction.Copy)}, "
+                + $"будет заменено: {_shortcutPlan.Count(static item => item.Action == DesktopShortcutAction.Replace)}, "
+                + $"будет пропущено: {_shortcutPlan.Count(static item => item.Action == DesktopShortcutAction.Skip)}.\n"
+                + string.Join("\n", visibleItems.Select(static item => $"{GetShortcutActionMarker(item.Action)} {item.FileName} — {GetShortcutActionText(item.Action)}"))
                 + (remainder > 0 ? $"\n…и ещё {remainder}" : string.Empty);
         }
 
@@ -376,13 +495,13 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         var user = MaintenanceUserComboBox.SelectedItem as LocalWindowsUser;
         var source = ShortcutSourceTextBox.Text?.Trim() ?? string.Empty;
         UpdateShortcutPreview();
-        if (user is null || _shortcutPreview.Count == 0)
+        if (user is null || _shortcutPlan.Count == 0 || _shortcutAccessCheck?.CanWrite != true)
         {
-            SetStatus("Сначала выберите пользователя, папку и проверьте список ярлыков.");
+            SetStatus(_shortcutAccessCheck?.Message ?? "Сначала выберите пользователя, папку и проверьте список ярлыков.");
             return;
         }
 
-        var replace = (ShortcutConflictComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() == "Replace";
+        var replace = GetShortcutConflictBehavior() == ShortcutConflictBehavior.Replace;
         var confirmed = await ConfirmActionWindow.AskAsync(
             this,
             "Скопировать ярлыки на рабочий стол?",
@@ -400,15 +519,37 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             source,
             user.DesktopDirectory,
             replace ? ShortcutConflictBehavior.Replace : ShortcutConflictBehavior.Skip));
-        var message = $"Ярлыки обработаны для «{user.Name}»: добавлено {result.Copied}, заменено {result.Replaced}, пропущено {result.Skipped}.";
-        if (result.Errors.Count > 0)
-        {
-            message += "\nОшибки:\n" + string.Join("\n", result.Errors.Select(static error => "• " + error));
-        }
+        var message = $"Ярлыки обработаны для «{user.Name}»: добавлено {result.Copied}, заменено {result.Replaced}, пропущено {result.Skipped}, ошибок {result.Errors.Count}.\n"
+            + string.Join("\n", result.Items.Select(static item =>
+                $"{GetShortcutActionMarker(item.Action)} {item.FileName} — {GetShortcutActionText(item.Action)}"
+                + (string.IsNullOrWhiteSpace(item.Error) ? string.Empty : $": {item.Error}")));
 
         SetStatus(message);
         ShortcutPreviewText.Text = message;
     }
+
+    private ShortcutConflictBehavior GetShortcutConflictBehavior() =>
+        (ShortcutConflictComboBox?.SelectedItem as ComboBoxItem)?.Tag?.ToString() == "Replace"
+            ? ShortcutConflictBehavior.Replace
+            : ShortcutConflictBehavior.Skip;
+
+    private static string GetShortcutActionMarker(DesktopShortcutAction action) => action switch
+    {
+        DesktopShortcutAction.Copy => "+",
+        DesktopShortcutAction.Replace => "↻",
+        DesktopShortcutAction.Skip => "○",
+        DesktopShortcutAction.Failed => "!",
+        _ => "•",
+    };
+
+    private static string GetShortcutActionText(DesktopShortcutAction action) => action switch
+    {
+        DesktopShortcutAction.Copy => "будет добавлен",
+        DesktopShortcutAction.Replace => "будет заменён",
+        DesktopShortcutAction.Skip => "будет пропущен",
+        DesktopShortcutAction.Failed => "ошибка",
+        _ => "неизвестное действие",
+    };
 
     private async void LoadOutlookFolders_Click(object? sender, RoutedEventArgs e)
     {
@@ -443,6 +584,16 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         OutlookArchivePathTextBox.Text = OutlookArchiveService.GetDefaultArchivePath(
             DateTime.Today,
             Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));
+    }
+
+    private void RefreshOutlookArchiveHistory()
+    {
+        var entries = _outlookArchiveHistoryStore.Load();
+        OutlookArchiveHistoryText.Text = entries.Count == 0
+            ? "Архивации ещё не выполнялись."
+            : string.Join("\n", entries.Take(5).Select(static entry =>
+                $"• {entry.FinishedAt.LocalDateTime:dd.MM.yyyy HH:mm} — {entry.Status}; "
+                + $"Входящие: {entry.InboxMoved}, Отправленные: {entry.SentMoved}; {entry.ArchivePath}"));
     }
 
     private async void ChooseOutlookArchivePath_Click(object? sender, RoutedEventArgs e)
@@ -588,6 +739,10 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         OutlookArchivePreviewText.Text = "Outlook перемещает письма в PST. Не закрывайте Outlook и Easyaller…";
         OutlookArchiveProgressBar.Value = 0;
         OutlookArchiveProgressBar.IsVisible = true;
+        CancelOutlookArchiveButton.IsVisible = true;
+        CancelOutlookArchiveButton.IsEnabled = true;
+        _outlookArchiveCancellation = new CancellationTokenSource();
+        var startedAt = DateTimeOffset.Now;
         try
         {
             var previews = _outlookArchivePreviews;
@@ -613,18 +768,69 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
                 OutlookArchivePreviewText.Text = $"Переносится «{value.FolderName}»: {value.ProcessedMessages} из {value.TotalMessages}.\n"
                     + $"Всего обработано: {processed} из {inboxTotal + sentTotal}; перенесено в текущей папке: {value.MovedMessages}; ошибок: {value.FailedMessages}.";
             });
-            var results = await Task.Run(() => new[]
+            var cancellationToken = _outlookArchiveCancellation.Token;
+            var results = await Task.Run(() =>
             {
-                _outlookArchiveService.Archive(standardFolders.Inbox, previews[0].OlderThan, archivePath, "Входящие", progress),
-                _outlookArchiveService.Archive(standardFolders.SentItems, previews[0].OlderThan, archivePath, "Отправленные", progress),
+                var folderResults = new List<OutlookArchiveResult>(2);
+                folderResults.Add(_outlookArchiveService.Archive(
+                    standardFolders.Inbox,
+                    previews[0].OlderThan,
+                    archivePath,
+                    "Входящие",
+                    progress,
+                    cancellationToken));
+                if (!cancellationToken.IsCancellationRequested)
+                {
+                    folderResults.Add(_outlookArchiveService.Archive(
+                        standardFolders.SentItems,
+                        previews[0].OlderThan,
+                        archivePath,
+                        "Отправленные",
+                        progress,
+                        cancellationToken));
+                }
+
+                return folderResults.ToArray();
             });
             var moved = results.Sum(static result => result.MovedMessages);
-            var errors = results.SelectMany(static result => result.Errors).ToArray();
-            var message = $"Архивация Outlook завершена: перемещено {moved}. PST: {archivePath}";
-            if (errors.Length > 0)
+            var failures = results.SelectMany(static result => result.Failures).ToArray();
+            var inboxResult = results.FirstOrDefault(static result => result.FolderName == "Входящие");
+            var sentResult = results.FirstOrDefault(static result => result.FolderName == "Отправленные");
+            var cancelled = cancellationToken.IsCancellationRequested || results.Any(static result => result.WasCancelled);
+            OutlookArchiveVerification? verification = null;
+            if (moved > 0)
             {
-                message += $"\nОшибок: {errors.Length}.\n" + string.Join("\n", errors.Take(10));
+                verification = await Task.Run(() => _outlookArchiveService.VerifyArchive(
+                    archivePath,
+                    "Входящие",
+                    sentResult is null ? "Входящие" : "Отправленные"));
             }
+
+            var status = cancelled ? "остановлена пользователем" : failures.Length > 0 ? "завершена с ошибками" : "завершена";
+            var message = $"Архивация Outlook {status}.\n"
+                + $"• Входящие: перенесено {inboxResult?.MovedMessages ?? 0}, ошибок {inboxResult?.Failures.Count ?? 0}.\n"
+                + $"• Отправленные: перенесено {sentResult?.MovedMessages ?? 0}, ошибок {sentResult?.Failures.Count ?? 0}.\n"
+                + $"Всего перенесено: {moved}. PST: {archivePath}";
+            if (verification is not null)
+            {
+                message += $"\nPST проверен: {verification.FileSizeBytes / 1024d / 1024d:F1} МБ; папки: {string.Join(", ", verification.FolderNames)}.";
+            }
+
+            if (failures.Length > 0)
+            {
+                message += $"\nОшибки и пропущенные письма ({failures.Length}):\n"
+                    + string.Join("\n", failures.Take(10).Select(static failure => $"• {failure.ItemDescription}: {failure.Error}"));
+            }
+
+            _outlookArchiveHistoryStore.Add(new OutlookArchiveHistoryEntry(
+                startedAt,
+                DateTimeOffset.Now,
+                archivePath,
+                status,
+                inboxResult?.MovedMessages ?? 0,
+                sentResult?.MovedMessages ?? 0,
+                failures.Select(static failure => $"{failure.ItemDescription}: {failure.Error}").ToArray()));
+            RefreshOutlookArchiveHistory();
 
             OutlookArchivePreviewText.Text = message;
             SetStatus(message);
@@ -638,11 +844,27 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         }
         finally
         {
+            _outlookArchiveCancellation?.Dispose();
+            _outlookArchiveCancellation = null;
             _isOutlookArchiveRunning = false;
             PreviewOutlookArchiveButton.IsEnabled = true;
             LoadOutlookFoldersButton.IsEnabled = true;
             OutlookArchiveProgressBar.IsVisible = false;
+            CancelOutlookArchiveButton.IsVisible = false;
         }
+    }
+
+    private void CancelOutlookArchive_Click(object? sender, RoutedEventArgs e)
+    {
+        if (!_isOutlookArchiveRunning || _outlookArchiveCancellation is null)
+        {
+            return;
+        }
+
+        CancelOutlookArchiveButton.IsEnabled = false;
+        _outlookArchiveCancellation.Cancel();
+        OutlookArchivePreviewText.Text = "Остановка запрошена. Easyaller завершит текущее письмо и сохранит частичный результат…";
+        SetStatus(OutlookArchivePreviewText.Text);
     }
 
     private OutlookArchiveAge GetOutlookArchiveAge() =>
@@ -662,6 +884,98 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
     private void ShowVerifyTab_Click(object? sender, RoutedEventArgs e) => SetActiveTab(EditorTab.Verify);
 
+    private void SelectWindowsSettingsSection_Click(object? sender, RoutedEventArgs e) =>
+        SetActiveSettingsSection(SettingsSection.Windows);
+
+    private void SelectNetworkSettingsSection_Click(object? sender, RoutedEventArgs e) =>
+        SetActiveSettingsSection(SettingsSection.Network);
+
+    private void SelectDomainSettingsSection_Click(object? sender, RoutedEventArgs e) =>
+        SetActiveSettingsSection(SettingsSection.Domain);
+
+    private void SelectApplySettingsSection_Click(object? sender, RoutedEventArgs e) =>
+        SetActiveSettingsSection(SettingsSection.Apply);
+
+    private void SelectVerifySettingsSection_Click(object? sender, RoutedEventArgs e) =>
+        SetActiveSettingsSection(SettingsSection.Verify);
+
+    private void SelectSoftwareSettingsSection_Click(object? sender, RoutedEventArgs e) =>
+        SetActiveSettingsSection(SettingsSection.Software);
+
+    private void SetActiveSettingsSection(SettingsSection section)
+    {
+        _isPrepareInstallMode = false;
+        _activeSettingsSection = section;
+        SetActiveNavClass(ThisPcModeButton, true);
+        SetActiveNavClass(MaintenanceModeButton, false);
+        SetActiveNavClass(NewInstallModeButton, false);
+        SetActiveNavClass(WindowsSettingsNavButton, section == SettingsSection.Windows);
+        SetActiveNavClass(NetworkSettingsNavButton, section == SettingsSection.Network);
+        SetActiveNavClass(DomainSettingsNavButton, section == SettingsSection.Domain);
+        SetActiveNavClass(ApplySettingsNavButton, section == SettingsSection.Apply);
+        SetActiveNavClass(VerifySettingsNavButton, section == SettingsSection.Verify);
+        SetActiveNavClass(SoftwareSettingsNavButton, section == SettingsSection.Software);
+
+        ProfileWorkspaceGrid.IsVisible = true;
+        MaintenanceWorkspace.IsVisible = false;
+        SettingsNavigationPanel.IsVisible = true;
+        TabSwitcherPanel.IsVisible = false;
+        UnifiedProfileHeader.IsVisible = false;
+        UnifiedApplyHeader.IsVisible = false;
+        UnifiedVerifyHeader.IsVisible = false;
+        UnifiedSoftwareBlock.IsVisible = false;
+
+        var showSoftware = section == SettingsSection.Software;
+        ProfileEditorWorkspace.IsVisible = !showSoftware;
+        SoftwareWorkspace.IsVisible = showSoftware;
+        if (showSoftware)
+        {
+            UpdateApplicationInstallPanel();
+            RefreshInstallQueueResumeState();
+            RefreshApplicationInstallHistory();
+            SetStatus("Установка программ открыта отдельно: настройки Windows и проверка не запускаются.");
+            return;
+        }
+
+        var showWindows = section == SettingsSection.Windows;
+        var showNetwork = section == SettingsSection.Network;
+        var showDomain = section == SettingsSection.Domain;
+        var showProfileSection = showWindows || showNetwork || showDomain;
+        WindowsProfileSection.IsVisible = showWindows;
+        NetworkProfileSection.IsVisible = showNetwork;
+        DomainProfileSection.IsVisible = showDomain;
+        ApplicationsProfileSection.IsVisible = false;
+        WindowsSectionContent.IsVisible = showWindows;
+        NetworkSectionContent.IsVisible = showNetwork;
+        DomainSectionContent.IsVisible = showDomain;
+        StoragePathPanel.IsVisible = showProfileSection;
+        ProfileEditorScrollViewer.IsVisible = showProfileSection;
+        PrepareInstallScrollViewer.IsVisible = false;
+        ApplyTabScrollViewer.IsVisible = section == SettingsSection.Apply;
+        VerifyTabScrollViewer.IsVisible = section == SettingsSection.Verify;
+        ProfileSectionBottomBar.IsVisible = showProfileSection;
+        PrepareBottomBar.IsVisible = false;
+        ApplyBottomBar.IsVisible = section == SettingsSection.Apply;
+        VerifyBottomBar.IsVisible = section == SettingsSection.Verify;
+        ProfileSummaryText.Text = section switch
+        {
+            SettingsSection.Windows => "Параметры Windows. Сохранение изменяет профиль; кнопки внутри применяют только указанную группу.",
+            SettingsSection.Network => "Имя компьютера, IPv4 и прокси. У каждой группы своя независимая кнопка применения.",
+            SettingsSection.Domain => "Параметры домена. Пароль используется только при присоединении и не сохраняется.",
+            _ => string.Empty,
+        };
+        UnifiedThisPcScrollViewer.Offset = default;
+        SetStatus(section switch
+        {
+            SettingsSection.Windows => "Открыт раздел Windows. Сохранение меняет профиль; синие кнопки применяют только подписанную группу к этому ПК.",
+            SettingsSection.Network => "Открыт раздел сети. Имя компьютера, IPv4 и прокси применяются независимыми кнопками.",
+            SettingsSection.Domain => "Открыт раздел домена. Пароль используется только при присоединении и не сохраняется.",
+            SettingsSection.Apply => "Открыто применение настроек Windows. Установка программ и проверка не запускаются.",
+            SettingsSection.Verify => "Открыта проверка результата. Она только читает состояние компьютера.",
+            _ => string.Empty,
+        });
+    }
+
     private void SetActiveTab(EditorTab tab)
     {
         // Verification only makes sense for a running Windows, so it disappears in install-preparation mode.
@@ -675,6 +989,24 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         SetActiveNavClass(ApplyTabButton, tab == EditorTab.Action);
         SetActiveNavClass(VerifyTabButton, tab == EditorTab.Verify);
         VerifyTabButton.IsVisible = !_isPrepareInstallMode;
+
+        if (!_isPrepareInstallMode)
+        {
+            SetActiveSettingsSection(tab switch
+            {
+                EditorTab.Action => SettingsSection.Apply,
+                EditorTab.Verify => SettingsSection.Verify,
+                _ => SettingsSection.Windows,
+            });
+            return;
+        }
+
+        TabSwitcherPanel.IsVisible = true;
+        UnifiedProfileHeader.IsVisible = false;
+        UnifiedApplyHeader.IsVisible = false;
+        UnifiedVerifyHeader.IsVisible = false;
+        UnifiedSoftwareBlock.IsVisible = false;
+        ProfileSectionBottomBar.IsVisible = false;
 
         var showEditor = tab == EditorTab.Profile;
         var showPrepare = tab == EditorTab.Action && _isPrepareInstallMode;
@@ -1349,8 +1681,42 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
     private static string DescribeProfileDescription(string? description) =>
         string.IsNullOrWhiteSpace(description)
-            ? "Описание не указано — двойной клик, чтобы добавить."
+            ? "Описание не указано."
             : description;
+
+    private void MainMenuProfileComboBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_isChangingProfileSelection)
+        {
+            return;
+        }
+
+        var requestedProfile = MainMenuProfileComboBox.SelectedItem as ProfileListItem;
+        if (HasUnsavedChanges
+            && requestedProfile?.Profile.ProfileId != _selectedProfile?.Profile.ProfileId)
+        {
+            _isChangingProfileSelection = true;
+            MainMenuProfileComboBox.SelectedItem = _selectedProfile;
+            _isChangingProfileSelection = false;
+            SetStatus("Сначала сохраните или сбросьте изменения текущего профиля.");
+            return;
+        }
+
+        _isChangingProfileSelection = true;
+        ProfileSearchTextBox.Text = string.Empty;
+        _isChangingProfileSelection = false;
+        ApplyProfileFilter(requestedProfile?.Profile.ProfileId, forceEditorRefresh: true);
+        SetStatus(requestedProfile is null
+            ? "Выберите профиль для работы."
+            : $"Выбран профиль «{requestedProfile.Name}».");
+    }
+
+    private void SaveMainMenuProfile_Click(object? sender, RoutedEventArgs e)
+    {
+        SaveProfile_Click(sender, e);
+        MainMenuProfileErrorText.Text = ProfileNameErrorText.Text;
+        MainMenuProfileErrorText.IsVisible = ProfileNameErrorText.IsVisible;
+    }
 
     private void ProfileNameDisplayText_DoubleTapped(object? sender, Avalonia.Input.TappedEventArgs e)
     {
@@ -1702,6 +2068,11 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             + (skipped > 0 ? $", уже были в списке: {skipped}" : string.Empty)
             + (detected > 0 ? $". Для {detected} по сигнатуре файла подставлены вероятные тихие ключи — это эвристика, проверьте каждый." : ". Тип установщика не распознан ни у одного файла — задайте тихие ключи вручную.")
             + " Проверьте разрядность и сохраните профиль.");
+        if (added > 0)
+        {
+            SoftwareApplicationsList.SelectedItem = _applications[^1];
+            SoftwareApplicationsList.ScrollIntoView(_applications[^1]);
+        }
     }
 
     /// <summary>
@@ -1808,6 +2179,11 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         SetStatus(skipped.Count == 0
             ? $"Добавлено установщиков: {added}.{suggestionNote} Сохраните профиль."
             : $"Добавлено: {added}.{suggestionNote} Пропущены как уже добавленные: {string.Join(", ", skipped)}.");
+        if (added > 0)
+        {
+            SoftwareApplicationsList.SelectedItem = _applications[^1];
+            SoftwareApplicationsList.ScrollIntoView(_applications[^1]);
+        }
     }
 
     /// <summary>
@@ -1950,6 +2326,55 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    private async void OpenDocumentation_Click(object? sender, RoutedEventArgs e)
+    {
+        await OpenDocumentationSectionAsync(0);
+    }
+
+    private async void OpenProfileDocumentation_Click(object? sender, RoutedEventArgs e)
+    {
+        await OpenDocumentationSectionAsync(1);
+    }
+
+    private async void OpenApplyDocumentation_Click(object? sender, RoutedEventArgs e)
+    {
+        await OpenDocumentationSectionAsync(2);
+    }
+
+    private async void OpenApplicationsDocumentation_Click(object? sender, RoutedEventArgs e)
+    {
+        await OpenDocumentationSectionAsync(3);
+    }
+
+    private async void OpenMaintenanceDocumentation_Click(object? sender, RoutedEventArgs e)
+    {
+        await OpenDocumentationSectionAsync(4);
+    }
+
+    private async void OpenNewWindowsDocumentation_Click(object? sender, RoutedEventArgs e)
+    {
+        await OpenDocumentationSectionAsync(5);
+    }
+
+    private async Task OpenDocumentationSectionAsync(int section)
+    {
+        var window = new DocumentationWindow(section);
+        await window.ShowDialog(this);
+    }
+
+    private void OpenValidationWizard_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_validationWizardWindow is not null)
+        {
+            _validationWizardWindow.Activate();
+            return;
+        }
+
+        _validationWizardWindow = new ValidationWizardWindow();
+        _validationWizardWindow.Closed += (_, _) => _validationWizardWindow = null;
+        _validationWizardWindow.Show(this);
+    }
+
     private void ApplicationsList_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         RefreshApplicationQueueNumbers();
@@ -1967,6 +2392,133 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             ? $"{selected.Application.PackageRelativePath} · эталон записан"
             : selected.Application.PackageRelativePath ?? string.Empty;
         _ = UpdateSelectedApplicationFrameworkHintAsync(selected.Application);
+    }
+
+    private void SoftwareApplicationsList_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (SoftwareApplicationsList.SelectedItem is not ApplicationListItem selected)
+        {
+            SoftwareApplicationEditorCard.IsVisible = false;
+            return;
+        }
+
+        ApplicationsList.SelectedItem = selected;
+        SoftwareApplicationEditorCard.IsVisible = true;
+        SoftwareApplicationDisplayNameTextBox.Text = selected.Application.DisplayName;
+        SetSelectedEnum<ApplicationArchitecture>(SoftwareApplicationArchitectureComboBox, selected.Application.Architecture);
+        SoftwareApplicationArgumentsTextBox.Text = string.Join(Environment.NewLine, selected.Application.Arguments);
+        SoftwareSelectedApplicationPathText.Text = selected.Application.PackageRelativePath is { } path
+            ? $"Файл: {path}"
+            : "Ручная установка без файла в пакете.";
+    }
+
+    private void SaveSoftwareApplication_Click(object? sender, RoutedEventArgs e)
+    {
+        if (SoftwareApplicationsList.SelectedItem is not ApplicationListItem selected)
+        {
+            SetStatus("Сначала выберите программу.");
+            return;
+        }
+
+        var displayName = SoftwareApplicationDisplayNameTextBox.Text?.Trim();
+        if (string.IsNullOrWhiteSpace(displayName))
+        {
+            SetStatus("Название программы не может быть пустым.");
+            return;
+        }
+
+        var index = _applications.IndexOf(selected);
+        var arguments = (SoftwareApplicationArgumentsTextBox.Text ?? string.Empty)
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var replacement = new ApplicationListItem(selected.Application with
+        {
+            DisplayName = displayName,
+            Arguments = arguments,
+            Architecture = GetSelectedEnum(SoftwareApplicationArchitectureComboBox, selected.Application.Architecture),
+        });
+        _applications[index] = replacement;
+        RefreshApplicationQueueNumbers();
+        SoftwareApplicationsList.SelectedItem = replacement;
+        ApplicationsList.SelectedItem = replacement;
+        SetStatus($"Параметры «{displayName}» изменены. Нажмите «Сохранить профиль». ");
+    }
+
+    private void RemoveSoftwareApplication_Click(object? sender, RoutedEventArgs e)
+    {
+        if (SoftwareApplicationsList.SelectedItem is not ApplicationListItem selected)
+        {
+            SetStatus("Выберите программу для удаления.");
+            return;
+        }
+
+        _applications.Remove(selected);
+        RefreshApplicationQueueNumbers();
+        SoftwareApplicationEditorCard.IsVisible = false;
+        SetStatus($"«{selected.DisplayName}» удалено из списка. Нажмите «Сохранить профиль». ");
+    }
+
+    private async void ApplicationItem_DoubleTapped(object? sender, Avalonia.Input.TappedEventArgs e)
+    {
+        e.Handled = true;
+        if (sender is not StackPanel { DataContext: ApplicationListItem item })
+        {
+            return;
+        }
+
+        if (_isApplicationInstallRunning)
+        {
+            SetStatus("Сначала дождитесь завершения текущей установки или остановите её.");
+            return;
+        }
+
+        if (_selectedProfile is null)
+        {
+            SetStatus("Сначала выберите профиль.");
+            return;
+        }
+
+        if (item.Application.SourceKind != ApplicationSourceKind.PackageRelative)
+        {
+            SetStatus($"«{item.Application.DisplayName}» отмечено как ручная установка и не имеет файла для запуска.");
+            return;
+        }
+
+        var configuredRoot = ApplicationSourcePathTextBox.Text?.Trim();
+        var installerRoot = ResolveInstallerRoot(configuredRoot);
+        var singleApplicationProfile = _selectedProfile.Profile with
+        {
+            ApplicationSourcePath = configuredRoot,
+            Applications = [item.Application],
+        };
+        var plan = _applicationInstaller.CreatePlan(singleApplicationProfile, installerRoot);
+        if (!plan.CanRun)
+        {
+            var reason = plan.Errors.FirstOrDefault()?.Message
+                ?? (plan.SkippedByArchitecture.Count > 0
+                    ? "Программа предназначена для другой разрядности Windows."
+                    : "Установщик не найден.");
+            SetStatus($"«{item.Application.DisplayName}» не запущено: {reason}");
+            return;
+        }
+
+        var step = plan.Steps[0];
+        if (!await ConfirmActionWindow.AskAsync(
+            this,
+            "Установить только эту программу?",
+            $"{step.DisplayName}\nФайл: {Path.GetFileName(step.ExecutablePath)}",
+            "Будет запущен только выбранный установщик. Другие программы и настройки Windows не изменяются."
+                + (step.Arguments.Count == 0 ? " Для установщика не заданы тихие ключи, поэтому может появиться его окно." : string.Empty),
+            "Установить"))
+        {
+            SetStatus("Установка выбранной программы отменена.");
+            return;
+        }
+
+        ApplicationInstallResultTextBox.IsVisible = true;
+        var destination = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
+            "Easyaller-установщики");
+        await ExecuteApplicationInstallPlanAsync(plan, destination, []);
     }
 
     /// <summary>
@@ -2160,6 +2712,21 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
     private void MoveApplicationDown_Click(object? sender, RoutedEventArgs e) => MoveSelectedApplication(1);
 
+    private void MoveApplicationItemUp_Click(object? sender, RoutedEventArgs e) => MoveApplicationItem(sender, -1);
+
+    private void MoveApplicationItemDown_Click(object? sender, RoutedEventArgs e) => MoveApplicationItem(sender, 1);
+
+    private void MoveApplicationItem(object? sender, int offset)
+    {
+        if (sender is not Button { DataContext: ApplicationListItem item })
+        {
+            return;
+        }
+
+        ApplicationsList.SelectedItem = item;
+        MoveSelectedApplication(offset);
+    }
+
     private void MoveSelectedApplication(int offset)
     {
         if (ApplicationsList.SelectedItem is not ApplicationListItem selected)
@@ -2189,6 +2756,8 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         for (var index = 0; index < _applications.Count; index++)
         {
             _applications[index].QueueNumber = index + 1;
+            _applications[index].CanMoveUp = index > 0;
+            _applications[index].CanMoveDown = index < _applications.Count - 1;
         }
     }
 
@@ -2580,7 +3149,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         {
             var validation = _inputValidator.Validate(_plan, inputs);
             SetStatus(validation.IsValid
-                ? "Введённые значения корректны. Ничего не изменено. Можно нажать «Применить к этому ПК»."
+                ? "Введённые значения корректны. Ничего не изменено. Можно нажать «Применить настройки»."
                 : GetRuntimeMessage(validation.Errors[0].Code, validation.Errors[0].Message));
         }
     }
@@ -2649,12 +3218,6 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
                     report.AppendLine(await ApplyPrivacyPoliciesAsync(_selectedProfile!.Profile, runtime));
                 }
 
-                if (result.IsSuccess && _selectedProfile!.Profile.Applications.Any(static application =>
-                        application.SourceKind == ApplicationSourceKind.PackageRelative))
-                {
-                    report.AppendLine(await InstallProfileApplicationsAsync(_selectedProfile.Profile));
-                }
-
                 report.AppendLine();
                 report.Append(DescribeExecution(result));
                 ApplyResultTextBox.Text = report.ToString();
@@ -2674,40 +3237,6 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             ApplyRuntimeInputsButton.IsEnabled = true;
             RuntimeDomainPasswordTextBox.Text = string.Empty;
         }
-    }
-
-    private async Task<string> InstallProfileApplicationsAsync(ProvisioningProfile profile)
-    {
-        var installerRoot = ResolveInstallerRoot(profile.ApplicationSourcePath);
-        InstallerRootTextBox.Text = installerRoot;
-        var plan = _applicationInstaller.CreatePlan(profile, installerRoot);
-        if (!plan.CanRun)
-        {
-            var reason = plan.Errors.FirstOrDefault()?.Message ?? "В профиле нет доступных установщиков.";
-            return "Приложения не установлены: " + reason;
-        }
-
-        var destination = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
-            "Easyaller-Installers");
-        var progress = new Progress<string>(SetStatus);
-        var installReport = await _applicationInstaller.RunPipelinedAsync(
-            plan,
-            destination,
-            new WindowsApplicationInstallerRunner(),
-            progress);
-        var details = DescribeInstallReport(installReport);
-        ApplicationInstallResultTextBox.IsVisible = true;
-        ApplicationInstallResultTextBox.Text = details + $"\n\nФайлы скопированы в: {destination}";
-        WriteJournalEntry(
-            "Установка приложений вместе с профилем",
-            installReport.StoppedOnFailure ? "Остановлено на ошибке" : "Установлено",
-            installReport.Results.Select(static item => $"{item.Step.DisplayName}: {DescribeInstallOutcome(item)}").ToArray());
-
-        return installReport.StoppedOnFailure
-            ? $"Приложения: установка остановлена на ошибке; установлено {installReport.InstalledCount} из {installReport.Results.Count}.\n{details}"
-            : $"Приложения установлены: {installReport.InstalledCount}."
-                + (installReport.RequiresRestart ? " Требуется перезагрузка." : string.Empty);
     }
 
     /// <summary>
@@ -2798,14 +3327,19 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
     private void UpdateApplicationInstallPanel()
     {
+        RefreshApplicationQueueNumbers();
+        SoftwareApplicationsList.SelectedItem = null;
+        SoftwareApplicationEditorCard.IsVisible = false;
         _applicationInstallPlan = null;
         InstallApplicationsButton.IsEnabled = false;
         ApplicationInstallResultTextBox.IsVisible = false;
+        RefreshInstallQueueResumeState();
 
         var applications = _selectedProfile?.Profile.Applications ?? [];
         var fromPackage = applications.Count(static application => application.SourceKind == ApplicationSourceKind.PackageRelative);
         var manual = applications.Count - fromPackage;
         ApplicationInstallPanel.IsVisible = applications.Count > 0;
+        InstallApplicationsButton.IsEnabled = fromPackage > 0;
         if (applications.Count == 0)
         {
             return;
@@ -2816,6 +3350,37 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             ? $"В профиле только приложения с ручной установкой ({manual}). Автоматически запускать нечего."
             : $"Устанавливается по очереди: {fromPackage}. Пока один ставится, следующий уже копируется."
                 + (manual > 0 ? $" Ещё {manual} помечено как ручная установка — их нужно поставить самостоятельно." : string.Empty);
+    }
+
+    private void RefreshInstallQueueResumeState()
+    {
+        _pendingInstallQueue = _applicationInstallQueueStore.Load();
+        if (ResumeInstallQueuePanel is null)
+        {
+            return;
+        }
+
+        ResumeInstallQueuePanel.IsVisible = _pendingInstallQueue is not null;
+        if (_pendingInstallQueue is { } state)
+        {
+            ResumeInstallQueueText.Text = $"Незавершённая очередь от {state.UpdatedAt.LocalDateTime:dd.MM.yyyy HH:mm}. "
+                + $"Ошибка на «{state.FailedApplicationName}», осталось: {state.RemainingSteps.Count}.";
+        }
+    }
+
+    private void RefreshApplicationInstallHistory()
+    {
+        if (ApplicationInstallHistoryText is null)
+        {
+            return;
+        }
+
+        var history = _applicationInstallHistoryStore.Load();
+        ApplicationInstallHistoryText.Text = history.Count == 0
+            ? "Установки ещё не выполнялись."
+            : string.Join("\n", history.Take(5).Select(static entry =>
+                $"• {entry.FinishedAt.LocalDateTime:dd.MM.yyyy HH:mm} — {entry.Status}; установлено: {entry.InstalledCount}"
+                + (string.IsNullOrWhiteSpace(entry.ProblemApplication) ? string.Empty : $"; программа: {entry.ProblemApplication}")));
     }
 
     private static string ResolveInstallerRoot(string? profilePath)
@@ -2872,13 +3437,26 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
     private void CheckInstallers_Click(object? sender, RoutedEventArgs e)
     {
+        TryPrepareApplicationInstallPlan(out _);
+    }
+
+    private bool TryPrepareApplicationInstallPlan(out ApplicationInstallPlan plan)
+    {
         if (_selectedProfile is null)
         {
             SetStatus("Сначала выберите профиль.");
-            return;
+            plan = new ApplicationInstallPlan(string.Empty, [], [], []);
+            return false;
         }
 
-        var plan = _applicationInstaller.CreatePlan(_selectedProfile.Profile, InstallerRootTextBox.Text ?? string.Empty);
+        var installerRoot = InstallerRootTextBox.Text ?? string.Empty;
+        if (!Directory.Exists(installerRoot))
+        {
+            installerRoot = ResolveInstallerRoot(_selectedProfile.Profile.ApplicationSourcePath);
+            InstallerRootTextBox.Text = installerRoot;
+        }
+
+        plan = _applicationInstaller.CreatePlan(_selectedProfile.Profile, installerRoot);
         _applicationInstallPlan = plan.CanRun ? plan : null;
         InstallApplicationsButton.IsEnabled = plan.CanRun;
         ApplicationInstallResultTextBox.IsVisible = true;
@@ -2888,7 +3466,14 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             ApplicationInstallResultTextBox.Text = "Проверка не пройдена:\n"
                 + string.Join("\n", plan.Errors.Select(static error => "• " + error.Message));
             SetStatus("Установщики не готовы: " + plan.Errors[0].Message);
-            return;
+            return false;
+        }
+
+        if (plan.Steps.Count == 0)
+        {
+            ApplicationInstallResultTextBox.Text = "В профиле нет программ для автоматической установки.";
+            SetStatus("В профиле нет программ для автоматической установки.");
+            return false;
         }
 
         var summary = new StringBuilder("Готово к установке по порядку:\n");
@@ -2910,13 +3495,13 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         SetStatus($"Установщики найдены: {plan.Steps.Count}."
             + (plan.SkippedByArchitecture.Count > 0 ? $" Пропущено по разрядности: {plan.SkippedByArchitecture.Count}." : string.Empty)
             + " Ничего не запускалось.");
+        return true;
     }
 
     private async void InstallApplications_Click(object? sender, RoutedEventArgs e)
     {
-        if (_applicationInstallPlan is not { } plan)
+        if (!TryPrepareApplicationInstallPlan(out var plan))
         {
-            SetStatus("Сначала проверьте установщики.");
             return;
         }
 
@@ -2934,20 +3519,36 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
+        var destination = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
+            "Easyaller-установщики");
+        await ExecuteApplicationInstallPlanAsync(plan, destination, []);
+    }
+
+    private async Task ExecuteApplicationInstallPlanAsync(
+        ApplicationInstallPlan plan,
+        string destination,
+        IReadOnlyList<string> priorLog)
+    {
         InstallApplicationsButton.IsEnabled = false;
         CheckInstallersButton.IsEnabled = false;
+        RetryFailedInstallButton.IsEnabled = false;
+        SkipFailedInstallButton.IsEnabled = false;
+        CancelApplicationInstallButton.IsVisible = true;
+        CancelApplicationInstallButton.IsEnabled = true;
+        _isApplicationInstallRunning = true;
+        _applicationInstallCancellation = new CancellationTokenSource();
+        var startedAt = DateTimeOffset.Now;
         try
         {
             SetStatus("Идёт копирование и установка. Не закрывайте программу.");
-            var destination = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
-                "Easyaller-установщики");
             var progress = new Progress<string>(SetStatus);
             var report = await _applicationInstaller.RunPipelinedAsync(
                 plan,
                 destination,
                 new WindowsApplicationInstallerRunner(),
-                progress);
+                progress,
+                _applicationInstallCancellation.Token);
             ApplicationInstallResultTextBox.Text = DescribeInstallReport(report)
                 + $"\n\nФайлы скопированы в: {destination}";
             SetStatus(report.StoppedOnFailure
@@ -2958,13 +3559,130 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
                 "Установка приложений",
                 report.StoppedOnFailure ? "Остановлено на ошибке" : "Установлено",
                 report.Results.Select(static result => $"{result.Step.DisplayName}: {DescribeInstallOutcome(result)}").ToArray());
+
+            var currentLog = priorLog
+                .Concat(report.Results.Select(static result =>
+                    $"{DateTime.Now:dd.MM.yyyy HH:mm:ss} | {result.Step.DisplayName} | {DescribeInstallOutcome(result)}"
+                    + (result.ExitCode is null ? string.Empty : $" | код {result.ExitCode}")))
+                .ToArray();
+            var problem = report.Results.FirstOrDefault(static result =>
+                result.Outcome is ApplicationInstallOutcome.Failed or ApplicationInstallOutcome.Cancelled);
+            var failedIndex = problem is null
+                ? -1
+                : report.Results.Select(static (result, index) => (result, index))
+                    .First(pair => ReferenceEquals(pair.result, problem)).index;
+            if (report.StoppedOnFailure && failedIndex >= 0)
+            {
+                var failed = report.Results[failedIndex];
+                _pendingInstallQueue = new ApplicationInstallQueueState(
+                    DateTimeOffset.Now,
+                    plan.PackageRootDirectory,
+                    destination,
+                    plan.Steps.Skip(failedIndex).ToArray(),
+                    problem!.Step.DisplayName,
+                    currentLog);
+                _applicationInstallQueueStore.Save(_pendingInstallQueue);
+            }
+            else
+            {
+                _pendingInstallQueue = null;
+                _applicationInstallQueueStore.Clear();
+            }
+
+            RefreshInstallQueueResumeState();
+            var historyStatus = report.WasCancelled
+                ? "остановлена пользователем"
+                : report.StoppedOnFailure ? "остановлена на ошибке" : "завершена";
+            _applicationInstallHistoryStore.Add(new ApplicationInstallHistoryEntry(
+                startedAt,
+                DateTimeOffset.Now,
+                historyStatus,
+                report.InstalledCount,
+                problem?.Step.DisplayName,
+                currentLog));
+            RefreshApplicationInstallHistory();
         }
         finally
         {
+            _applicationInstallCancellation?.Dispose();
+            _applicationInstallCancellation = null;
+            _isApplicationInstallRunning = false;
+            CancelApplicationInstallButton.IsVisible = false;
             CheckInstallersButton.IsEnabled = true;
             InstallApplicationsButton.IsEnabled = true;
+            RetryFailedInstallButton.IsEnabled = true;
+            SkipFailedInstallButton.IsEnabled = true;
         }
     }
+
+    private void CancelApplicationInstall_Click(object? sender, RoutedEventArgs e)
+    {
+        if (!_isApplicationInstallRunning || _applicationInstallCancellation is null)
+        {
+            return;
+        }
+
+        CancelApplicationInstallButton.IsEnabled = false;
+        _applicationInstallCancellation.Cancel();
+        SetStatus("Остановка запрошена. Текущий установщик завершается, очередь будет сохранена для продолжения.");
+    }
+
+    private async void RetryFailedInstall_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_pendingInstallQueue is not { RemainingSteps.Count: > 0 } state)
+        {
+            SetStatus("Незавершённая очередь не найдена.");
+            return;
+        }
+
+        if (!await ConfirmActionWindow.AskAsync(
+            this,
+            "Повторить неудачную установку?",
+            $"Снова будет запущено «{state.RemainingSteps[0].DisplayName}», затем ещё {state.RemainingSteps.Count - 1} по очереди.",
+            "Установщик снова изменит этот компьютер.",
+            "Повторить"))
+        {
+            return;
+        }
+
+        await ExecuteApplicationInstallPlanAsync(CreateResumeInstallPlan(state, state.RemainingSteps), state.DestinationDirectory, state.LogEntries);
+    }
+
+    private async void SkipFailedInstall_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_pendingInstallQueue is not { RemainingSteps.Count: > 0 } state)
+        {
+            SetStatus("Незавершённая очередь не найдена.");
+            return;
+        }
+
+        var remaining = state.RemainingSteps.Skip(1).ToArray();
+        if (remaining.Length == 0)
+        {
+            _applicationInstallQueueStore.Clear();
+            RefreshInstallQueueResumeState();
+            SetStatus($"«{state.FailedApplicationName}» пропущено. В очереди больше ничего нет.");
+            return;
+        }
+
+        if (!await ConfirmActionWindow.AskAsync(
+            this,
+            "Пропустить неудачный установщик?",
+            $"«{state.FailedApplicationName}» не будет повторён. Будет продолжена установка оставшихся программ: {remaining.Length}.",
+            "Следующие установщики изменят этот компьютер.",
+            "Пропустить и продолжить"))
+        {
+            return;
+        }
+
+        var log = state.LogEntries.Append($"{DateTime.Now:dd.MM.yyyy HH:mm:ss} | {state.FailedApplicationName} | пропущено оператором").ToArray();
+        await ExecuteApplicationInstallPlanAsync(CreateResumeInstallPlan(state, remaining), state.DestinationDirectory, log);
+    }
+
+    private static ApplicationInstallPlan CreateResumeInstallPlan(
+        ApplicationInstallQueueState state,
+        IReadOnlyList<ApplicationInstallStep> steps) =>
+        new(state.PackageRootDirectory, steps, [], []);
 
     private static string DescribeInstallReport(ApplicationInstallReport report) =>
         string.Join("\n", report.Results.Select(static (result, index) =>
@@ -2974,6 +3692,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     {
         ApplicationInstallOutcome.Installed => "установлено",
         ApplicationInstallOutcome.InstalledRestartRequired => "установлено, нужна перезагрузка",
+        ApplicationInstallOutcome.Cancelled => "остановлено пользователем",
         ApplicationInstallOutcome.NotRun => "не запускалось из-за предыдущей ошибки",
         ApplicationInstallOutcome.Skipped => "пропущено",
         _ => "ошибка: " + (result.ErrorMessage ?? $"код возврата {result.ExitCode?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "неизвестен"}"),
@@ -3292,6 +4011,10 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             _allProfiles.Add(new ProfileListItem(profile));
         }
 
+        _isChangingProfileSelection = true;
+        MainMenuProfileComboBox.ItemsSource = _allProfiles.ToArray();
+        _isChangingProfileSelection = false;
+
         if (selectedProfileId is { } requestedId
             && _allProfiles.Any(item => item.Profile.ProfileId == requestedId)
             && !_allProfiles.Where(item => ProfileListFilter.Matches(item, ProfileSearchTextBox.Text))
@@ -3330,6 +4053,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             var selected = _profiles.FirstOrDefault(item => item.Profile.ProfileId == selectedProfileId)
                 ?? _profiles.FirstOrDefault();
             ProfilesList.SelectedItem = selected;
+            MainMenuProfileComboBox.SelectedItem = selected;
             _selectedProfile = selected;
         }
         finally
@@ -3391,6 +4115,11 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
             ProfileNameTextBox.Text = _selectedProfile?.Profile.Metadata.Name ?? string.Empty;
             ProfileDescriptionTextBox.Text = _selectedProfile?.Profile.Metadata.Description ?? string.Empty;
+            MainMenuProfileNameTextBox.Text = ProfileNameTextBox.Text;
+            MainMenuProfileDescriptionTextBox.Text = ProfileDescriptionTextBox.Text;
+            MainMenuProfileNameTextBox.IsEnabled = _selectedProfile is not null;
+            MainMenuProfileDescriptionTextBox.IsEnabled = _selectedProfile is not null;
+            MainMenuProfileErrorText.IsVisible = false;
             ProfileDescriptionDisplayText.Text = DescribeProfileDescription(ProfileDescriptionTextBox.Text);
             ProfileNameTextBox.IsVisible = false;
             ProfileNameDisplayText.IsVisible = true;
@@ -3484,6 +4213,25 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         ComputerNameNumberTextBox.TextChanged += (_, _) => UpdateComputerNamePreview();
         ProfileNameTextBox.TextChanged += (_, _) => ProfileNameDisplayText.Text = ProfileNameTextBox.Text;
         ProfileDescriptionTextBox.TextChanged += (_, _) => ProfileDescriptionDisplayText.Text = DescribeProfileDescription(ProfileDescriptionTextBox.Text);
+        MainMenuProfileNameTextBox.TextChanged += (_, _) =>
+        {
+            if (_isPopulatingEditor)
+            {
+                return;
+            }
+
+            ProfileNameTextBox.Text = MainMenuProfileNameTextBox.Text;
+            MainMenuProfileErrorText.IsVisible = false;
+        };
+        MainMenuProfileDescriptionTextBox.TextChanged += (_, _) =>
+        {
+            if (_isPopulatingEditor)
+            {
+                return;
+            }
+
+            ProfileDescriptionTextBox.Text = MainMenuProfileDescriptionTextBox.Text;
+        };
 
         foreach (var textBox in new[]
         {
@@ -4144,6 +4892,8 @@ public sealed record ComplianceCheckListItem(ComplianceCheck Check)
 public sealed class ApplicationListItem(ApplicationProfile application) : INotifyPropertyChanged
 {
     private int _queueNumber;
+    private bool _canMoveUp;
+    private bool _canMoveDown;
 
     public ApplicationProfile Application { get; } = application;
 
@@ -4164,10 +4914,33 @@ public sealed class ApplicationListItem(ApplicationProfile application) : INotif
 
     public string DisplayName => Application.DisplayName;
 
+    public bool CanMoveUp
+    {
+        get => _canMoveUp;
+        set => SetField(ref _canMoveUp, value, nameof(CanMoveUp));
+    }
+
+    public bool CanMoveDown
+    {
+        get => _canMoveDown;
+        set => SetField(ref _canMoveDown, value, nameof(CanMoveDown));
+    }
+
     public string Detail => Application.SourceKind == ApplicationSourceKind.PackageRelative
         ? "Из пакета"
         : "Внешняя ручная установка";
     public event PropertyChangedEventHandler? PropertyChanged;
+
+    private void SetField(ref bool field, bool value, string propertyName)
+    {
+        if (field == value)
+        {
+            return;
+        }
+
+        field = value;
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
 }
 
 public sealed record InstructionListItem(InstructionProfile Instruction)
