@@ -12,7 +12,7 @@ public static class FirstLogonBootstrapper
 {
     public const string ScriptPackageRelativePath = ConfigurationSetPayloadLayout.RootRelativePath + "/scripts/Start-EasyallerBootstrap.ps1";
     public const string ScriptWindowsPath = @"C:\ProgramData\Easyaller\scripts\Start-EasyallerBootstrap.ps1";
-    public const string RequiredApplicationPackageRelativePath = ConfigurationSetPayloadLayout.RootRelativePath + "/payload/Easyaller.App.exe";
+    public const string RequiredApplicationPackageRelativePath = ConfigurationSetPayloadLayout.RootRelativePath + "/payload/Easyaller.exe";
     public const string RunOnceValueName = "!EasyallerBootstrapResume";
 
     public static FirstLogonBootstrapPlan? CreatePlan(DeploymentPreparationRequest request)
@@ -52,7 +52,7 @@ if ($manifest.formatVersion -ne 1) {
     throw 'Easyaller payload manifest format is unsupported.'
 }
 
-$applicationRelativePath = 'payload/Easyaller.App.exe'
+$applicationRelativePath = 'payload/Easyaller.exe'
 $applicationEntryFound = $false
 foreach ($entry in @($manifest.files)) {
     $relativePath = [string]$entry.relativePath
@@ -83,6 +83,21 @@ if (-not (Test-Path -LiteralPath $applicationPath -PathType Leaf)) {
 if (-not $applicationEntryFound) {
     throw 'Easyaller application payload is not covered by the manifest.'
 }
+
+# Keep the executable in the verified ProgramData payload and publish one shortcut for every
+# Windows user. This survives removal of the temporary provisioning account after validation.
+$publicDesktop = [Environment]::GetFolderPath('CommonDesktopDirectory')
+if ([string]::IsNullOrWhiteSpace($publicDesktop)) {
+    throw 'Windows public desktop directory is unavailable.'
+}
+
+$shortcutPath = Join-Path $publicDesktop 'Easyaller.lnk'
+$shell = New-Object -ComObject WScript.Shell
+$shortcut = $shell.CreateShortcut($shortcutPath)
+$shortcut.TargetPath = $applicationPath
+$shortcut.WorkingDirectory = Split-Path -Parent $applicationPath
+$shortcut.Description = 'Easyaller — настройка и обслуживание компьютера'
+$shortcut.Save()
 
 $profilePath = Join-Path $payloadRoot 'payload/selected-profile.wpprofile.json'
 if (Test-Path -LiteralPath $profilePath -PathType Leaf) {

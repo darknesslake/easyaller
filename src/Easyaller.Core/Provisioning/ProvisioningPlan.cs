@@ -26,6 +26,25 @@ public enum RuntimePromptKind
     DomainJoin,
 }
 
+/// <summary>
+/// Explicitly selects which saved profile settings may change the current computer.
+/// A profile can describe a full workstation standard, while an operator can safely
+/// apply only one part of it during a particular visit.
+/// </summary>
+[Flags]
+public enum ProvisioningOperationSelection
+{
+    None = 0,
+    TimeZone = 1 << 0,
+    Network = 1 << 1,
+    Proxy = 1 << 2,
+    ComputerName = 1 << 3,
+    Domain = 1 << 4,
+    Privacy = 1 << 5,
+
+    AllWindowsSettings = TimeZone | Network | Proxy | ComputerName | Domain | Privacy,
+}
+
 public sealed record ProvisioningStep(
     ProvisioningStepKind Kind,
     string Id,
@@ -229,6 +248,13 @@ public sealed class RuntimeProvisioningInputs : IDisposable
     /// </summary>
     public bool ApplyTimeZone { get; init; }
 
+    /// <summary>
+    /// The chosen operations for this run. Keeping the default as the historic full
+    /// application preserves callers outside the UI while the UI can opt into a
+    /// deliberately smaller set.
+    /// </summary>
+    public ProvisioningOperationSelection SelectedOperations { get; init; } = ProvisioningOperationSelection.AllWindowsSettings;
+
     public RuntimeDomainCredential? DomainCredential
     {
         get => _domainCredential;
@@ -262,11 +288,20 @@ public sealed class RuntimeProvisioningInputValidator
         ArgumentNullException.ThrowIfNull(inputs);
 
         var errors = new List<RuntimeInputValidationError>();
+        if (inputs.SelectedOperations == ProvisioningOperationSelection.None)
+        {
+            errors.Add(new RuntimeInputValidationError(
+                "runtime.operations.required",
+                "selectedOperations",
+                "Select at least one setting to apply."));
+            return new RuntimeInputValidationResult(errors);
+        }
+
         foreach (var prompt in plan.RuntimePrompts)
         {
             switch (prompt.Kind)
             {
-                case RuntimePromptKind.ComputerName:
+                case RuntimePromptKind.ComputerName when inputs.SelectedOperations.HasFlag(ProvisioningOperationSelection.ComputerName):
                     if (string.IsNullOrWhiteSpace(inputs.ComputerName))
                     {
                         errors.Add(new RuntimeInputValidationError(
@@ -288,21 +323,21 @@ public sealed class RuntimeProvisioningInputValidator
 
                     break;
 
-                case RuntimePromptKind.NetworkConfiguration when prompt.IsRequired && string.IsNullOrWhiteSpace(inputs.NetworkAdapterId):
+                case RuntimePromptKind.NetworkConfiguration when inputs.SelectedOperations.HasFlag(ProvisioningOperationSelection.Network) && prompt.IsRequired && string.IsNullOrWhiteSpace(inputs.NetworkAdapterId):
                     errors.Add(new RuntimeInputValidationError(
                         "runtime.network.adapter.required",
                         "networkAdapterId",
                         "Network adapter selection is required."));
                     break;
 
-                case RuntimePromptKind.ProxyConfiguration when prompt.IsRequired && string.IsNullOrWhiteSpace(inputs.ProxyAddress):
+                case RuntimePromptKind.ProxyConfiguration when inputs.SelectedOperations.HasFlag(ProvisioningOperationSelection.Proxy) && prompt.IsRequired && string.IsNullOrWhiteSpace(inputs.ProxyAddress):
                     errors.Add(new RuntimeInputValidationError(
                         "runtime.proxy.required",
                         "proxyAddress",
                         "Proxy address is required."));
                     break;
 
-                case RuntimePromptKind.DomainJoin:
+                case RuntimePromptKind.DomainJoin when inputs.SelectedOperations.HasFlag(ProvisioningOperationSelection.Domain):
                     ValidateDomainJoin(prompt, inputs, errors);
                     break;
             }

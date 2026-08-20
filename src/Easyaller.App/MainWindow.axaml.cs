@@ -57,7 +57,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     private ProvisioningProfile? _pendingExportProfile;
     private ProvisioningPlan? _plan;
     private DeploymentDryRun? _deploymentDryRun;
-    private const string ComputerNameSitePrefix = "URA01";
+    private string? _deploymentPackageDirectory;
 
     /// <summary>
     /// Windows names the first wired adapter "Ethernet" by default, which covers the common case.
@@ -76,6 +76,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     private readonly ApplicationInstallHistoryStore _applicationInstallHistoryStore = ApplicationInstallHistoryStore.CreateDefault();
     private readonly DesktopShortcutService _desktopShortcutService = new();
     private readonly MaintenanceSettingsStore _maintenanceSettingsStore = MaintenanceSettingsStore.CreateDefault();
+    private string? _legacyShortcutSource;
     private readonly OutlookArchiveService _outlookArchiveService = new();
     private readonly OutlookArchiveHistoryStore _outlookArchiveHistoryStore = OutlookArchiveHistoryStore.CreateDefault();
     private ApplicationInstallPlan? _applicationInstallPlan;
@@ -107,8 +108,8 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     {
         InitializeComponent();
         DataContext = this;
-        _repository = new FileProfileRepository(GetLocalProfileDirectory());
-        MigrateLegacyMachineWideProfiles(_repository.RootDirectory);
+        _repository = new FileProfileRepository(GetProfileDirectory());
+        MigrateLegacyProfiles(_repository.RootDirectory);
         EmbeddedProfileInstaller.InstallIfMissing(_repository);
         _profileImportExportService = new ProfileImportExportService(_repository);
         _profileEditorController = new ProfileEditorController(_repository);
@@ -286,7 +287,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         MaintenanceWorkspace.IsVisible = true;
         RefreshMaintenanceUsers();
         UpdateShortcutPreview();
-        SetStatus("Открыто обслуживание ПК. Эти действия не изменяют и не используют профиль настройки Windows.");
+        SetStatus("Открыто обслуживание ПК. Действия запускаются вручную; папка ярлыков берётся из выбранного профиля.");
     }
 
     private void SetMode(bool prepareInstallMode)
@@ -322,7 +323,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         SettingsNavigationPanel.IsVisible = !prepareInstallMode;
         if (prepareInstallMode)
         {
-            SetActiveTab(_activeTab);
+            SetActiveTab(EditorTab.Action);
         }
         else
         {
@@ -366,8 +367,35 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
     private void InitializeShortcutSource()
     {
-        var savedSource = _maintenanceSettingsStore.LoadShortcutSource();
-        ShortcutSourceTextBox.Text = savedSource ?? string.Empty;
+        _legacyShortcutSource = _maintenanceSettingsStore.LoadShortcutSource();
+        ShortcutSourceTextBox.Text = _legacyShortcutSource ?? string.Empty;
+    }
+
+    private void RefreshLegacyShortcutSourceOffer(ProvisioningProfile? profile)
+    {
+        var hasProfilePath = !string.IsNullOrWhiteSpace(profile?.Maintenance.ShortcutSourceDirectory);
+        var hasUsableLegacyPath = !string.IsNullOrWhiteSpace(_legacyShortcutSource)
+            && Directory.Exists(_legacyShortcutSource);
+        LegacyShortcutSourcePanel.IsVisible = profile is not null && !hasProfilePath && hasUsableLegacyPath;
+        LegacyShortcutSourceText.Text = hasUsableLegacyPath
+            ? _legacyShortcutSource!
+            : string.Empty;
+    }
+
+    private void UseLegacyShortcutSource_Click(object? sender, RoutedEventArgs e)
+    {
+        if (string.IsNullOrWhiteSpace(_legacyShortcutSource) || !Directory.Exists(_legacyShortcutSource))
+        {
+            _legacyShortcutSource = null;
+            RefreshLegacyShortcutSourceOffer(_selectedProfile?.Profile);
+            return;
+        }
+
+        ShortcutSourceTextBox.Text = _legacyShortcutSource;
+        EditorValueChanged();
+        UpdateShortcutPreview();
+        RefreshLegacyShortcutSourceOffer(_selectedProfile?.Profile);
+        SetStatus("Папка ярлыков добавлена в изменения профиля. Сохраните профиль, чтобы перенести её.");
     }
 
     private static string GetUsersRoot()
@@ -436,7 +464,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         ShortcutSourceTextBox.Text = folders[0].Path.LocalPath;
-        _maintenanceSettingsStore.SaveShortcutSource(folders[0].Path.LocalPath);
+        EditorValueChanged();
         UpdateShortcutPreview();
     }
 
@@ -461,7 +489,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             {
                 ShortcutSourceTextBox.Text = string.Empty;
             }
-            _maintenanceSettingsStore.Clear();
+            EditorValueChanged();
             ShortcutPreviewText.Text = "Выберите существующую папку «Ярлыки».";
         }
         else if (_shortcutPreview.Count == 0)
@@ -960,7 +988,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         ProfileSummaryText.Text = section switch
         {
             SettingsSection.Windows => "Параметры Windows. Сохранение изменяет профиль; кнопки внутри применяют только указанную группу.",
-            SettingsSection.Network => "Имя компьютера, IPv4 и прокси. У каждой группы своя независимая кнопка применения.",
+            SettingsSection.Network => "Имя устройства, IPv4 и прокси. У каждой группы своя независимая кнопка применения.",
             SettingsSection.Domain => "Параметры домена. Пароль используется только при присоединении и не сохраняется.",
             _ => string.Empty,
         };
@@ -968,7 +996,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         SetStatus(section switch
         {
             SettingsSection.Windows => "Открыт раздел Windows. Сохранение меняет профиль; синие кнопки применяют только подписанную группу к этому ПК.",
-            SettingsSection.Network => "Открыт раздел сети. Имя компьютера, IPv4 и прокси применяются независимыми кнопками.",
+            SettingsSection.Network => "Открыт раздел сети. Имя устройства, IPv4 и прокси применяются независимыми кнопками.",
             SettingsSection.Domain => "Открыт раздел домена. Пароль используется только при присоединении и не сохраняется.",
             SettingsSection.Apply => "Открыто применение настроек Windows. Установка программ и проверка не запускаются.",
             SettingsSection.Verify => "Открыта проверка результата. Она только читает состояние компьютера.",
@@ -1001,7 +1029,9 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        TabSwitcherPanel.IsVisible = true;
+        // USB preparation always consumes the profile selected on the start screen. Editing that
+        // profile here creates a second, confusing workflow, so this mode has no local tabs.
+        TabSwitcherPanel.IsVisible = false;
         UnifiedProfileHeader.IsVisible = false;
         UnifiedApplyHeader.IsVisible = false;
         UnifiedVerifyHeader.IsVisible = false;
@@ -1037,8 +1067,16 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
-    private void OpenUsbCreator_Click(object? sender, RoutedEventArgs e) =>
-        new UsbCreatorWindow(new UsbCreationController(), _selectedIsoPath).Show(this);
+    private void OpenUsbCreator_Click(object? sender, RoutedEventArgs e)
+    {
+        if (string.IsNullOrWhiteSpace(_selectedIsoPath) || string.IsNullOrWhiteSpace(_deploymentPackageDirectory))
+        {
+            SetStatus("Сначала выберите ISO и сохраните пакет Easyaller в папку.");
+            return;
+        }
+
+        new UsbCreatorWindow(new UsbCreationController(), _selectedIsoPath, _deploymentPackageDirectory).Show(this);
+    }
 
     /// <summary>
     /// Right-click actions on a list row may target a profile other than the one open in the
@@ -1112,6 +1150,15 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         SetHasUnsavedChanges(false);
+        if (!string.IsNullOrWhiteSpace(_legacyShortcutSource)
+            && string.Equals(
+                result.Profile!.Maintenance.ShortcutSourceDirectory,
+                _legacyShortcutSource,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            _maintenanceSettingsStore.Clear();
+            _legacyShortcutSource = null;
+        }
         RefreshProfiles(result.Profile!.ProfileId);
         SetStatus("Изменения профиля сохранены.");
     }
@@ -1138,37 +1185,6 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         {
             ApplyTimeZoneToCurrentPcButton.IsEnabled = true;
         }
-    }
-
-    private async void ApplyComputerNameToCurrentPc_Click(object? sender, RoutedEventArgs e)
-    {
-        var number = ComputerNameNumberTextBox.Text?.Trim() ?? string.Empty;
-        var computerName = GetComputerNamePrefix() + number;
-        if (number.Length is < 2 or > 3 || !number.All(char.IsAsciiDigit) || computerName.Length > 15)
-        {
-            SetStatus("Введите 2 или 3 цифры; итоговое имя не должно превышать 15 символов.");
-            return;
-        }
-
-        if (!await ConfirmActionWindow.AskAsync(
-            this,
-            "Переименовать этот компьютер?",
-            $"Текущее имя «{Environment.MachineName}» будет заменено на «{computerName}».",
-            "Потребуется перезагрузка Windows. Если компьютер состоит в домене, переименование может нарушить доверительные отношения.",
-            "Переименовать"))
-        {
-            SetStatus("Переименование отменено. Компьютер не изменён.");
-            return;
-        }
-
-        ApplyComputerNameToCurrentPcButton.IsEnabled = false;
-        try
-        {
-            var result = await Task.Run(() => new WindowsProvisioningSystemAdapter().RenameComputer(computerName));
-            SetStatus(result.IsSuccess ? $"Имя компьютера изменено на {computerName}. Перезагрузите Windows для завершения." : "Не удалось изменить имя компьютера: " + (result.ErrorCode ?? "неизвестная ошибка") + ".");
-            WriteJournalEntry("Быстрое действие: имя компьютера", result.IsSuccess ? "Применено" : "Ошибка", [computerName]);
-        }
-        finally { ApplyComputerNameToCurrentPcButton.IsEnabled = true; }
     }
 
     private async void ApplyProxyToCurrentPc_Click(object? sender, RoutedEventArgs e)
@@ -1446,25 +1462,6 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             : "Активный адаптер с IPv4-адресом не найден, брать нечего.");
     }
 
-    private async void TakeComputerNameFromCurrentPc_Click(object? sender, RoutedEventArgs e)
-    {
-        if (await ReadCurrentMachineAsync() is not { } snapshot)
-        {
-            return;
-        }
-
-        if (!TakeComputerNameFromSnapshot(snapshot))
-        {
-            SetStatus("Имя этого компьютера прочитать не удалось.");
-            return;
-        }
-
-        var name = snapshot.ComputerName.Trim();
-        SetStatus(name.StartsWith(ComputerNameSitePrefix, StringComparison.OrdinalIgnoreCase)
-            ? $"Имя взято с этого ПК: {name}. Проверьте шаблон и сохраните профиль."
-            : $"Имя взято с этого ПК: {name}. Оно не начинается с {ComputerNameSitePrefix}, поэтому записано как свой вариант.");
-    }
-
     private async void TakeDomainFromCurrentPc_Click(object? sender, RoutedEventArgs e)
     {
         if (await ReadCurrentMachineAsync() is not { } snapshot)
@@ -1497,7 +1494,6 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         var taken = new List<string>();
-        if (TakeComputerNameFromSnapshot(snapshot)) taken.Add("имя компьютера");
         if (TakeNetworkFromSnapshot(snapshot)) taken.Add("сеть");
         if (TakeDomainFromSnapshot(snapshot)) taken.Add("домен");
         if (TakeProxyFromSnapshot(snapshot)) taken.Add("прокси");
@@ -1525,17 +1521,6 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             _dnsServers.Add(dnsServer);
         }
 
-        return true;
-    }
-
-    private bool TakeComputerNameFromSnapshot(CurrentMachineSnapshot snapshot)
-    {
-        if (string.IsNullOrWhiteSpace(snapshot.ComputerName))
-        {
-            return false;
-        }
-
-        SetComputerNameTemplateFromFullName(snapshot.ComputerName.Trim());
         return true;
     }
 
@@ -1568,19 +1553,6 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         return true;
     }
 
-    /// <summary>Splits a full Windows computer name into the profile's template prefix and its trailing number.</summary>
-    private void SetComputerNameTemplateFromFullName(string computerName)
-    {
-        var prefixLength = computerName.Length;
-        while (prefixLength > 0 && char.IsAsciiDigit(computerName[prefixLength - 1]))
-        {
-            prefixLength--;
-        }
-
-        PopulateComputerNameTemplate(computerName[..prefixLength]);
-        ComputerNameNumberTextBox.Text = computerName[prefixLength..];
-    }
-
     private async void FillRuntimeFromCurrentPc_Click(object? sender, RoutedEventArgs e)
     {
         if (await ReadCurrentMachineAsync() is not { } snapshot)
@@ -1588,11 +1560,9 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        RuntimeComputerNameTextBox.Text = snapshot.ComputerName;
         RuntimeNetworkAdapterTextBox.Text = snapshot.AdapterId;
         RuntimeProxyAddressTextBox.Text = snapshot.ProxyAddress;
-        RuntimeDomainNameTextBox.Text = snapshot.Domain;
-        SetStatus("Поля заполнены текущими значениями этого ПК. Пароль домена нужно ввести вручную.");
+        SetStatus("Сеть и прокси заполнены текущими значениями этого ПК. Имя устройства введите вручную; домен берётся из профиля, пароль будет запрошен перед применением.");
     }
 
     private void FillRuntimeFromProfile_Click(object? sender, RoutedEventArgs e)
@@ -1606,45 +1576,25 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         var profile = _selectedProfile.Profile;
         RuntimeNetworkAdapterTextBox.Text = DefaultIfBlank(profile.Machine.Network.StaticIpv4?.AdapterId, DefaultNetworkAdapterName);
         RuntimeProxyAddressTextBox.Text = profile.Machine.Proxy.Address ?? string.Empty;
-        RuntimeDomainNameTextBox.Text = profile.Domain.DomainName ?? string.Empty;
-        RuntimeDomainUserNameTextBox.Text = profile.Domain.UserName ?? string.Empty;
-
-        // The profile keeps only the name prefix, so the operator still adds this machine's number.
-        var prefix = profile.Machine.ComputerName.Prefix;
-        if (!string.IsNullOrWhiteSpace(prefix))
-        {
-            RuntimeComputerNameTextBox.Text = prefix;
-        }
-
-        SetStatus(string.IsNullOrWhiteSpace(prefix)
-            ? "Поля заполнены значениями профиля. Имя компьютера и пароль домена вводятся вручную."
-            : $"Поля заполнены значениями профиля. К имени «{prefix}» допишите 2–3 цифры этой машины. Пароль домена вводится вручную.");
+        SetStatus("Поля профиля заполнены. Имя устройства вводится вручную для текущего ПК; пароль домена будет запрошен только при присоединении.");
     }
 
     private async void ApplyDomainToCurrentPc_Click(object? sender, RoutedEventArgs e)
     {
         var domainName = DomainNameTextBox.Text?.Trim();
         var userName = DomainUserNameTextBox.Text?.Trim();
-        var password = DomainPasswordTextBox.Text;
-        if (string.IsNullOrWhiteSpace(domainName) || string.IsNullOrWhiteSpace(userName) || string.IsNullOrWhiteSpace(password))
+        if (string.IsNullOrWhiteSpace(domainName) || string.IsNullOrWhiteSpace(userName))
         {
-            SetStatus("Для домена укажите имя домена, учётную запись и пароль.");
+            SetStatus("Для домена укажите имя домена и учётную запись в профиле.");
             return;
         }
 
-        if (!await ConfirmActionWindow.AskAsync(
-            this,
-            "Присоединить этот компьютер к домену?",
-            $"Компьютер «{Environment.MachineName}» будет присоединён к домену «{domainName}» под учётной записью «{userName}».",
-            "Членство в домене меняет вход, политики и права на этой машине. Для завершения потребуется перезагрузка. Пароль используется только для этой операции и не сохраняется.",
-            "Присоединить"))
+        using var credential = await DomainPasswordWindow.AskAsync(this, domainName, userName);
+        if (credential is null)
         {
             SetStatus("Присоединение к домену отменено. Компьютер не изменён.");
             return;
         }
-
-        using var credential = new RuntimeDomainCredential(userName, password.AsSpan());
-        DomainPasswordTextBox.Text = string.Empty;
         ApplyDomainToCurrentPcButton.IsEnabled = false;
         try
         {
@@ -1653,27 +1603,6 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             WriteJournalEntry("Быстрое действие: домен", result.IsSuccess ? "Применено" : "Ошибка", [domainName]);
         }
         finally { RefreshEditorFeedback(); }
-    }
-
-    /// <summary>
-    /// Shows the exact name the quick action would set, so the template and the typed number
-    /// are checked before Windows is renamed rather than after.
-    /// </summary>
-    private void UpdateComputerNamePreview()
-    {
-        var number = ComputerNameNumberTextBox.Text?.Trim() ?? string.Empty;
-        if (number.Length == 0)
-        {
-            ComputerNamePreviewText.Text = "«Применить» переименовывает этот компьютер прямо сейчас и требует перезагрузку.";
-            return;
-        }
-
-        var computerName = GetComputerNamePrefix() + number;
-        ComputerNamePreviewText.Text = number.Length is < 2 or > 3 || !number.All(char.IsAsciiDigit)
-            ? "Номер должен состоять из 2 или 3 цифр."
-            : computerName.Length > 15
-                ? $"«{computerName}» — {computerName.Length} символов, Windows допускает не более 15."
-                : $"Итоговое имя: {computerName}. Переименование требует перезагрузки.";
     }
 
     private static string DefaultIfBlank(string? value, string fallback) =>
@@ -2852,19 +2781,93 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     /// </summary>
     private void UpdateRuntimeFieldRequirementTags()
     {
-        var hasProxyPrompt = _plan?.RuntimePrompts.Any(static prompt => prompt.Kind == RuntimePromptKind.ProxyConfiguration) == true;
-        ProxyRuntimeTag.IsVisible = hasProxyPrompt;
+        var selected = GetSelectedApplyOperations();
+        ProxyRuntimeTag.IsVisible = selected.HasFlag(ProvisioningOperationSelection.Proxy);
+        RuntimeComputerNamePanel.IsVisible = selected.HasFlag(ProvisioningOperationSelection.ComputerName);
+        RuntimeNetworkAdapterPanel.IsVisible = selected.HasFlag(ProvisioningOperationSelection.Network);
+        RuntimeProxyPanel.IsVisible = selected.HasFlag(ProvisioningOperationSelection.Proxy);
+        RuntimeDomainPanel.IsVisible = selected.HasFlag(ProvisioningOperationSelection.Domain);
 
-        var domainPrompt = _plan?.RuntimePrompts.FirstOrDefault(static prompt => prompt.Kind == RuntimePromptKind.DomainJoin);
-        DomainRuntimeTag.IsVisible = domainPrompt is not null;
-        if (domainPrompt is not null)
+        if (RuntimeDomainPanel.IsVisible && _selectedProfile is { } selectedProfile)
         {
-            DomainRuntimeTag.Classes.Set("requiredTag", domainPrompt.IsRequired);
-            DomainRuntimeTag.Classes.Set("tag", !domainPrompt.IsRequired);
-            DomainRuntimeTagText.Classes.Set("requiredTagText", domainPrompt.IsRequired);
-            DomainRuntimeTagText.Classes.Set("tagText", !domainPrompt.IsRequired);
-            DomainRuntimeTagText.Text = domainPrompt.IsRequired ? "Обязательно" : "Можно пропустить";
+            var domain = selectedProfile.Profile.Domain;
+            RuntimeDomainSummaryText.Text = string.IsNullOrWhiteSpace(domain.DomainName) || string.IsNullOrWhiteSpace(domain.UserName)
+                ? "В профиле не указаны домен или доменная учётная запись. Сначала заполните раздел «Домен»."
+                : $"Домен: {domain.DomainName}; учётная запись: {domain.UserName}.";
         }
+    }
+
+    private void PopulateApplyOperationSelection(ProvisioningProfile profile)
+    {
+        var hasNetwork = _plan?.RuntimePrompts.Any(static prompt => prompt.Kind == RuntimePromptKind.NetworkConfiguration) == true;
+        var hasProxy = _plan?.RuntimePrompts.Any(static prompt => prompt.Kind == RuntimePromptKind.ProxyConfiguration) == true;
+        var hasDomain = profile.Domain.Mode != DomainMode.NotConfigured;
+
+        ApplyTimeZoneCheckBox.IsEnabled = !string.IsNullOrWhiteSpace(_plan?.TimeZone);
+        ApplyTimeZoneCheckBox.IsChecked = ApplyTimeZoneCheckBox.IsEnabled;
+        ApplyPrivacyCheckBox.IsEnabled = HasPrivacyIntent(profile.Windows.Privacy);
+        ApplyPrivacyCheckBox.IsChecked = ApplyPrivacyCheckBox.IsEnabled;
+        ApplyComputerNameCheckBox.IsEnabled = true;
+        ApplyComputerNameCheckBox.IsChecked = true;
+        ApplyNetworkCheckBox.IsEnabled = hasNetwork;
+        ApplyNetworkCheckBox.IsChecked = hasNetwork;
+        ApplyProxyCheckBox.IsEnabled = hasProxy;
+        ApplyProxyCheckBox.IsChecked = hasProxy;
+        ApplyDomainCheckBox.IsEnabled = hasDomain;
+        ApplyDomainCheckBox.IsChecked = hasDomain && profile.Domain.Mode == DomainMode.Required;
+        UpdateRuntimeFieldRequirementTags();
+    }
+
+    private void ApplyOperationSelectionChanged(object? sender, RoutedEventArgs e)
+    {
+        if (_isPopulatingEditor)
+        {
+            return;
+        }
+
+        UpdateRuntimeFieldRequirementTags();
+        UpdateApplyPlanSummary();
+    }
+
+    private void SelectAllApplyOperations_Click(object? sender, RoutedEventArgs e)
+    {
+        foreach (var checkBox in GetApplyOperationCheckBoxes())
+        {
+            if (checkBox.IsEnabled)
+            {
+                checkBox.IsChecked = true;
+            }
+        }
+    }
+
+    private void ClearApplyOperations_Click(object? sender, RoutedEventArgs e)
+    {
+        foreach (var checkBox in GetApplyOperationCheckBoxes())
+        {
+            checkBox.IsChecked = false;
+        }
+    }
+
+    private IEnumerable<CheckBox> GetApplyOperationCheckBoxes() =>
+    [
+        ApplyTimeZoneCheckBox,
+        ApplyPrivacyCheckBox,
+        ApplyComputerNameCheckBox,
+        ApplyNetworkCheckBox,
+        ApplyProxyCheckBox,
+        ApplyDomainCheckBox,
+    ];
+
+    private ProvisioningOperationSelection GetSelectedApplyOperations()
+    {
+        var selection = ProvisioningOperationSelection.None;
+        if (ApplyTimeZoneCheckBox.IsChecked == true) selection |= ProvisioningOperationSelection.TimeZone;
+        if (ApplyPrivacyCheckBox.IsChecked == true) selection |= ProvisioningOperationSelection.Privacy;
+        if (ApplyComputerNameCheckBox.IsChecked == true) selection |= ProvisioningOperationSelection.ComputerName;
+        if (ApplyNetworkCheckBox.IsChecked == true) selection |= ProvisioningOperationSelection.Network;
+        if (ApplyProxyCheckBox.IsChecked == true) selection |= ProvisioningOperationSelection.Proxy;
+        if (ApplyDomainCheckBox.IsChecked == true) selection |= ProvisioningOperationSelection.Domain;
+        return selection;
     }
 
     private void RefreshApplyTab()
@@ -2881,7 +2884,8 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        var result = _planBuilder.Create(_selectedProfile.Profile);
+        var profile = WithoutDeviceNameTemplate(_selectedProfile.Profile);
+        var result = _planBuilder.Create(profile);
         if (!result.IsValid)
         {
             _plan = null;
@@ -2893,25 +2897,18 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
         _plan = result.Plan;
 
-        // Runtime fields that are already part of the saved profile must be ready to use
-        // immediately. Only machine-specific suffixes and secrets still require input.
-        var profile = _selectedProfile.Profile;
+        // Runtime fields that are part of the saved profile are ready to use immediately.
+        // The device name is always entered manually for the current PC.
         RuntimeNetworkAdapterTextBox.Text = DefaultIfBlank(
             profile.Machine.Network.StaticIpv4?.AdapterId,
             DefaultNetworkAdapterName);
         RuntimeProxyAddressTextBox.Text = profile.Machine.Proxy.Address ?? string.Empty;
-        RuntimeDomainNameTextBox.Text = profile.Domain.DomainName ?? string.Empty;
-        RuntimeDomainUserNameTextBox.Text = profile.Domain.UserName ?? string.Empty;
-        RuntimeComputerNameTextBox.Text = profile.Machine.ComputerName.Prefix ?? string.Empty;
-
-        // The runtime field must show the profile's own naming rule, not an unrelated example.
-        var namePrefix = _selectedProfile.Profile.Machine.ComputerName.Prefix;
-        RuntimeComputerNameTextBox.PlaceholderText = string.IsNullOrWhiteSpace(namePrefix)
-            ? "Имя компьютера"
-            : $"{namePrefix} + 2–3 цифры, например {namePrefix}01";
+        RuntimeComputerNameTextBox.Text = string.Empty;
+        RuntimeComputerNameTextBox.PlaceholderText = "Например URA01NOMAD69";
 
         TimeZoneActionText.Text = $"Часовой пояс профиля: {result.Plan!.TimeZone}. Он будет применён вместе с остальными настройками профиля.";
         PlanSummaryText.Text = $"Запланировано шагов: {_plan!.Steps.Count}. Запросов при настройке: {_plan.RuntimePrompts.Count}.";
+        PopulateApplyOperationSelection(profile);
         UpdateRuntimeFieldRequirementTags();
 
         var instructions = _selectedProfile.Profile.Instructions
@@ -2982,20 +2979,15 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             .Where(static image => string.Equals(image.Architecture, "amd64", StringComparison.OrdinalIgnoreCase))
             .ToArray();
 
-        // Prefer an edition the selected profile actually allows, so the ISO and the profile do not
-        // disagree only later, during the compatibility check.
-        var allowedEditions = _selectedProfile?.Profile.Windows.SupportedEditions ?? [];
-        var currentEditionTag = (DeploymentEditionComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString();
-        var selectedImage = amd64Images.FirstOrDefault(image => IsAllowedEdition(image.EditionId, allowedEditions)
-                && string.Equals(image.EditionId, currentEditionTag, StringComparison.OrdinalIgnoreCase))
-            ?? amd64Images.FirstOrDefault(image => IsAllowedEdition(image.EditionId, allowedEditions))
-            ?? amd64Images.FirstOrDefault(image => string.Equals(image.EditionId, currentEditionTag, StringComparison.OrdinalIgnoreCase))
-            ?? amd64Images.FirstOrDefault(static image => string.Equals(image.EditionId, "Enterprise", StringComparison.OrdinalIgnoreCase))
-            ?? amd64Images.FirstOrDefault(static image => string.Equals(image.EditionId, "Professional", StringComparison.OrdinalIgnoreCase));
+        // The supported deployment scenario is intentionally narrow: Windows 11 Pro x64.
+        // Version and build remain diagnostics from the ISO rather than controls the operator
+        // can accidentally set to values that do not match the source image.
+        var selectedImage = amd64Images.FirstOrDefault(static image =>
+            string.Equals(image.EditionId, "Professional", StringComparison.OrdinalIgnoreCase));
 
         if (selectedImage is null)
         {
-            TargetIsoStatusText.Text = "В ISO не найдена поддерживаемая редакция Windows 11 Pro или Enterprise amd64. Редакция, версия и сборка ниже не изменены.";
+            TargetIsoStatusText.Text = "В ISO не найдена Windows 11 Pro x64. Выберите другой образ Windows 11 Pro.";
             return;
         }
 
@@ -3005,14 +2997,6 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         var summary = editionCount > 1
             ? $"В ISO несколько редакций amd64, выбрана {selectedImage.EditionId}."
             : $"Из ISO: {selectedImage.EditionId} amd64.";
-
-        if (allowedEditions.Count > 0 && !IsAllowedEdition(selectedImage.EditionId, allowedEditions))
-        {
-            var allowedNames = string.Join(" или ", allowedEditions.Select(static edition =>
-                edition == WindowsEdition.Professional ? "Pro" : "Enterprise"));
-            summary += $" Профиль разрешает только {allowedNames}, поэтому проверка совместимости остановит сборку пакета —"
-                + " отметьте нужную редакцию в разделе «Windows и первый запуск» или возьмите другой ISO.";
-        }
 
         var buildNumber = ParseBuildNumber(selectedImage.Version);
         if (buildNumber is null)
@@ -3102,6 +3086,12 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
+        if (!TryGetSelfContainedEasyallerExecutable(out var applicationExecutablePath))
+        {
+            SetStatus("Для New USB нужен опубликованный self-contained Easyaller.exe. Запустите релизную сборку, а не dotnet run.");
+            return;
+        }
+
         if (!StorageProvider.CanOpen)
         {
             SetStatus("Выбор папки недоступен на этой платформе.");
@@ -3121,15 +3111,34 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         var destination = Path.Combine(folder.Path.LocalPath, ToPackageDirectoryName(_selectedProfile.Name));
-        var result = await _deploymentController.ExportAsync(_deploymentDryRun, destination);
+        var result = await _deploymentController.ExportWithEasyallerAsync(
+            _deploymentDryRun,
+            destination,
+            applicationExecutablePath);
         if (!result.IsSuccess)
         {
             SetStatus("Не удалось экспортировать пакет: " + GetMessage(result.Errors));
             return;
         }
 
+        _deploymentPackageDirectory = result.DestinationDirectory;
+        OpenUsbCreatorButton.IsEnabled = !string.IsNullOrWhiteSpace(_selectedIsoPath);
         DeploymentPreviewTextBox.Text += $"\n\nПакет экспортирован: {result.DestinationDirectory}\nПроверено файлов: {result.Manifest!.Files.Count}.";
         SetStatus("Файловый пакет экспортирован. Перед использованием проверьте manifest и Windows SIM.");
+    }
+
+    private static bool TryGetSelfContainedEasyallerExecutable(out string executablePath)
+    {
+        executablePath = Environment.ProcessPath ?? string.Empty;
+        if (!File.Exists(executablePath) ||
+            !string.Equals(Path.GetFileName(executablePath), "Easyaller.exe", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        // A framework-dependent apphost is only a few hundred KB and will not run on a fresh
+        // Windows installation. Published single-file releases are substantially larger.
+        return new FileInfo(executablePath).Length >= 10 * 1024 * 1024;
     }
 
     private void ValidateRuntimeInputs_Click(object? sender, RoutedEventArgs e)
@@ -3148,9 +3157,12 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         using (inputs)
         {
             var validation = _inputValidator.Validate(_plan, inputs);
-            SetStatus(validation.IsValid
+            var visibleErrors = validation.Errors
+                .Where(static error => error.Code != "runtime.domain.credential.required")
+                .ToArray();
+            SetStatus(visibleErrors.Length == 0
                 ? "Введённые значения корректны. Ничего не изменено. Можно нажать «Применить настройки»."
-                : GetRuntimeMessage(validation.Errors[0].Code, validation.Errors[0].Message));
+                : GetRuntimeMessage(visibleErrors[0].Code, visibleErrors[0].Message));
         }
     }
 
@@ -3198,8 +3210,25 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        if (!TryCreateRuntimeInputs(out var inputs))
+        RuntimeDomainCredential? domainCredential = null;
+        if (GetSelectedApplyOperations().HasFlag(ProvisioningOperationSelection.Domain))
         {
+            if (!TryGetSelectedProfileDomain(out var domainName, out var domainUserName))
+            {
+                return;
+            }
+
+            domainCredential = await DomainPasswordWindow.AskAsync(this, domainName, domainUserName);
+            if (domainCredential is null)
+            {
+                SetStatus("Присоединение к домену отменено. Настройки не применялись.");
+                return;
+            }
+        }
+
+        if (!TryCreateRuntimeInputs(out var inputs, domainCredential))
+        {
+            domainCredential?.Dispose();
             return;
         }
 
@@ -3213,7 +3242,9 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
                 var report = new StringBuilder();
                 var result = await Task.Run(() => _executionService.Execute(plan, inputs, confirmation));
                 report.AppendLine(DescribeOperations(result.Operations));
-                if (result.IsSuccess && eligibility.Runtime is { } runtime)
+                if (result.IsSuccess &&
+                    inputs.SelectedOperations.HasFlag(ProvisioningOperationSelection.Privacy) &&
+                    eligibility.Runtime is { } runtime)
                 {
                     report.AppendLine(await ApplyPrivacyPoliciesAsync(_selectedProfile!.Profile, runtime));
                 }
@@ -3235,7 +3266,6 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         finally
         {
             ApplyRuntimeInputsButton.IsEnabled = true;
-            RuntimeDomainPasswordTextBox.Text = string.Empty;
         }
     }
 
@@ -3708,35 +3738,45 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         var operations = new List<string>();
-        if (!string.IsNullOrWhiteSpace(_plan.TimeZone))
+        var selected = GetSelectedApplyOperations();
+        if (selected.HasFlag(ProvisioningOperationSelection.TimeZone) && !string.IsNullOrWhiteSpace(_plan.TimeZone))
         {
             operations.Add("часовой пояс Windows");
         }
 
-        if (_plan.RuntimePrompts.Any(static prompt => prompt.Kind == RuntimePromptKind.NetworkConfiguration))
+        if (selected.HasFlag(ProvisioningOperationSelection.Network) && _plan.RuntimePrompts.Any(static prompt => prompt.Kind == RuntimePromptKind.NetworkConfiguration))
         {
             operations.Add("проверка выбранного сетевого адаптера");
         }
 
-        if (_plan.StaticIpv4 is not null)
+        if (selected.HasFlag(ProvisioningOperationSelection.Network) && _plan.StaticIpv4 is not null)
         {
             operations.Add("статический IPv4 из профиля");
         }
 
-        if (_plan.RuntimePrompts.Any(static prompt => prompt.Kind == RuntimePromptKind.ProxyConfiguration))
+        if (selected.HasFlag(ProvisioningOperationSelection.Proxy) && _plan.RuntimePrompts.Any(static prompt => prompt.Kind == RuntimePromptKind.ProxyConfiguration))
         {
             operations.Add("WinHTTP-прокси");
         }
 
-        operations.Add("переименование компьютера, если текущее имя отличается");
-        operations.Add("присоединение к домену, если заполнено имя домена");
+        if (selected.HasFlag(ProvisioningOperationSelection.ComputerName))
+        {
+            operations.Add("переименование компьютера, если текущее имя отличается");
+        }
 
-        if (_selectedProfile is not null && HasPrivacyIntent(_selectedProfile.Profile.Windows.Privacy))
+        if (selected.HasFlag(ProvisioningOperationSelection.Domain))
+        {
+            operations.Add("присоединение к домену из профиля");
+        }
+
+        if (selected.HasFlag(ProvisioningOperationSelection.Privacy) && _selectedProfile is not null && HasPrivacyIntent(_selectedProfile.Profile.Windows.Privacy))
         {
             operations.Add("параметры конфиденциальности из профиля");
         }
 
-        ApplyPlanStepsText.Text = string.Join("\n", operations.Select(static operation => "• " + operation));
+        ApplyPlanStepsText.Text = operations.Count == 0
+            ? "Не выбрано ни одной настройки."
+            : string.Join("\n", operations.Select(static operation => "• " + operation));
         ApplyNotAutomatedText.Text = _plan.Steps.Any(static step => step.Kind == ProvisioningStepKind.InstallApplication)
             ? "Приложения из профиля пока не устанавливаются автоматически — их нужно установить вручную. Инструкции показаны ниже."
             : string.Empty;
@@ -3764,24 +3804,28 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         ProvisioningExecutionOperationKind.VerifyNetworkAdapter => "сетевой адаптер",
         ProvisioningExecutionOperationKind.ConfigureStaticIpv4 => "статический IPv4",
         ProvisioningExecutionOperationKind.SetWinHttpProxy => "WinHTTP-прокси",
-        ProvisioningExecutionOperationKind.RenameComputer => "имя компьютера",
+        ProvisioningExecutionOperationKind.RenameComputer => "имя устройства",
         ProvisioningExecutionOperationKind.JoinDomain => "присоединение к домену",
         _ => "операция",
     };
 
-    private bool TryCreateRuntimeInputs(out RuntimeProvisioningInputs inputs)
+    private bool TryCreateRuntimeInputs(out RuntimeProvisioningInputs inputs, RuntimeDomainCredential? domainCredential = null)
     {
-        RuntimeDomainCredential? credential = null;
-        if (!string.IsNullOrWhiteSpace(RuntimeDomainUserNameTextBox.Text) || !string.IsNullOrWhiteSpace(RuntimeDomainPasswordTextBox.Text))
+        if (_selectedProfile is null)
         {
-            if (string.IsNullOrWhiteSpace(RuntimeDomainUserNameTextBox.Text) || string.IsNullOrWhiteSpace(RuntimeDomainPasswordTextBox.Text))
-            {
-                SetStatus("Введите имя и пароль доменного пользователя либо оставьте оба поля пустыми.");
-                inputs = null!;
-                return false;
-            }
+            inputs = null!;
+            SetStatus("Сначала выберите профиль.");
+            return false;
+        }
 
-            credential = new RuntimeDomainCredential(RuntimeDomainUserNameTextBox.Text.Trim(), RuntimeDomainPasswordTextBox.Text.AsSpan());
+        var selected = GetSelectedApplyOperations();
+        var domain = _selectedProfile.Profile.Domain;
+        if (selected.HasFlag(ProvisioningOperationSelection.Domain) &&
+            (string.IsNullOrWhiteSpace(domain.DomainName) || string.IsNullOrWhiteSpace(domain.UserName)))
+        {
+            inputs = null!;
+            SetStatus("Для присоединения заполните домен и доменную учётную запись в разделе «Домен» профиля.");
+            return false;
         }
 
         inputs = new RuntimeProvisioningInputs
@@ -3789,12 +3833,35 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             ComputerName = RuntimeComputerNameTextBox.Text?.Trim(),
             NetworkAdapterId = RuntimeNetworkAdapterTextBox.Text?.Trim(),
             ProxyAddress = RuntimeProxyAddressTextBox.Text?.Trim(),
-            DomainName = RuntimeDomainNameTextBox.Text?.Trim(),
-            DomainCredential = credential,
-            ApplyTimeZone = true,
+            DomainName = selected.HasFlag(ProvisioningOperationSelection.Domain) ? domain.DomainName?.Trim() : null,
+            DomainCredential = domainCredential,
+            ApplyTimeZone = selected.HasFlag(ProvisioningOperationSelection.TimeZone),
+            SelectedOperations = selected,
         };
         return true;
     }
+
+    private bool TryGetSelectedProfileDomain(out string domainName, out string domainUserName)
+    {
+        domainName = _selectedProfile?.Profile.Domain.DomainName?.Trim() ?? string.Empty;
+        domainUserName = _selectedProfile?.Profile.Domain.UserName?.Trim() ?? string.Empty;
+        if (!string.IsNullOrWhiteSpace(domainName) && !string.IsNullOrWhiteSpace(domainUserName))
+        {
+            return true;
+        }
+
+        SetStatus("Для присоединения заполните домен и доменную учётную запись в разделе «Домен» профиля.");
+        return false;
+    }
+
+    private static ProvisioningProfile WithoutDeviceNameTemplate(ProvisioningProfile profile) =>
+        profile with
+        {
+            Machine = profile.Machine with
+            {
+                ComputerName = profile.Machine.ComputerName with { Prefix = null },
+            },
+        };
 
     private bool TryGetDeploymentContext(out ProvisioningProfile profile, out WindowsDeploymentTarget target)
     {
@@ -3806,10 +3873,9 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             return false;
         }
 
-        profile = _selectedProfile.Profile;
+        profile = WithoutDeviceNameTemplate(_selectedProfile.Profile);
         var version = (DeploymentVersionComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString();
-        if (!Enum.TryParse<WindowsEdition>((DeploymentEditionComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString(), out var edition) ||
-            string.IsNullOrWhiteSpace(version) ||
+        if (string.IsNullOrWhiteSpace(version) ||
             !int.TryParse(DeploymentBuildTextBox.Text, out var build) || build < 1)
         {
             target = null!;
@@ -3817,16 +3883,22 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             return false;
         }
 
-        target = new WindowsDeploymentTarget(edition, WindowsArchitecture.Amd64, version, build);
+        target = new WindowsDeploymentTarget(WindowsEdition.Professional, WindowsArchitecture.Amd64, version, build);
         return true;
     }
 
     private void ClearDeploymentDryRun()
     {
         _deploymentDryRun = null;
+        _deploymentPackageDirectory = null;
         if (ExportDeploymentButton is not null)
         {
             ExportDeploymentButton.IsEnabled = false;
+        }
+
+        if (OpenUsbCreatorButton is not null)
+        {
+            OpenUsbCreatorButton.IsEnabled = false;
         }
     }
 
@@ -3901,9 +3973,9 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     /// </summary>
     private static string GetRuntimeMessage(string code, string fallback) => code switch
     {
-        "runtime.computerName.required" => "Укажите имя компьютера.",
-        "runtime.computerName.invalid" => "Имя компьютера: от 1 до 15 латинских букв, цифр или дефисов.",
-        "runtime.computerName.prefix.mismatch" => "Имя компьютера должно начинаться с шаблона из профиля.",
+        "runtime.computerName.required" => "Укажите имя устройства.",
+        "runtime.computerName.invalid" => "Имя устройства: от 1 до 15 латинских букв, цифр или дефисов.",
+        "runtime.computerName.prefix.mismatch" => "Имя устройства должно начинаться с шаблона из профиля.",
         "runtime.computerName.suffix.invalid" => "После шаблона из профиля должно идти 2 или 3 цифры.",
         "runtime.network.adapter.required" => "Укажите сетевой адаптер.",
         "runtime.proxy.required" => "Укажите адрес прокси — этого требует профиль.",
@@ -3915,7 +3987,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         "execution.network.adapter.invalid" => "Выбранный сетевой адаптер не найден или отключён.",
         "execution.network.staticIpv4.failed" => "Не удалось применить статический IPv4 к выбранному адаптеру.",
         "execution.proxy.failed" => "Не удалось применить WinHTTP-прокси.",
-        "execution.computerName.failed" => "Не удалось переименовать компьютер.",
+        "execution.computerName.failed" => "Не удалось изменить имя устройства.",
         "execution.domain.failed" => "Не удалось присоединить компьютер к домену.",
         "execution.timeZone.failed" => "Не удалось изменить часовой пояс.",
         "execution.timeZone.notConfigured" => "В профиле не задан часовой пояс Windows.",
@@ -4149,46 +4221,61 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         ? "Новый профиль компьютера"
         : $"Новый профиль компьютера {_profiles.Count + 1}";
 
-    private static string GetLocalProfileDirectory() => FileProfileRepository.GetDefaultRootDirectory();
-
-    private static void MigrateLegacyMachineWideProfiles(string destinationDirectory)
+    private static string GetProfileDirectory()
     {
-        if (!OperatingSystem.IsWindows())
+        var directory = FileProfileRepository.GetDefaultRootDirectory();
+        Directory.CreateDirectory(directory);
+        return directory;
+    }
+
+    private static void MigrateLegacyProfiles(string destinationDirectory)
+    {
+        var legacyDirectories = new List<string>
         {
-            return;
+            Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "Easyaller",
+                "Profiles")
+        };
+
+        if (OperatingSystem.IsWindows())
+        {
+            legacyDirectories.Add(Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+                "Easyaller",
+                "Profiles"));
         }
 
-        var legacyDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-            "Easyaller",
-            "Profiles");
-        if (!Directory.Exists(legacyDirectory) || string.Equals(legacyDirectory, destinationDirectory, StringComparison.OrdinalIgnoreCase))
+        foreach (var legacyDirectory in legacyDirectories)
         {
-            return;
-        }
-
-        try
-        {
-            Directory.CreateDirectory(destinationDirectory);
-            foreach (var sourcePath in Directory.EnumerateFiles(legacyDirectory, $"*{FileProfileRepository.ProfileExtension}", SearchOption.TopDirectoryOnly))
+            if (!Directory.Exists(legacyDirectory) || string.Equals(legacyDirectory, destinationDirectory, StringComparison.OrdinalIgnoreCase))
             {
-                var fileName = Path.GetFileName(sourcePath);
-                var profileIdText = fileName[..^FileProfileRepository.ProfileExtension.Length];
-                if (!Guid.TryParse(profileIdText, out _) || File.Exists(Path.Combine(destinationDirectory, fileName)))
-                {
-                    continue;
-                }
-
-                File.Copy(sourcePath, Path.Combine(destinationDirectory, fileName));
+                continue;
             }
-        }
-        catch (IOException)
-        {
-            // Legacy files remain untouched; the new per-user repository still opens.
-        }
-        catch (UnauthorizedAccessException)
-        {
-            // Some managed installations prohibit reading ProgramData.
+
+            try
+            {
+                Directory.CreateDirectory(destinationDirectory);
+                foreach (var sourcePath in Directory.EnumerateFiles(legacyDirectory, $"*{FileProfileRepository.ProfileExtension}", SearchOption.TopDirectoryOnly))
+                {
+                    var fileName = Path.GetFileName(sourcePath);
+                    var profileIdText = fileName[..^FileProfileRepository.ProfileExtension.Length];
+                    if (!Guid.TryParse(profileIdText, out _) || File.Exists(Path.Combine(destinationDirectory, fileName)))
+                    {
+                        continue;
+                    }
+
+                    File.Copy(sourcePath, Path.Combine(destinationDirectory, fileName));
+                }
+            }
+            catch (IOException)
+            {
+                // Legacy files remain untouched; this repository can still be used.
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Some managed installations prohibit reading old profile locations.
+            }
         }
     }
 
@@ -4209,8 +4296,6 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
     private void AttachEditorChangeHandlers()
     {
-        // The machine number is a runtime value, not profile data, so it only refreshes the preview.
-        ComputerNameNumberTextBox.TextChanged += (_, _) => UpdateComputerNamePreview();
         ProfileNameTextBox.TextChanged += (_, _) => ProfileNameDisplayText.Text = ProfileNameTextBox.Text;
         ProfileDescriptionTextBox.TextChanged += (_, _) => ProfileDescriptionDisplayText.Text = DescribeProfileDescription(ProfileDescriptionTextBox.Text);
         MainMenuProfileNameTextBox.TextChanged += (_, _) =>
@@ -4232,13 +4317,13 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
             ProfileDescriptionTextBox.Text = MainMenuProfileDescriptionTextBox.Text;
         };
+        ShortcutSourceTextBox.TextChanged += (_, _) => EditorValueChanged();
 
         foreach (var textBox in new[]
         {
             ProfileNameTextBox,
             ProfileDescriptionTextBox,
             ApplicationSourcePathTextBox,
-            ComputerNameCustomTypeTextBox,
             StaticIpv4AddressTextBox,
             StaticIpv4SubnetMaskTextBox,
             StaticIpv4DefaultGatewayTextBox,
@@ -4258,7 +4343,6 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             SystemLocaleComboBox,
             UserLocaleComboBox,
             TimeZoneComboBox,
-            ComputerNameTypeComboBox,
             HideWirelessSetupComboBox,
             HideOnlineAccountComboBox,
             PrivacyPreferenceComboBox,
@@ -4361,12 +4445,9 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         ProxyAddressTextBox.IsEnabled = proxyEnabled;
         ApplyProxyToCurrentPcButton.IsEnabled = proxyEnabled;
 
-        UpdateComputerNamePreview();
-
         var domainEnabled = GetSelectedEnum(DomainModeComboBox, original.Domain.Mode) != DomainMode.NotConfigured;
         DomainNameTextBox.IsEnabled = domainEnabled;
         DomainUserNameTextBox.IsEnabled = domainEnabled;
-        DomainPasswordTextBox.IsEnabled = domainEnabled;
         ApplyDomainToCurrentPcButton.IsEnabled = domainEnabled;
         var validation = _profileEditorController.ValidateComplete(
             original,
@@ -4382,7 +4463,6 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             errors.FirstOrDefault(error =>
                 error.FieldPath.StartsWith("windows.", StringComparison.Ordinal)
                 && error.FieldPath != "windows.supportedEditions"));
-        ShowInlineError(ComputerNamePrefixErrorText, FindError(errors, "machine.computerName.prefix"));
         ShowInlineError(StaticIpv4AddressErrorText, FindError(errors, "machine.network.staticIpv4.address"));
         ShowInlineError(StaticIpv4SubnetMaskErrorText, FindError(errors, "machine.network.staticIpv4.subnetMask"));
         ShowInlineError(StaticIpv4DefaultGatewayErrorText, FindError(errors, "machine.network.staticIpv4.defaultGateway"));
@@ -4400,8 +4480,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             NetworkSectionStatusText,
             errors.Any(error => error.FieldPath.StartsWith("machine.", StringComparison.Ordinal)),
             GetSelectedEnum(NetworkModeComboBox, original.Machine.Network.Mode) == NetworkConfigurationMode.PromptAtRuntime
-                && GetSelectedEnum(ProxyModeComboBox, original.Machine.Proxy.Mode) == ProxyConfigurationMode.NotConfigured
-                && string.IsNullOrWhiteSpace(GetComputerNamePrefix()));
+                && GetSelectedEnum(ProxyModeComboBox, original.Machine.Proxy.Mode) == ProxyConfigurationMode.NotConfigured);
         SetSectionStatus(
             DomainSectionStatusText,
             errors.Any(error => error.FieldPath.StartsWith("domain.", StringComparison.Ordinal)),
@@ -4462,7 +4541,6 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             ProfileNameErrorText,
             WindowsEditionErrorText,
             WindowsSettingsErrorText,
-            ComputerNamePrefixErrorText,
             StaticIpv4AddressErrorText,
             StaticIpv4SubnetMaskErrorText,
             StaticIpv4DefaultGatewayErrorText,
@@ -4537,7 +4615,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         GetOptionalBoolean(HideWirelessSetupComboBox),
         GetOptionalBoolean(HideOnlineAccountComboBox),
         GetPrivacyPreference(),
-        GetComputerNamePrefix(),
+        null,
         GetSelectedEnum(ProxyModeComboBox, original.Machine.Proxy.Mode),
         GetSelectedEnum(DomainModeComboBox, original.Domain.Mode),
         GetSelectedEnum(LaunchModeComboBox, original.Deployment.LaunchMode),
@@ -4552,7 +4630,8 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         ProxyAddressTextBox.Text,
         DomainNameTextBox.Text,
         DomainUserNameTextBox.Text,
-        ApplicationSourcePathTextBox.Text);
+        ApplicationSourcePathTextBox.Text,
+        ShortcutSourceTextBox.Text);
 
     private IReadOnlyList<WindowsEdition> GetSelectedEditions()
     {
@@ -4583,7 +4662,6 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         SetOptionalBoolean(HideWirelessSetupComboBox, windows?.Oobe.HideWirelessSetup);
         SetOptionalBoolean(HideOnlineAccountComboBox, windows?.Oobe.HideOnlineAccountScreens);
         SetPrivacyPreference(windows?.Privacy);
-        PopulateComputerNameTemplate(profile?.Machine.ComputerName.Prefix);
         SetSelectedEnum(NetworkModeComboBox, profile?.Machine.Network.Mode);
         StaticIpv4AddressTextBox.Text = profile?.Machine.Network.StaticIpv4?.Address ?? string.Empty;
         StaticIpv4SubnetMaskTextBox.Text = profile?.Machine.Network.StaticIpv4?.SubnetMask ?? string.Empty;
@@ -4601,6 +4679,8 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             ? string.Empty
             : DefaultIfBlank(profile.Machine.Network.StaticIpv4?.AdapterId, DefaultNetworkAdapterName);
         ApplicationSourcePathTextBox.Text = profile?.ApplicationSourcePath ?? string.Empty;
+        ShortcutSourceTextBox.Text = profile?.Maintenance.ShortcutSourceDirectory ?? string.Empty;
+        RefreshLegacyShortcutSourceOffer(profile);
         ProxyAddressTextBox.Text = profile?.Machine.Proxy.Address ?? string.Empty;
         DomainNameTextBox.Text = profile?.Domain.DomainName ?? string.Empty;
         DomainUserNameTextBox.Text = profile?.Domain.UserName ?? string.Empty;
@@ -4651,30 +4731,6 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
     private static string GetSelectedTag(ComboBox comboBox, string fallback) =>
         (comboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? fallback;
-
-    private string GetComputerNamePrefix()
-    {
-        var type = GetSelectedTag(ComputerNameTypeComboBox, "NOMAD");
-        var suffix = type == "Custom" ? ComputerNameCustomTypeTextBox.Text?.Trim() : type;
-        return ComputerNameSitePrefix + (suffix ?? string.Empty);
-    }
-
-    private void PopulateComputerNameTemplate(string? prefix)
-    {
-        var suffix = prefix?.StartsWith(ComputerNameSitePrefix, StringComparison.OrdinalIgnoreCase) == true
-            ? prefix[ComputerNameSitePrefix.Length..]
-            : prefix ?? string.Empty;
-        if (string.Equals(suffix, "NOMAD", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(suffix, "THINK", StringComparison.OrdinalIgnoreCase))
-        {
-            SetSelectedTag(ComputerNameTypeComboBox, suffix.ToUpperInvariant());
-            ComputerNameCustomTypeTextBox.Text = string.Empty;
-            return;
-        }
-
-        SetSelectedTag(ComputerNameTypeComboBox, "Custom");
-        ComputerNameCustomTypeTextBox.Text = suffix;
-    }
 
     private static void SetSelectedTag(ComboBox comboBox, string? value)
     {

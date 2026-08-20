@@ -57,7 +57,7 @@
             <TextBlock x:Name="SetupIsoStatusText" Classes="helperText" TextWrapping="Wrap" IsVisible="False" />
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
               <TextBox x:Name="DeploymentPackageDirectoryTextBox" IsReadOnly="True" FontSize="12" Padding="8,5" PlaceholderText="Каталог пакета Easyaller" />
-              <Button Grid.Column="1" Content="Выбрать…" Click="ChooseDeploymentPackage_Click" Classes="ghost" />
+              <Button Grid.Column="1" x:Name="ChooseDeploymentPackageButton" Content="Выбрать…" Click="ChooseDeploymentPackage_Click" Classes="ghost" />
             </Grid>
             <Button x:Name="PrepareConfirmationButton" Content="Проверить источники" Click="PrepareConfirmation_Click" HorizontalAlignment="Left" Classes="primary" />
           </StackPanel>

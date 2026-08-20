@@ -44,6 +44,12 @@ public sealed record ProvisioningProfile
 
     [JsonRequired]
     public required CleanupSettings Cleanup { get; init; }
+
+    /// <summary>
+    /// Optional maintenance preferences travel with a profile, while maintenance actions remain
+    /// separate from the new-PC provisioning flow.
+    /// </summary>
+    public MaintenanceProfileSettings Maintenance { get; init; } = new(null);
 }
 
 public sealed record ProfileMetadata([property: JsonRequired] string Name, string? Description);
@@ -205,6 +211,8 @@ public enum ProvisionerLaunchMode
 }
 
 public sealed record CleanupSettings([property: JsonRequired] ProvisioningAccountCleanupMode ProvisioningAccount);
+
+public sealed record MaintenanceProfileSettings(string? ShortcutSourceDirectory);
 
 public enum ProvisioningAccountCleanupMode
 {

@@ -210,12 +210,12 @@ public sealed class ProfileComplianceChecker
         var prefix = profile.Machine.ComputerName.Prefix;
         if (string.IsNullOrWhiteSpace(prefix))
         {
-            return new ComplianceCheck("Имя компьютера", ComplianceStatus.NotConfigured, "шаблон не задан", machine.ComputerName);
+            return new ComplianceCheck("Имя устройства", ComplianceStatus.NotConfigured, "шаблон не задан", machine.ComputerName);
         }
 
         if (string.IsNullOrWhiteSpace(machine.ComputerName))
         {
-            return new ComplianceCheck("Имя компьютера", ComplianceStatus.Unknown, $"начинается с {prefix}", "не прочитано");
+            return new ComplianceCheck("Имя устройства", ComplianceStatus.Unknown, $"начинается с {prefix}", "не прочитано");
         }
 
         // The profile stores only the prefix; the trailing number is chosen per machine.
@@ -224,7 +224,7 @@ public sealed class ProfileComplianceChecker
             && machine.ComputerName[prefix.Length..].All(char.IsAsciiDigit);
 
         return new ComplianceCheck(
-            "Имя компьютера",
+            "Имя устройства",
             matches ? ComplianceStatus.Match : ComplianceStatus.Mismatch,
             $"{prefix} + 2–3 цифры",
             machine.ComputerName);

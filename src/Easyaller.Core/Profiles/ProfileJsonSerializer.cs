@@ -183,6 +183,7 @@ public sealed class ProfileJsonSerializer
         "instructions" or "Instructions" => 10,
         "deployment" or "Deployment" => 11,
         "cleanup" or "Cleanup" => 12,
+        "maintenance" or "Maintenance" => 13,
         _ => int.MaxValue,
     };
 }

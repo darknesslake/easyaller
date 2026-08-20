@@ -189,9 +189,9 @@ public sealed class ProfileComplianceCheckerTests
         var wrongPrefix = _checker.Check(profile, CreateMachine() with { ComputerName = "OTHER07" }, DateTimeOffset.UnixEpoch);
         var missingNumber = _checker.Check(profile, CreateMachine() with { ComputerName = "SITE01NOMAD" }, DateTimeOffset.UnixEpoch);
 
-        Assert.Equal(ComplianceStatus.Match, FindCheck(matching, "Имя компьютера").Status);
-        Assert.Equal(ComplianceStatus.Mismatch, FindCheck(wrongPrefix, "Имя компьютера").Status);
-        Assert.Equal(ComplianceStatus.Mismatch, FindCheck(missingNumber, "Имя компьютера").Status);
+        Assert.Equal(ComplianceStatus.Match, FindCheck(matching, "Имя устройства").Status);
+        Assert.Equal(ComplianceStatus.Mismatch, FindCheck(wrongPrefix, "Имя устройства").Status);
+        Assert.Equal(ComplianceStatus.Mismatch, FindCheck(missingNumber, "Имя устройства").Status);
     }
 
     [Fact]

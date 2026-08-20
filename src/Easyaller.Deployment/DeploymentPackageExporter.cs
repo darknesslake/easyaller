@@ -13,6 +13,7 @@ public sealed class DeploymentPackageExporter : IDeploymentPackageExporter
     private const string ProfilePath = "selected-profile.wpprofile.json";
     private const string ManifestPath = "deployment-manifest.json";
     private const string InstructionsPath = "README.txt";
+    public const string PublicDesktopShortcutPath = "$OEM$/$1/Users/Public/Desktop/Easyaller.url";
     private const int ManifestFormatVersion = 1;
 
     private static readonly JsonSerializerOptions ManifestSerializerOptions = new()
@@ -71,6 +72,7 @@ public sealed class DeploymentPackageExporter : IDeploymentPackageExporter
                 CopyFile(stagingDirectory, asset.SourceFilePath, asset.RelativePath, entries);
             }
 
+            WritePublicDesktopShortcut(stagingDirectory, request.Assets, entries);
             WriteFirstLogonBootstrapScript(stagingDirectory, request.DryRun.FirstLogonBootstrap, entries);
             WritePayloadManifest(stagingDirectory, request.DryRun, entries);
             VerifyEntries(stagingDirectory, entries);
@@ -155,6 +157,13 @@ public sealed class DeploymentPackageExporter : IDeploymentPackageExporter
             ManifestPath,
             InstructionsPath,
         };
+        if (request.Assets.Any(asset => string.Equals(
+                NormalizeRelativePath(asset.RelativePath),
+                FirstLogonBootstrapper.RequiredApplicationPackageRelativePath,
+                StringComparison.OrdinalIgnoreCase)))
+        {
+            reservedPaths.Add(PublicDesktopShortcutPath);
+        }
         if (request.DryRun.FirstLogonBootstrap is not null)
         {
             reservedPaths.Add(FirstLogonBootstrapper.ScriptPackageRelativePath);
@@ -329,6 +338,28 @@ public sealed class DeploymentPackageExporter : IDeploymentPackageExporter
         {
             WriteFile(stagingDirectory, bootstrap.ScriptPackageRelativePath, FirstLogonBootstrapper.CreateScript(bootstrap), entries);
         }
+    }
+
+    private static void WritePublicDesktopShortcut(
+        string stagingDirectory,
+        IReadOnlyList<DeploymentPackageAsset> assets,
+        ICollection<DeploymentPackageManifestEntry> entries)
+    {
+        var hasApplication = assets.Any(asset => string.Equals(
+            NormalizeRelativePath(asset.RelativePath),
+            FirstLogonBootstrapper.RequiredApplicationPackageRelativePath,
+            StringComparison.OrdinalIgnoreCase));
+        if (!hasApplication)
+        {
+            return;
+        }
+
+        const string applicationPath = "C:/ProgramData/Easyaller/payload/Easyaller.exe";
+        var shortcut = "[InternetShortcut]\r\n" +
+            "URL=file:///" + applicationPath + "\r\n" +
+            "IconFile=C:\\ProgramData\\Easyaller\\payload\\Easyaller.exe\r\n" +
+            "IconIndex=0\r\n";
+        WriteFile(stagingDirectory, PublicDesktopShortcutPath, Encoding.UTF8.GetBytes(shortcut), entries);
     }
 
     private static byte[] CreateInstructions() => Encoding.UTF8.GetBytes(

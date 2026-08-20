@@ -12,7 +12,7 @@ public sealed class FirstLogonBootstrapperTests
     {
         using var directory = new TemporaryDirectory();
         using var generated = new TemporaryLocalAccountCredentialFactory().Create();
-        var applicationSource = Path.Combine(directory.Path, "Easyaller.App.exe");
+        var applicationSource = Path.Combine(directory.Path, "Easyaller.exe");
         File.WriteAllText(applicationSource, "neutral test application");
         var request = new DeploymentPreparationRequest(
             ProvisioningProfileFactory.CreateDefault(),
@@ -31,14 +31,19 @@ public sealed class FirstLogonBootstrapperTests
                 FirstLogonBootstrapper.RequiredApplicationPackageRelativePath)]));
         var payloadDirectory = Path.Combine(packageDirectory, "$OEM$", "$1", "ProgramData", "Easyaller");
         var scriptPath = Path.Combine(payloadDirectory, "scripts", "Start-EasyallerBootstrap.ps1");
+        var desktopShortcutPath = Path.Combine(packageDirectory, "$OEM$", "$1", "Users", "Public", "Desktop", "Easyaller.url");
         var script = File.ReadAllText(scriptPath, Encoding.UTF8);
         var passwordShownToAdministrator = generated.RevealPasswordOnce();
 
         Assert.True(export.IsSuccess);
         Assert.NotNull(dryRun.FirstLogonBootstrap);
         Assert.True(File.Exists(scriptPath));
+        Assert.True(File.Exists(desktopShortcutPath));
+        Assert.Contains("file:///C:/ProgramData/Easyaller/payload/Easyaller.exe", File.ReadAllText(desktopShortcutPath), StringComparison.Ordinal);
         Assert.Contains("Get-FileHash", script, StringComparison.Ordinal);
         Assert.Contains(FirstLogonBootstrapper.RunOnceValueName, script, StringComparison.Ordinal);
+        Assert.Contains("CommonDesktopDirectory", script, StringComparison.Ordinal);
+        Assert.Contains("Easyaller.lnk", script, StringComparison.Ordinal);
         Assert.Contains("InitialBootstrap", script, StringComparison.Ordinal);
         Assert.Contains("ResumeBootstrap", script, StringComparison.Ordinal);
         Assert.Contains("Start-Process", script, StringComparison.Ordinal);
@@ -77,8 +82,8 @@ public sealed class FirstLogonBootstrapperTests
         var store = new RecordingCompletionStore();
         var service = new FirstLogonResumeCompletionService(store);
 
-        var normalRun = service.TryComplete(["Easyaller.App.exe"]);
-        var resumeRun = service.TryComplete(["Easyaller.App.exe", FirstLogonResumeCompletionService.ResumeArgument]);
+        var normalRun = service.TryComplete(["Easyaller.exe"]);
+        var resumeRun = service.TryComplete(["Easyaller.exe", FirstLogonResumeCompletionService.ResumeArgument]);
 
         Assert.False(normalRun);
         Assert.True(resumeRun);

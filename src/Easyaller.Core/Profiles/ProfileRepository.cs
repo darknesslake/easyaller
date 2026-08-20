@@ -131,9 +131,14 @@ public sealed class FileProfileRepository : IProfileRepository
 
     public string RootDirectory => _rootDirectory;
 
+    /// <summary>
+    /// Gets the portable profile store located beside the Easyaller executable.
+    /// Keeping profiles with the application makes an offline technician kit
+    /// self-contained: importing, saving, and reopening use the same Profiles
+    /// directory on the USB drive or local release folder.
+    /// </summary>
     public static string GetDefaultRootDirectory() => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "Easyaller",
+        AppContext.BaseDirectory,
         "Profiles");
 
     public ProfileRepositoryListResult List()

@@ -24,7 +24,10 @@ public sealed partial class UsbCreatorWindow : Window
     {
     }
 
-    public UsbCreatorWindow(UsbCreationController controller, string? suggestedIsoPath = null)
+    public UsbCreatorWindow(
+        UsbCreationController controller,
+        string? suggestedIsoPath = null,
+        string? deploymentPackageDirectory = null)
     {
         _controller = controller ?? throw new ArgumentNullException(nameof(controller));
         InitializeComponent();
@@ -36,6 +39,13 @@ public sealed partial class UsbCreatorWindow : Window
         if (!string.IsNullOrWhiteSpace(suggestedIsoPath))
         {
             UseSetupIso(suggestedIsoPath);
+        }
+
+        if (!string.IsNullOrWhiteSpace(deploymentPackageDirectory) && Directory.Exists(deploymentPackageDirectory))
+        {
+            DeploymentPackageDirectoryTextBox.Text = deploymentPackageDirectory;
+            ChooseDeploymentPackageButton.IsVisible = false;
+            UpdatePrepareButton();
         }
     }
 

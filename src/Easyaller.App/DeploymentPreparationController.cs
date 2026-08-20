@@ -25,4 +25,19 @@ public sealed class DeploymentPreparationController(
         _packageExporter.ExportAsync(
             new DeploymentPackageExportRequest(dryRun, destinationDirectory, []),
             cancellationToken);
+
+    public Task<DeploymentPackageExportResult> ExportWithEasyallerAsync(
+        DeploymentDryRun dryRun,
+        string destinationDirectory,
+        string applicationExecutablePath,
+        CancellationToken cancellationToken = default) =>
+        _packageExporter.ExportAsync(
+            new DeploymentPackageExportRequest(
+                dryRun,
+                destinationDirectory,
+                [new DeploymentPackageAsset(
+                    DeploymentPackageAssetKind.LocalPayload,
+                    applicationExecutablePath,
+                    FirstLogonBootstrapper.RequiredApplicationPackageRelativePath)]),
+            cancellationToken);
 }

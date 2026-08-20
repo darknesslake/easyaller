@@ -5,6 +5,7 @@
         x:Class="Easyaller.App.MainWindow"
         x:DataType="local:MainWindow"
         Title="Easyaller"
+        Icon="/Assets/easyaller-icon.ico"
         Width="1280"
         Height="840"
         MinWidth="1040"
@@ -180,13 +181,11 @@
             <StackPanel Spacing="6">
               <Grid ColumnDefinitions="*,Auto">
                 <Panel VerticalAlignment="Center" HorizontalAlignment="Left">
-                  <TextBlock x:Name="ProfileNameDisplayText" Text="{Binding SelectedProfileName}" FontSize="15.5" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis" />
+                  <TextBlock x:Name="ProfileNameDisplayText" Text="{Binding SelectedProfileName}" FontSize="15.5" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis" Cursor="Hand" ToolTip.Tip="Дважды щёлкните, чтобы изменить название" DoubleTapped="ProfileNameDisplayText_DoubleTapped" />
                   <TextBox x:Name="ProfileNameTextBox" IsVisible="False" FontSize="15.5" FontWeight="SemiBold" Padding="4,2" MinWidth="240" LostFocus="ProfileNameTextBox_LostFocus" KeyDown="ProfileNameTextBox_KeyDown" />
                 </Panel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                   <Button Content="Взять с этого ПК" Click="TakeEverythingFromCurrentPc_Click" Classes="ghost" ToolTip.Tip="Читает имя, сеть, домен и прокси текущей Windows и записывает их в профиль одним действием. Windows не изменяется." />
-                  <Button Content="Сбросить" Click="ResetProfile_Click" IsEnabled="{Binding CanSaveProfile}" Classes="ghost" ToolTip.Tip="Отменяет несохранённые правки и возвращает форму к сохранённой версии профиля." />
-                  <Button Content="Сохранить" Click="SaveProfile_Click" IsEnabled="{Binding CanSaveProfile}" Classes="primary" ToolTip.Tip="Сохранить все изменения в текущем локальном профиле." />
                   <Border IsVisible="{Binding HasUnsavedChanges}" Background="{StaticResource WarningSoftBrush}" BorderBrush="{StaticResource WarningBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="7,2" VerticalAlignment="Center">
                     <TextBlock Text="Не сохранено" Foreground="{StaticResource WarningTextBrush}" FontSize="10.5" FontWeight="SemiBold" />
                   </Border>
@@ -194,7 +193,7 @@
               </Grid>
               <TextBlock x:Name="ProfileNameErrorText" Classes="validationError" IsVisible="False" />
               <Panel HorizontalAlignment="Stretch">
-                <TextBlock x:Name="ProfileDescriptionDisplayText" Classes="helperText" TextWrapping="Wrap" />
+                <TextBlock x:Name="ProfileDescriptionDisplayText" Classes="helperText" TextWrapping="Wrap" Cursor="Hand" ToolTip.Tip="Дважды щёлкните, чтобы изменить описание" DoubleTapped="ProfileDescriptionDisplayText_DoubleTapped" />
                 <TextBox x:Name="ProfileDescriptionTextBox" IsVisible="False" FontSize="12" Padding="8,5" PlaceholderText="Описание профиля (необязательно)" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="60" LostFocus="ProfileDescriptionTextBox_LostFocus" KeyDown="ProfileDescriptionTextBox_KeyDown" />
               </Panel>
             </StackPanel>
@@ -259,7 +258,6 @@
                   </StackPanel>
                   <Border Classes="quickActionOnPc">
                     <StackPanel Spacing="6">
-                      <TextBlock Text="ДЕЙСТВИЕ НА ЭТОМ ПК" Classes="quickActionLabel" />
                       <Button x:Name="ApplyTimeZoneToCurrentPcButton" Content="Применить часовой пояс на этом ПК" HorizontalAlignment="Left" Click="ApplyTimeZoneToCurrentPc_Click" Classes="warningAction" ToolTip.Tip="Меняет только часовой пояс прямо сейчас. Кнопка «Сохранить» внизу страницы сохраняет лишь профиль и не трогает этот компьютер." />
                     </StackPanel>
                   </Border>
@@ -367,7 +365,6 @@
                     </ComboBox>
                     <Border Classes="quickActionOnPc">
                       <StackPanel Spacing="6">
-                        <TextBlock Text="ДЕЙСТВИЕ НА ЭТОМ ПК" Classes="quickActionLabel" />
                         <Button x:Name="ApplyPrivacyToCurrentPcButton" Content="Применить конфиденциальность на этом ПК" HorizontalAlignment="Left" Click="ApplyPrivacyToCurrentPc_Click" Classes="warningAction" ToolTip.Tip="Нужны права администратора и Windows 11 Pro/Enterprise 26100+. «Не настраивать» и «Выбор пользователя» ничего не применяют." />
                       </StackPanel>
                     </Border>
@@ -394,30 +391,7 @@
                 </Button>
                 <Border x:Name="NetworkSectionContent" IsVisible="False" Classes="settingsGroup">
                 <StackPanel Spacing="12">
-                  <TextBlock Text="Имя компьютера, адреса сети и прокси. Адаптер профиль хранит только как подсказку — перед применением его нужно подтвердить." Classes="noteText" />
-                  <StackPanel Spacing="6">
-                    <TextBlock Text="Шаблон имени компьютера" Classes="fieldLabel" />
-                    <TextBlock Text="Начало имени: URA01" Foreground="{StaticResource TextPrimaryBrush}" />
-                    <ComboBox x:Name="ComputerNameTypeComboBox">
-                      <ComboBoxItem Tag="NOMAD">NOMAD</ComboBoxItem>
-                      <ComboBoxItem Tag="THINK">THINK</ComboBoxItem>
-                      <ComboBoxItem Tag="Custom">Свой вариант</ComboBoxItem>
-                    </ComboBox>
-                    <TextBox x:Name="ComputerNameCustomTypeTextBox" PlaceholderText="Свой тип, только буквы и цифры" />
-                    <TextBlock x:Name="ComputerNamePrefixErrorText" Classes="validationError" IsVisible="False" />
-                    <TextBlock Text="Номер конкретного ПК в профиль не попадает — задаётся при применении." Classes="helperText" />
-                    <Border Classes="quickActionOnPc">
-                      <StackPanel Spacing="6">
-                        <TextBlock Text="ДЕЙСТВИЕ НА ЭТОМ ПК" Classes="quickActionLabel" />
-                        <TextBox x:Name="ComputerNameNumberTextBox" PlaceholderText="Номер этого ПК: 2 или 3 цифры" HorizontalAlignment="Left" MinWidth="260" />
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                          <Button Content="Взять имя с этого ПК" Click="TakeComputerNameFromCurrentPc_Click" Classes="ghost" ToolTip.Tip="Разбирает текущее имя компьютера на шаблон профиля и номер. Windows не изменяется." />
-                          <Button x:Name="ApplyComputerNameToCurrentPcButton" Content="Применить имя на этом ПК" Click="ApplyComputerNameToCurrentPc_Click" Classes="warningAction" />
-                        </StackPanel>
-                        <TextBlock x:Name="ComputerNamePreviewText" Classes="helperText" TextWrapping="Wrap" />
-                      </StackPanel>
-                    </Border>
-                  </StackPanel>
+                  <TextBlock Text="В профиле сохраняются сетевые параметры и прокси. Имя устройства всегда вводится вручную в разделе «Применить настройки»." Classes="noteText" />
                   <Border Classes="innerCard">
                     <StackPanel Spacing="10">
                       <TextBlock Text="Сеть" Classes="cardTitle" />
@@ -495,7 +469,6 @@
                       </StackPanel>
                       <Border Classes="quickActionOnPc">
                         <StackPanel Spacing="6">
-                          <TextBlock Text="ДЕЙСТВИЕ НА ЭТОМ ПК" Classes="quickActionLabel" />
                           <StackPanel Orientation="Horizontal" Spacing="8">
                             <Button Content="Взять сеть с этого ПК" Click="TakeNetworkFromCurrentPc_Click" Classes="ghost" ToolTip.Tip="Читает текущие адрес, маску, шлюз и DNS активного адаптера и подставляет их в профиль. Windows не изменяется." />
                             <Button x:Name="ApplyStaticIpv4ToCurrentPcButton" Content="Применить сеть на этом ПК" Click="ApplyStaticIpv4ToCurrentPc_Click" Classes="warningAction" ToolTip.Tip="Меняет адрес и маску выбранного адаптера прямо сейчас; шлюз и DNS — лишь если заданы выше." />
@@ -521,7 +494,6 @@
                         <TextBox x:Name="ProxyAddressTextBox" PlaceholderText="Адрес прокси, например proxy.example.test:8080" />
                         <Border Classes="quickActionOnPc">
                           <StackPanel Spacing="6">
-                            <TextBlock Text="ДЕЙСТВИЕ НА ЭТОМ ПК" Classes="quickActionLabel" />
                             <StackPanel Orientation="Horizontal" Spacing="8">
                               <Button Content="Взять прокси с этого ПК" Click="TakeProxyFromCurrentPc_Click" Classes="ghost" ToolTip.Tip="Читает прокси браузера и приложений вместе со списком исключений. Windows не изменяется." />
                               <Button x:Name="ApplyProxyToCurrentPcButton" Content="Применить прокси на этом ПК" Click="ApplyProxyToCurrentPc_Click" Classes="warningAction" ToolTip.Tip="Меняет прокси браузера и WinHTTP-прокси служб на этом ПК прямо сейчас." />
@@ -594,8 +566,6 @@
                   </Grid>
                   <Border Classes="quickActionOnPc">
                     <StackPanel Spacing="6">
-                      <TextBlock Text="ДЕЙСТВИЕ НА ЭТОМ ПК" Classes="quickActionLabel" />
-                      <TextBox x:Name="DomainPasswordTextBox" PasswordChar="•" PlaceholderText="Пароль домена — только для этого действия, не сохраняется" HorizontalAlignment="Left" MinWidth="360" />
                       <StackPanel Orientation="Horizontal" Spacing="8">
                         <Button Content="Взять домен с этого ПК" Click="TakeDomainFromCurrentPc_Click" Classes="ghost" ToolTip.Tip="Читает домен, в котором состоит этот компьютер. Учётные данные не читаются и не сохраняются." />
                         <Button x:Name="ApplyDomainToCurrentPcButton" Content="Присоединить к домену на этом ПК" Click="ApplyDomainToCurrentPc_Click" Classes="warningAction" ToolTip.Tip="Присоединяет этот компьютер к домену прямо сейчас и может потребовать перезагрузку. Пароль используется только для этой операции и не сохраняется." />
@@ -709,7 +679,6 @@
                   </Border>
                   <Border Classes="quickActionOnPc">
                     <StackPanel Spacing="6">
-                      <TextBlock Text="ДЕЙСТВИЕ НА ЭТОМ ПК" Classes="quickActionLabel" />
                       <Button x:Name="CaptureFootprintButton" Content="Записать эталон с этого ПК" Click="CaptureApplicationFootprint_Click" Classes="ghost" HorizontalAlignment="Left" ToolTip.Tip="Читает папки установки перечисленных приложений и запоминает их размер и число файлов. Делайте это на эталонно настроенной машине. Windows не изменяется." />
                       <TextBlock Text="Проверка потом сравнит папку с эталоном. Рост размера считается нормой — программы копят кэш и обновляются; тревога поднимается, если файлов стало меньше." Classes="helperText" />
                     </StackPanel>
@@ -808,13 +777,13 @@
                 </StackPanel>
                 <Border Classes="innerCard">
                   <StackPanel Spacing="12">
-                    <TextBlock Text="Выберите ISO Windows 11 — редакция, версия и сборка определятся по нему. Без ISO подставлены значения этого компьютера, их можно поправить вручную." Classes="noteText" />
+                    <TextBlock Text="Выберите ISO Windows 11 Pro x64. Easyaller сам проверит редакцию, версию и сборку; вручную их менять не нужно." Classes="noteText" />
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                       <TextBox x:Name="TargetIsoPathTextBox" Grid.Column="0" IsReadOnly="True" PlaceholderText="ISO не выбран" />
                       <Button x:Name="ChooseTargetIsoButton" Grid.Column="1" Content="Выбрать ISO…" Click="ChooseTargetIso_Click" />
                     </Grid>
                     <TextBlock x:Name="TargetIsoStatusText" Classes="helperText" TextWrapping="Wrap" IsVisible="False" />
-                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
+                    <Grid IsVisible="False" ColumnDefinitions="*,*,*" ColumnSpacing="12">
                       <StackPanel Spacing="6">
                         <TextBlock Text="Редакция" Classes="fieldLabel" />
                         <ComboBox x:Name="DeploymentEditionComboBox" SelectionChanged="DeploymentEdition_SelectionChanged">
@@ -855,7 +824,7 @@
                 <Border Classes="innerCard">
                   <StackPanel Spacing="10">
                     <TextBlock Text="Запись на USB — необратимая операция и открывается в отдельном защищённом окне с подтверждением ERASE." Classes="noteText" />
-                    <Button Content="Открыть создание установочного USB…" Click="OpenUsbCreator_Click" HorizontalAlignment="Left" />
+                    <Button x:Name="OpenUsbCreatorButton" Content="Создать установочный USB…" Click="OpenUsbCreator_Click" IsEnabled="False" HorizontalAlignment="Left" />
                   </StackPanel>
                 </Border>
               </StackPanel>
@@ -881,7 +850,19 @@
                 </StackPanel>
                 <Border Classes="innerCard">
                   <StackPanel Spacing="10">
-                    <TextBlock Text="Кнопка «Применить настройки» меняет только параметры Windows из профиля и не запускает установщики. Для софта используйте независимый блок «Установка программ» ниже. Каждый запуск записывается в локальный журнал." Classes="noteText" />
+                    <TextBlock Text="Отметьте только то, что нужно изменить на этом компьютере. Неотмеченные настройки не проверяются и не применяются." Classes="noteText" />
+                    <WrapPanel Orientation="Horizontal" ItemHeight="34" ItemWidth="205">
+                      <CheckBox x:Name="ApplyTimeZoneCheckBox" Content="Часовой пояс" IsCheckedChanged="ApplyOperationSelectionChanged" />
+                      <CheckBox x:Name="ApplyPrivacyCheckBox" Content="Конфиденциальность" IsCheckedChanged="ApplyOperationSelectionChanged" />
+                      <CheckBox x:Name="ApplyComputerNameCheckBox" Content="Имя устройства" IsCheckedChanged="ApplyOperationSelectionChanged" />
+                      <CheckBox x:Name="ApplyNetworkCheckBox" Content="Сеть и DNS" IsCheckedChanged="ApplyOperationSelectionChanged" />
+                      <CheckBox x:Name="ApplyProxyCheckBox" Content="Прокси" IsCheckedChanged="ApplyOperationSelectionChanged" />
+                      <CheckBox x:Name="ApplyDomainCheckBox" Content="Присоединение к домену" IsCheckedChanged="ApplyOperationSelectionChanged" />
+                    </WrapPanel>
+                    <WrapPanel Orientation="Horizontal" ItemHeight="32">
+                      <Button Content="Выбрать всё доступное" Click="SelectAllApplyOperations_Click" Classes="ghost" />
+                      <Button Content="Снять всё" Click="ClearApplyOperations_Click" Classes="ghost" Margin="8,0,0,0" />
+                    </WrapPanel>
                     <TextBlock x:Name="ApplyPlanStepsText" Text="Выберите профиль, чтобы увидеть список операций." TextWrapping="Wrap" Foreground="{StaticResource TextPrimaryBrush}" />
                     <TextBlock x:Name="TimeZoneActionText" Text="Выберите профиль, чтобы увидеть его часовой пояс." Classes="noteText" />
                     <TextBlock x:Name="ApplyNotAutomatedText" Classes="helperText" TextWrapping="Wrap" />
@@ -898,49 +879,41 @@
                     <TextBlock Text="БЫСТРОЕ ЗАПОЛНЕНИЕ ЭТИХ ПОЛЕЙ" Classes="quickActionLabel" Foreground="{StaticResource AccentTextBrush}" />
                     <WrapPanel Orientation="Horizontal" ItemHeight="34">
                       <Button Content="Взять из профиля" Click="FillRuntimeFromProfile_Click" Classes="ghost" ToolTip.Tip="Подставляет сюда адаптер, прокси, домен и учётную запись, сохранённые в профиле." />
-                      <Button Content="Взять с этого ПК" Click="FillRuntimeFromCurrentPc_Click" Classes="ghost" Margin="8,0,0,0" ToolTip.Tip="Подставляет сюда текущие имя компьютера, активный адаптер, прокси и домен Windows." />
+                      <Button Content="Взять с этого ПК" Click="FillRuntimeFromCurrentPc_Click" Classes="ghost" Margin="8,0,0,0" ToolTip.Tip="Подставляет сюда текущее имя устройства, активный адаптер, прокси и домен Windows." />
                     </WrapPanel>
                   </StackPanel>
                 </Border>
-                <Grid ColumnDefinitions="*,*" ColumnSpacing="12" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="12">
-                  <StackPanel Spacing="6">
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="12" RowDefinitions="Auto,Auto" RowSpacing="12">
+                  <StackPanel x:Name="RuntimeComputerNamePanel" Spacing="6">
                     <StackPanel Orientation="Horizontal" Spacing="6">
-                      <TextBlock Text="Имя компьютера" Classes="fieldLabel" />
+                      <TextBlock Text="Имя устройства" Classes="fieldLabel" />
                       <Border Classes="requiredTag"><TextBlock Text="Обязательно" Classes="requiredTagText" /></Border>
                     </StackPanel>
-                    <TextBox x:Name="RuntimeComputerNameTextBox" PlaceholderText="Имя компьютера" />
+                    <TextBox x:Name="RuntimeComputerNameTextBox" PlaceholderText="Имя устройства" />
+                    <TextBlock Text="Введите вручную для этого ПК. В профиль не сохраняется." Classes="helperText" />
                   </StackPanel>
-                  <StackPanel Grid.Column="1" Spacing="6">
+                  <StackPanel x:Name="RuntimeNetworkAdapterPanel" Grid.Column="1" Spacing="6">
                     <StackPanel Orientation="Horizontal" Spacing="6">
                       <TextBlock Text="Имя или GUID сетевого адаптера" Classes="fieldLabel" />
                       <Border Classes="requiredTag"><TextBlock Text="Обязательно" Classes="requiredTagText" /></Border>
                     </StackPanel>
                     <TextBox x:Name="RuntimeNetworkAdapterTextBox" PlaceholderText="Ethernet" />
                   </StackPanel>
-                  <StackPanel Grid.Row="1" Spacing="6">
+                  <StackPanel x:Name="RuntimeProxyPanel" Grid.Row="1" Spacing="6">
                     <StackPanel Orientation="Horizontal" Spacing="6">
                       <TextBlock Text="Адрес прокси" Classes="fieldLabel" />
                       <Border x:Name="ProxyRuntimeTag" Classes="requiredTag" IsVisible="False"><TextBlock Text="Обязательно" Classes="requiredTagText" /></Border>
                     </StackPanel>
                     <TextBox x:Name="RuntimeProxyAddressTextBox" PlaceholderText="Только если это запрашивает профиль" />
                   </StackPanel>
-                  <StackPanel Grid.Row="1" Grid.Column="1" Spacing="6">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                      <TextBlock Text="Имя домена" Classes="fieldLabel" />
-                      <Border x:Name="DomainRuntimeTag" IsVisible="False"><TextBlock x:Name="DomainRuntimeTagText" /></Border>
-                    </StackPanel>
-                    <TextBox x:Name="RuntimeDomainNameTextBox" PlaceholderText="Только при присоединении к домену" />
-                  </StackPanel>
-                  <StackPanel Grid.Row="2" Spacing="6">
-                    <TextBlock Text="Имя пользователя домена" Classes="fieldLabel" />
-                    <TextBox x:Name="RuntimeDomainUserNameTextBox" />
-                  </StackPanel>
-                  <StackPanel Grid.Row="2" Grid.Column="1" Spacing="6">
-                    <TextBlock Text="Пароль домена" Classes="fieldLabel" />
-                    <TextBox x:Name="RuntimeDomainPasswordTextBox" PasswordChar="•" />
-                  </StackPanel>
                 </Grid>
-                <TextBlock Text="Пароль и адрес прокси хранятся в памяти только на время проверки или применения. Они никогда не сохраняются в профиле, состоянии resume или журнале." Classes="noteText" />
+                <Border x:Name="RuntimeDomainPanel" Classes="calloutInfo" IsVisible="False">
+                  <StackPanel Spacing="4">
+                    <TextBlock x:Name="RuntimeDomainSummaryText" TextWrapping="Wrap" Foreground="{StaticResource TextPrimaryBrush}" />
+                    <TextBlock Text="Пароль домена будет запрошен только перед применением и никогда не сохранится." Classes="helperText" />
+                  </StackPanel>
+                </Border>
+                <TextBlock Text="Адрес прокси и пароль домена хранятся в памяти только на время проверки или применения. Они никогда не сохраняются в профиле, состоянии resume или журнале." Classes="noteText" />
 
                 <StackPanel x:Name="ManualInstructionsPanel" IsVisible="False" Spacing="8">
                   <StackPanel Orientation="Horizontal" Spacing="8">
@@ -1037,12 +1010,11 @@
               </StackPanel>
             </Border>
             <Border Grid.Row="4" x:Name="ProfileSectionBottomBar" IsVisible="False" Classes="bottomBar">
-              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="14">
+              <Grid ColumnDefinitions="*">
                 <StackPanel Spacing="3" VerticalAlignment="Center">
                   <TextBlock Text="Изменения в полях сначала сохраняются только в профиле." Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" />
-                  <TextBlock Text="Кнопки «Применить … на этом ПК» внутри раздела меняют только соответствующую группу настроек." Classes="helperText" />
+                  <TextBlock Text="Сохранение и отмена доступны в закреплённой панели внизу окна." Classes="helperText" />
                 </StackPanel>
-                <Button Grid.Column="1" Content="Сохранить раздел в профиль" Click="SaveProfile_Click" IsEnabled="{Binding CanSaveProfile}" Classes="primary primaryLarge" VerticalAlignment="Center" />
               </Grid>
             </Border>
             <Border Grid.Row="4" x:Name="PrepareBottomBar" IsVisible="False" Classes="bottomBar">
@@ -1181,13 +1153,13 @@
         </Border>
       </Grid>
 
-      <Border x:Name="MaintenanceWorkspace" Grid.Row="1" Classes="panelCard" Padding="18" IsVisible="False">
+        <Border x:Name="MaintenanceWorkspace" Grid.Row="1" Classes="panelCard" Padding="18" IsVisible="False">
         <ScrollViewer HorizontalScrollBarVisibility="Disabled">
           <StackPanel Spacing="16" MaxWidth="920" HorizontalAlignment="Center">
             <Grid ColumnDefinitions="*,Auto">
               <StackPanel Spacing="5">
                 <TextBlock Text="Обслуживание этого компьютера" Classes="pageTitle" />
-                <TextBlock Text="Самостоятельные операции для уже настроенной Windows. Они не входят в профиль новой установки и запускаются только вручную." Classes="helperText" TextWrapping="Wrap" />
+                <TextBlock Text="Самостоятельные операции для уже настроенной Windows. Они запускаются только вручную; папка с ярлыками может храниться в выбранном профиле." Classes="helperText" TextWrapping="Wrap" />
               </StackPanel>
               <Button Grid.Column="1" Content="Как выполнить?" Click="OpenMaintenanceDocumentation_Click" Classes="ghost" VerticalAlignment="Center" />
             </Grid>
@@ -1223,6 +1195,14 @@
                   </StackPanel>
                   <Button Grid.Column="1" Content="Выбрать папку…" Click="ChooseShortcutSource_Click" Classes="ghost" VerticalAlignment="Bottom" />
                 </Grid>
+
+                <Border x:Name="LegacyShortcutSourcePanel" Classes="calloutInfo" IsVisible="False">
+                  <StackPanel Spacing="7">
+                    <TextBlock Text="Найдена папка ярлыков из предыдущей версии" Classes="fieldLabel" />
+                    <TextBlock x:Name="LegacyShortcutSourceText" Classes="noteText" TextWrapping="Wrap" />
+                    <Button Content="Использовать для этого профиля" Click="UseLegacyShortcutSource_Click" Classes="ghost" HorizontalAlignment="Left" />
+                  </StackPanel>
+                </Border>
 
                 <Grid ColumnDefinitions="*,*" ColumnSpacing="14">
                   <StackPanel Spacing="6">
@@ -1306,9 +1286,20 @@
             </Border>
           </StackPanel>
         </ScrollViewer>
-      </Border>
+        </Border>
 
-      <StackPanel Grid.Row="2" Spacing="8" Margin="0,0,0,10">
+        <Border Grid.Row="1" x:Name="UnsavedChangesBar" IsVisible="{Binding HasUnsavedChanges}"
+                HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,22"
+                Background="{StaticResource SurfaceRaisedBrush}" BorderBrush="{StaticResource BorderBrush1}" BorderThickness="1" CornerRadius="10" Padding="10,8"
+                BoxShadow="0 8 24 0 #80000000">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <TextBlock Text="Есть несохранённые изменения" Classes="helperText" VerticalAlignment="Center" Margin="4,0,8,0" />
+            <Button Content="Отменить изменения" Click="ResetProfile_Click" Classes="ghost" />
+            <Button Content="Сохранить профиль" Click="SaveProfile_Click" Classes="primary" />
+          </StackPanel>
+        </Border>
+
+        <StackPanel Grid.Row="2" Spacing="8" Margin="0,0,0,10">
         <Border IsVisible="{Binding HasStatusMessage}" Background="{StaticResource SurfaceSunkenBrush}" CornerRadius="6" Padding="12,8" Margin="0,8,0,0" MinHeight="92" MaxHeight="180">
           <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <TextBlock x:Name="StatusText" FontSize="11" TextWrapping="Wrap" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,8,0" />

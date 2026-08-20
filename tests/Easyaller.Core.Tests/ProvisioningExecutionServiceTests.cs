@@ -49,6 +49,42 @@ public sealed class ProvisioningExecutionServiceTests
     }
 
     [Fact]
+    public void Execute_SelectedTimeZone_DoesNotValidateOrChangeOtherProfileSettings()
+    {
+        var adapter = new FakeSystemAdapter();
+        var service = CreateService(adapter, out var stateStore, out var launcher);
+        using var inputs = new RuntimeProvisioningInputs
+        {
+            ApplyTimeZone = true,
+            SelectedOperations = ProvisioningOperationSelection.TimeZone,
+        };
+
+        var result = service.Execute(CreatePlan(), inputs, ProvisioningExecutionService.ConfirmationPhrase);
+
+        Assert.Equal(ProvisioningExecutionStatus.Completed, result.Status);
+        Assert.Equal([nameof(FakeSystemAdapter.SetTimeZone)], adapter.Calls);
+        Assert.Null(stateStore.Pending);
+        Assert.Equal(0, launcher.RegisterCount);
+    }
+
+    [Fact]
+    public void Execute_WithoutSelectedOperations_IsBlockedBeforeCallingWindowsAdapter()
+    {
+        var adapter = new FakeSystemAdapter();
+        var service = CreateService(adapter, out _, out _);
+        using var inputs = new RuntimeProvisioningInputs
+        {
+            SelectedOperations = ProvisioningOperationSelection.None,
+        };
+
+        var result = service.Execute(CreatePlan(), inputs, ProvisioningExecutionService.ConfirmationPhrase);
+
+        Assert.Equal(ProvisioningExecutionStatus.Blocked, result.Status);
+        Assert.Contains(result.Errors, error => error.Code == "runtime.operations.required");
+        Assert.Empty(adapter.Calls);
+    }
+
+    [Fact]
     public void Execute_DomainCredentialStaysRuntimeOnlyAndSchedulesResume()
     {
         var adapter = new FakeSystemAdapter();

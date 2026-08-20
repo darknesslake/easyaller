@@ -5,6 +5,16 @@ namespace Easyaller.Core.Tests;
 public sealed class FileProfileRepositoryTests
 {
     [Fact]
+    public void GetDefaultRootDirectory_UsesProfilesFolderBesideApplication()
+    {
+        var root = FileProfileRepository.GetDefaultRootDirectory();
+
+        Assert.Equal(
+            Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "Profiles")),
+            Path.GetFullPath(root));
+    }
+
+    [Fact]
     public void CreateReadAndList_PersistsAProfileInTheConfiguredDirectory()
     {
         using var directory = new TemporaryDirectory();

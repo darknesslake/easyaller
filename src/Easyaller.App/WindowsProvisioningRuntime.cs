@@ -88,7 +88,7 @@ public sealed class FileProvisioningExecutionStateStore : IProvisioningExecution
         pending.ExecutionId != Guid.Empty &&
         pending.ProfileId != Guid.Empty &&
         pending.ProfileRevision > 0 &&
-        !string.IsNullOrWhiteSpace(pending.ExpectedComputerName) &&
+        (!pending.VerifyComputerNameAfterRestart || !string.IsNullOrWhiteSpace(pending.ExpectedComputerName)) &&
         pending.CreatedUtc != default;
 }
 

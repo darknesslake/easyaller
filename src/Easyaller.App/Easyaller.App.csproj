@@ -6,6 +6,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\easyaller-icon.ico</ApplicationIcon>
+    <AssemblyName>Easyaller</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>
@@ -28,6 +30,10 @@
   <ItemGroup>
     <EmbeddedResource Include="..\..\docs\GETTING_STARTED_RU.md"
                       LogicalName="Easyaller.Docs.GettingStarted.ru.md" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\easyaller-icon.ico" />
   </ItemGroup>
 
 </Project>

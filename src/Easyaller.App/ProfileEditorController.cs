@@ -110,6 +110,10 @@ public sealed class ProfileEditorController(IProfileRepository repository)
                 : settings.ApplicationSourcePath.Trim(),
             Deployment = new DeploymentSettings(settings.LaunchMode),
             Cleanup = new CleanupSettings(settings.CleanupMode),
+            Maintenance = new MaintenanceProfileSettings(
+                string.IsNullOrWhiteSpace(settings.ShortcutSourceDirectory)
+                    ? null
+                    : settings.ShortcutSourceDirectory.Trim()),
             Applications = applications.ToArray(),
             Instructions = instructions.ToArray(),
         };
@@ -179,4 +183,5 @@ public sealed record ProfileSettingsEdit(
     string? ProxyAddress = null,
     string? DomainName = null,
     string? DomainUserName = null,
-    string? ApplicationSourcePath = null);
+    string? ApplicationSourcePath = null,
+    string? ShortcutSourceDirectory = null);

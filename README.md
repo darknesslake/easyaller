@@ -48,7 +48,7 @@ Every live-PC action is confirmed, reports its result, and skips values that alr
 - Save atomically with revision-conflict detection, recoverable backups, and corrupted-file isolation.
 - Embed one selected profile into a self-contained release executable for offline workstation preparation.
 
-Local profiles are stored under `%LOCALAPPDATA%\Easyaller\Profiles`. Older machine-wide profiles are migrated from `%ProgramData%\Easyaller\Profiles` when possible.
+Profiles are always stored in the `Profiles` folder beside `Easyaller.exe`. Importing and saving use this same folder, which keeps an offline technician kit self-contained. On first launch, profiles from older `%LOCALAPPDATA%\Easyaller\Profiles` and `%ProgramData%\Easyaller\Profiles` locations are copied there when possible; originals are kept untouched.
 
 ### Prepare Windows
 
@@ -143,7 +143,7 @@ To embed a local profile, pass `-p:EmbeddedProfilePath=C:\path\profile.wpprofile
 
 ### Create a data-only ISO
 
-Place the self-contained `Easyaller.App.exe` in an otherwise empty media directory, then run:
+Place the self-contained `Easyaller.exe` in an otherwise empty media directory, then run:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/New-EasyallerWindowsIso.ps1 `

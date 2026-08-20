@@ -32,7 +32,8 @@ public sealed record PendingProvisioningExecution(
     Guid ExecutionId,
     Guid ProfileId,
     int ProfileRevision,
-    string ExpectedComputerName,
+    string? ExpectedComputerName,
+    bool VerifyComputerNameAfterRestart,
     bool DomainJoinRequested,
     DateTimeOffset CreatedUtc);
 
@@ -136,9 +137,11 @@ public sealed class ProvisioningExecutionService(
         var warnings = new List<ProvisioningExecutionMessage>();
         var requiresRestart = false;
 
+        var selected = inputs.SelectedOperations;
+
         // The time zone runs first: it is the least disruptive step and needs no restart,
         // so a later failure never leaves it half-applied.
-        if (inputs.ApplyTimeZone)
+        if (selected.HasFlag(ProvisioningOperationSelection.TimeZone) && inputs.ApplyTimeZone)
         {
             if (string.IsNullOrWhiteSpace(plan.TimeZone))
             {
@@ -158,7 +161,7 @@ public sealed class ProvisioningExecutionService(
             requiresRestart |= timeZoneResult.RequiresRestart;
         }
 
-        if (HasPrompt(plan, RuntimePromptKind.NetworkConfiguration))
+        if (selected.HasFlag(ProvisioningOperationSelection.Network) && HasPrompt(plan, RuntimePromptKind.NetworkConfiguration))
         {
             var networkResult = _systemAdapter.VerifyNetworkAdapter(inputs.NetworkAdapterId!);
             if (!networkResult.IsSuccess)
@@ -169,7 +172,7 @@ public sealed class ProvisioningExecutionService(
             operations.Add(new ProvisioningExecutionOperation(ProvisioningExecutionOperationKind.VerifyNetworkAdapter, false, false));
         }
 
-        if (plan.StaticIpv4 is not null)
+        if (selected.HasFlag(ProvisioningOperationSelection.Network) && plan.StaticIpv4 is not null)
         {
             var networkResult = _systemAdapter.ConfigureStaticIpv4(inputs.NetworkAdapterId!, plan.StaticIpv4);
             if (!networkResult.IsSuccess)
@@ -184,7 +187,7 @@ public sealed class ProvisioningExecutionService(
             requiresRestart |= networkResult.RequiresRestart;
         }
 
-        if (HasPrompt(plan, RuntimePromptKind.ProxyConfiguration))
+        if (selected.HasFlag(ProvisioningOperationSelection.Proxy) && HasPrompt(plan, RuntimePromptKind.ProxyConfiguration))
         {
             var proxyResult = _systemAdapter.SetWinHttpProxy(inputs.ProxyAddress!, plan.ProxyBypassList ?? []);
             if (!proxyResult.IsSuccess)
@@ -199,16 +202,17 @@ public sealed class ProvisioningExecutionService(
             requiresRestart |= proxyResult.RequiresRestart;
         }
 
+        var computerNameSelected = selected.HasFlag(ProvisioningOperationSelection.ComputerName);
         // Renaming always costs a restart, so a machine that already carries the expected name
         // is left alone and the operation is reported as verified rather than applied.
-        if (_systemAdapter.VerifyComputerName(inputs.ComputerName!).IsSuccess)
+        if (computerNameSelected && _systemAdapter.VerifyComputerName(inputs.ComputerName!).IsSuccess)
         {
             operations.Add(new ProvisioningExecutionOperation(
                 ProvisioningExecutionOperationKind.RenameComputer,
                 false,
                 false));
         }
-        else
+        else if (computerNameSelected)
         {
             var renameResult = _systemAdapter.RenameComputer(inputs.ComputerName!);
             if (!renameResult.IsSuccess)
@@ -223,7 +227,8 @@ public sealed class ProvisioningExecutionService(
             requiresRestart |= renameResult.RequiresRestart;
         }
 
-        var domainJoinRequested = !string.IsNullOrWhiteSpace(inputs.DomainName);
+        var domainJoinRequested = selected.HasFlag(ProvisioningOperationSelection.Domain)
+            && !string.IsNullOrWhiteSpace(inputs.DomainName);
         if (domainJoinRequested)
         {
             var domainResult = _systemAdapter.JoinDomain(inputs.DomainName!, inputs.DomainCredential!);
@@ -244,7 +249,7 @@ public sealed class ProvisioningExecutionService(
             return new ProvisioningExecutionResult(ProvisioningExecutionStatus.Completed, null, operations, [], warnings);
         }
 
-        var pending = CreatePending(plan, inputs, domainJoinRequested);
+        var pending = CreatePending(plan, inputs, computerNameSelected, domainJoinRequested);
         _stateStore.SavePending(pending);
 
         var resumeResult = _resumeLauncher.RegisterResume();
@@ -300,13 +305,18 @@ public sealed class ProvisioningExecutionService(
         }
 
         var operations = new List<ProvisioningExecutionOperation>();
-        var nameResult = _systemAdapter.VerifyComputerName(pending.ExpectedComputerName);
-        if (!nameResult.IsSuccess)
+        // Older resume records did not contain the boolean flag. Their non-empty name is
+        // sufficient to preserve the original verification behavior after an upgrade.
+        if (pending.VerifyComputerNameAfterRestart || !string.IsNullOrWhiteSpace(pending.ExpectedComputerName))
         {
-            return Failed(operations, nameResult, "execution.resume.computerName.unverified", pending.ExecutionId);
-        }
+            var nameResult = _systemAdapter.VerifyComputerName(pending.ExpectedComputerName!);
+            if (!nameResult.IsSuccess)
+            {
+                return Failed(operations, nameResult, "execution.resume.computerName.unverified", pending.ExecutionId);
+            }
 
-        operations.Add(new ProvisioningExecutionOperation(ProvisioningExecutionOperationKind.RenameComputer, false, false));
+            operations.Add(new ProvisioningExecutionOperation(ProvisioningExecutionOperationKind.RenameComputer, false, false));
+        }
         if (pending.DomainJoinRequested)
         {
             var domainResult = _systemAdapter.VerifyDomainJoin();
@@ -352,7 +362,7 @@ public sealed class ProvisioningExecutionService(
         ProvisioningSystemOperationResult result,
         string fallbackCode)
     {
-        var pending = CreatePending(plan, inputs, domainJoinRequested: false);
+        var pending = CreatePending(plan, inputs, computerNameSelected: true, domainJoinRequested: false);
         _stateStore.SavePending(pending);
         var resumeResult = _resumeLauncher.RegisterResume();
         var warnings = new List<ProvisioningExecutionMessage>
@@ -379,12 +389,14 @@ public sealed class ProvisioningExecutionService(
     private static PendingProvisioningExecution CreatePending(
         ProvisioningPlan plan,
         RuntimeProvisioningInputs inputs,
+        bool computerNameSelected,
         bool domainJoinRequested) =>
         new(
             Guid.NewGuid(),
             plan.ProfileId,
             plan.ProfileRevision,
-            inputs.ComputerName!,
+            computerNameSelected ? inputs.ComputerName : null,
+            computerNameSelected,
             domainJoinRequested,
             DateTimeOffset.UtcNow);
 }
